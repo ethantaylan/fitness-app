@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: light --default;
+  themes: false;
 }
 
 :root {
-  font-family: Inter, "Segoe UI", sans-serif;
-  color-scheme: dark;
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -21,4 +21,6 @@ body,
 
 body {
   margin: 0;
+  background-color: #ffffff;
+  color: #0d0d0d;
 }
