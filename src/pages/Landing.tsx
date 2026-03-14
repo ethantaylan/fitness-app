@@ -70,7 +70,7 @@ export default function Landing() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center pt-32 pb-16 px-4 sm:px-6 overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center pt-24 sm:pt-32 pb-12 sm:pb-16 px-4 sm:px-6 overflow-hidden">
         {/* Dot pattern background */}
         <div className="hero-dots absolute inset-0 opacity-40 pointer-events-none" />
         {/* Fade bottom */}
@@ -79,37 +79,37 @@ export default function Landing() {
         {/* Centre content */}
         <div className="relative max-w-4xl mx-auto text-center">
           {/* H1 */}
-          <h1 className="text-6xl sm:text-7xl xl:text-8xl font-black leading-[0.95] tracking-tight mb-8">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-black leading-tight sm:leading-[0.95] tracking-tight mb-5 sm:mb-8">
             Ta meilleure version
             <br />
             commence ici.
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg text-gray-500 max-w-xl mx-auto mb-8">
+          <p className="text-base sm:text-lg text-gray-500 max-w-xl mx-auto mb-6 sm:mb-8">
             Décris tes objectifs, reçois un programme structuré avec charges, progressions et
             récupération. Personnalisé, prêt à l’emploi.
           </p>
 
           {/* CTAs */}
-          <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-6 sm:mb-8">
             <button
               onClick={() => navigate("/onboarding")}
-              className="hero-cta-btn flex items-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
+              className="hero-cta-btn w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
             >
               Créer mon programme
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => navigate("/login")}
-              className="flex items-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
             >
               J’ai déjà un compte
             </button>
           </div>
 
           {/* Social proof */}
-          <div className="flex items-center justify-center gap-3 mb-14">
+          <div className="flex items-center justify-center gap-3 mb-10 sm:mb-14">
             <div className="flex -space-x-2">
               {[
                 { bg: "bg-violet-200", text: "text-violet-700", initials: "ML" },
@@ -131,7 +131,7 @@ export default function Landing() {
           </div>
 
           {/* Sport tags ticker */}
-          <div className="overflow-hidden mb-14">
+          <div className="overflow-hidden mb-10 sm:mb-14">
             <div className="hero-ticker-track">
               {TICKER_ITEMS.map(({ label, Icon, bg, color }, i) => (
                 <div
