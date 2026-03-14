@@ -11,6 +11,8 @@
     "prepare": "vp config"
   },
   "dependencies": {
+    "@clerk/react": "^6.1.0",
+    "@supabase/supabase-js": "^2.99.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
     "lucide-react": "^0.577.0",

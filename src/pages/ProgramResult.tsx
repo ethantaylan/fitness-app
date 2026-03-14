@@ -12,6 +12,7 @@ import {
   Apple,
   Droplets,
 } from "lucide-react";
+import { useAuth } from "@clerk/react";
 import { useApp } from "../lib/store";
 import { exportProgramToPDF } from "../lib/pdf";
 import { OBJECTIVE_LABELS } from "../lib/agents";
@@ -190,6 +191,7 @@ function WeekSection({ week }: { week: Week }) {
 
 export default function ProgramResult() {
   const { state } = useApp();
+  const { isSignedIn } = useAuth();
   const navigate = useNavigate();
   const [downloading, setDownloading] = useState(false);
   const program = state.program;
@@ -279,16 +281,16 @@ export default function ProgramResult() {
             )}
             {downloading ? "Génération PDF…" : "Télécharger PDF"}
           </button>
-          {!state.currentUser && (
+          {!isSignedIn && (
             <button
-              onClick={() => navigate("/register")}
+              onClick={() => navigate("/sign-up")}
               className="flex items-center justify-center gap-2 border border-gray-300 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors"
             >
               <UserPlus className="w-4 h-4" />
               Créer un compte pour le suivi
             </button>
           )}
-          {state.currentUser && (
+          {isSignedIn && (
             <button
               onClick={() => navigate("/dashboard")}
               className="flex items-center justify-center gap-2 border border-gray-300 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors"

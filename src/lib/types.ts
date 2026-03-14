@@ -11,7 +11,7 @@ export type ObjectiveType =
 
 export type LevelType = "débutant" | "intermédiaire" | "avancé";
 export type GenderType = "homme" | "femme" | "autre";
-export type AvailabilityType = "matin" | "soir" | "indifférent";
+export type AvailabilityType = "matin" | "midi" | "soir" | "indifférent";
 
 export interface UserProfile {
   objective: ObjectiveType;
@@ -21,13 +21,13 @@ export interface UserProfile {
   weight: number; // kg
   level: LevelType;
   equipment: string[];
-  sessionDuration: number; // minutes
+  sessionDuration: number[]; // minutes
   weeklyFrequency: number;
   likedExercises: string[];
   dislikedExercises: string[];
   injuries: string;
   nutritionRestrictions: string;
-  availability: AvailabilityType;
+  availability: AvailabilityType[];
   targetWeight?: number;
   targetDate?: string;
 }
@@ -103,12 +103,4 @@ export interface DailySession {
   cooldown: WarmupItem[];
   motivation_message: string;
   feedback?: "good" | "normal" | "hard";
-}
-
-export interface StoredUser {
-  id: string;
-  email: string;
-  passwordHash: string; // Simple hash for demo (no real backend)
-  profile?: UserProfile;
-  createdAt: string;
 }

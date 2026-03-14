@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { UserProfile, Program, DailySession } from "./types";
-import { getAgentSystemPrompt, OBJECTIVE_LABELS } from "./agents";
+import { getAgentSystemPrompt, OBJECTIVE_LABELS, SUPPORT_AGENT_PROMPT } from "./agents";
 
 function getClient(): OpenAI {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
@@ -18,13 +18,13 @@ PROFIL UTILISATEUR :
 - Niveau sportif : ${profile.level}
 - Objectif principal : ${OBJECTIVE_LABELS[profile.objective] ?? profile.objective}
 - Fréquence souhaitée : ${profile.weeklyFrequency} séances/semaine
-- Durée des séances : ${profile.sessionDuration} minutes
+- Durée des séances : ${profile.sessionDuration.join(" ou ")} minutes
 - Matériel disponible : ${profile.equipment.length ? profile.equipment.join(", ") : "aucun matériel spécifique"}
 - Exercices préférés : ${profile.likedExercises.length ? profile.likedExercises.join(", ") : "aucune préférence"}
 - Exercices à éviter : ${profile.dislikedExercises.length ? profile.dislikedExercises.join(", ") : "aucun"}
 - Blessures / limitations : ${profile.injuries || "aucune"}
 - Restrictions alimentaires : ${profile.nutritionRestrictions || "aucune"}
-- Disponibilité horaire : ${profile.availability}
+- Disponibilité horaire : ${profile.availability.join(", ")}
 ${profile.targetWeight ? `- Poids cible : ${profile.targetWeight} kg` : ""}
 ${profile.targetDate ? `- Date cible : ${profile.targetDate}` : ""}`.trim();
 }
@@ -175,4 +175,17 @@ Retourne UNIQUEMENT un JSON valide :
   const content = completion.choices[0].message.content;
   if (!content) throw new Error("Pas de réponse de l'IA");
   return JSON.parse(content) as DailySession;
+}
+
+type SupportMessage = { role: "user" | "assistant"; content: string };
+
+export async function chatWithSupport(messages: SupportMessage[]): Promise<string> {
+  const client = getClient();
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "system", content: SUPPORT_AGENT_PROMPT }, ...messages],
+    temperature: 0.7,
+    max_tokens: 300,
+  });
+  return completion.choices[0]?.message?.content ?? "Je n'ai pas pu générer une réponse.";
 }
