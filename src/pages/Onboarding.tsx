@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, CalendarDays, Check, X } from "lucide-react";
 import { useApp } from "../lib/store";
+import { useAuth } from "../lib/auth";
 import type {
   ObjectiveType,
   LevelType,
@@ -10,6 +11,7 @@ import type {
   UserProfile,
 } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
+import { EQUIPMENT_LABELS } from "../lib/constants";
 
 const TOTAL_STEPS = 12;
 
@@ -41,20 +43,6 @@ const OBJECTIVES: { id: ObjectiveType; emoji: string }[] = [
   { id: "running", emoji: "🏃" },
   { id: "yoga", emoji: "🧘" },
   { id: "remise-en-forme", emoji: "🌱" },
-];
-
-const EQUIPMENT_OPTIONS = [
-  "Haltères",
-  "Barre + disques",
-  "Kettlebell",
-  "Machine câbles",
-  "Banc de musculation",
-  "Rack / cage",
-  "TRX / Sangles",
-  "Corde à sauter",
-  "Vélo / Rameur",
-  "Tapis de course",
-  "Poids du corps uniquement",
 ];
 
 const COMMON_EXERCISES = [
@@ -231,6 +219,18 @@ function DatePicker({
     <div>
       {/* Preset pills */}
       <div className="flex flex-wrap gap-2 mb-3">
+        {/* No deadline option */}
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-all active:scale-95 ${
+            value === ""
+              ? "bg-black text-white border-black"
+              : "border-gray-200 hover:border-gray-400"
+          }`}
+        >
+          Sans échéance
+        </button>
         {DATE_PRESETS.map(({ label, months }) => {
           const preset = addMonthsToToday(months);
           return (
@@ -411,6 +411,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(defaultForm);
   const { dispatch } = useApp();
+  const { isSignedIn } = useAuth();
   const navigate = useNavigate();
 
   function update(data: Partial<FormState>) {
@@ -717,7 +718,7 @@ export default function Onboarding() {
               <p className="text-gray-500 text-sm mb-1">Sélectionne tout ce dont tu disposes.</p>
               <p className="text-xs text-gray-400 mb-6">Sélection multiple&nbsp;· facultatif</p>
               <div className="flex flex-wrap gap-2.5">
-                {EQUIPMENT_OPTIONS.map((eq) => (
+                {EQUIPMENT_LABELS.map((eq) => (
                   <ChipToggle
                     key={eq}
                     label={eq}
@@ -901,40 +902,63 @@ export default function Onboarding() {
                 Comment veux-tu récupérer ton programme&nbsp;?
               </p>
               <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    saveProfile();
-                    void navigate("/sign-up");
-                  }}
-                  className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
-                >
-                  <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                    🚀
-                  </div>
-                  <div>
-                    <div className="font-bold text-[15px]">Créer un compte (recommandé)</div>
-                    <div className="text-sm text-gray-300 mt-1 leading-relaxed">
-                      PDF + séances quotidiennes&nbsp;· suivi de progression&nbsp;· ajustements IA
+                {isSignedIn ? (
+                  <button
+                    onClick={() => {
+                      saveProfile();
+                      void navigate("/generating");
+                    }}
+                    className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
+                  >
+                    <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
+                      🚀
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    saveProfile();
-                    void navigate("/generating");
-                  }}
-                  className="w-full flex items-start gap-4 border-2 border-gray-200 rounded-2xl p-5 text-left hover:border-gray-400 transition-all active:scale-[0.98]"
-                >
-                  <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                    📄
-                  </div>
-                  <div>
-                    <div className="font-bold text-[15px]">PDF uniquement</div>
-                    <div className="text-sm text-gray-500 mt-1 leading-relaxed">
-                      Génération immédiate, téléchargement PDF. Aucun compte requis.
+                    <div>
+                      <div className="font-bold text-[15px]">Générer mon programme</div>
+                      <div className="text-sm text-gray-300 mt-1 leading-relaxed">
+                        Ton profil est sauvegardé&nbsp;· programme complet avec PDF
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        saveProfile();
+                        void navigate("/sign-up");
+                      }}
+                      className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
+                    >
+                      <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
+                        🚀
+                      </div>
+                      <div>
+                        <div className="font-bold text-[15px]">Créer un compte (recommandé)</div>
+                        <div className="text-sm text-gray-300 mt-1 leading-relaxed">
+                          PDF + séances quotidiennes&nbsp;· suivi de progression&nbsp;· ajustements
+                          IA
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        saveProfile();
+                        void navigate("/generating");
+                      }}
+                      className="w-full flex items-start gap-4 border-2 border-gray-200 rounded-2xl p-5 text-left hover:border-gray-400 transition-all active:scale-[0.98]"
+                    >
+                      <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center shrink-0 text-xl">
+                        📄
+                      </div>
+                      <div>
+                        <div className="font-bold text-[15px]">PDF uniquement</div>
+                        <div className="text-sm text-gray-500 mt-1 leading-relaxed">
+                          Génération immédiate, téléchargement PDF. Aucun compte requis.
+                        </div>
+                      </div>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

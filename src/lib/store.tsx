@@ -1,19 +1,53 @@
-import { createContext, useContext, useReducer, useEffect, useMemo, type ReactNode } from "react";
-import type { UserProfile, Program, DailySession } from "./types";
+import {
+  createContext,
+  useContext,
+  useReducer,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from "react";
+import type { UserProfile, Program, DailySession, Exercise } from "./types";
+import { supabase } from "./supabase";
+import {
+  upsertUser,
+  getProfile,
+  saveProfile,
+  getActiveProgram,
+  saveProgram as dbSaveProgram,
+  getDailySessions,
+  saveDailySession as dbSaveSession,
+  updateSessionFeedback as dbUpdateFeedback,
+  deleteDailySession as dbDeleteSession,
+  getOnboardingProgress,
+  saveOnboardingStep,
+} from "./db";
 
 interface AppState {
   profile: Partial<UserProfile> | null;
   program: Program | null;
   sessions: DailySession[];
   onboardingStep: number;
+  /** true une fois l'hydratation Supabase terminée (ou si pas de client) */
+  _hydrated: boolean;
 }
 
 type Action =
   | { type: "SET_PROFILE_PARTIAL"; data: Partial<UserProfile> }
   | { type: "SET_PROGRAM"; program: Program }
   | { type: "ADD_SESSION"; session: DailySession }
-  | { type: "UPDATE_SESSION_FEEDBACK"; date: string; feedback: "good" | "normal" | "hard" }
+  | { type: "DELETE_SESSION"; uid: string }
+  | { type: "UPDATE_SESSION_FEEDBACK"; uid: string; feedback: "good" | "normal" | "hard" }
+  | {
+      type: "REPLACE_EXERCISE";
+      sessionUid: string;
+      blockName: string;
+      exerciseName: string;
+      newExercise: Exercise;
+    }
   | { type: "SET_ONBOARDING_STEP"; step: number }
+  | { type: "HYDRATE"; state: Partial<AppState> }
   | { type: "RESET" };
 
 const initialState: AppState = {
@@ -21,6 +55,7 @@ const initialState: AppState = {
   program: null,
   sessions: [],
   onboardingStep: 0,
+  _hydrated: false,
 };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -30,21 +65,43 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_PROGRAM":
       return { ...state, program: action.program };
     case "ADD_SESSION":
-      return {
-        ...state,
-        sessions: [action.session, ...state.sessions.filter((s) => s.date !== action.session.date)],
-      };
+      return { ...state, sessions: [action.session, ...state.sessions] };
+    case "DELETE_SESSION":
+      return { ...state, sessions: state.sessions.filter((s) => s.uid !== action.uid) };
     case "UPDATE_SESSION_FEEDBACK":
       return {
         ...state,
         sessions: state.sessions.map((s) =>
-          s.date === action.date ? { ...s, feedback: action.feedback } : s,
+          s.uid === action.uid ? { ...s, feedback: action.feedback } : s,
+        ),
+      };
+    case "REPLACE_EXERCISE":
+      return {
+        ...state,
+        sessions: state.sessions.map((s) =>
+          s.uid === action.sessionUid
+            ? {
+                ...s,
+                blocks: s.blocks.map((b) =>
+                  b.block_name === action.blockName
+                    ? {
+                        ...b,
+                        exercises: b.exercises.map((ex) =>
+                          ex.name === action.exerciseName ? action.newExercise : ex,
+                        ),
+                      }
+                    : b,
+                ),
+              }
+            : s,
         ),
       };
     case "SET_ONBOARDING_STEP":
       return { ...state, onboardingStep: action.step };
+    case "HYDRATE":
+      return { ...state, ...action.state, _hydrated: true };
     case "RESET":
-      return { ...initialState };
+      return { ...initialState, _hydrated: true };
     default:
       return state;
   }
@@ -55,35 +112,145 @@ const AppContext = createContext<{
   dispatch: React.Dispatch<Action>;
 } | null>(null);
 
-/** State is keyed by Clerk userId (or "anon" for unauthenticated sessions). */
 function storageKey(userId?: string | null) {
-  return `sportai_state_${userId ?? "anon"}`;
+  return `Vincere_state_${userId ?? "anon"}`;
+}
+
+/** Renvoie true si le profil contient les champs minimaux pour être sauvegardé. */
+function isProfileSaveable(p: Partial<UserProfile> | null): p is UserProfile {
+  return !!(p?.objective && p?.gender && p?.level && p?.age);
 }
 
 export function AppProvider({
   children,
   userId,
+  userEmail,
+  userFirstName,
 }: Readonly<{
   children: ReactNode;
   userId?: string | null;
+  userEmail?: string;
+  userFirstName?: string | null;
 }>) {
   const key = storageKey(userId);
 
-  const [state, dispatch] = useReducer(reducer, undefined, () => {
+  /** ID interne Supabase (UUID), différent du Clerk userId */
+  const internalIdRef = useRef<string | null>(null);
+
+  /** Référence toujours à jour sur le state courant (pour les callbacks) */
+  const stateRef = useRef<AppState>(initialState);
+
+  const [state, rawDispatch] = useReducer(reducer, undefined, () => {
     try {
       const saved = localStorage.getItem(key);
-      return saved ? (JSON.parse(saved) as AppState) : initialState;
+      if (saved) {
+        const parsed = JSON.parse(saved) as AppState;
+        return { ...parsed, _hydrated: false };
+      }
     } catch {
-      return initialState;
+      /* ignore */
     }
+    return { ...initialState };
   });
 
-  // Persist state changes
+  stateRef.current = state;
+
+  // ── Persistance localStorage ────────────────────────────────────────────────
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(state));
+    const { _hydrated: _h, ...toSave } = state;
+    localStorage.setItem(key, JSON.stringify(toSave));
   }, [state, key]);
 
-  const contextValue = useMemo(() => ({ state, dispatch }), [state]);
+  // ── Dispatch wrappé : sync Supabase automatique ─────────────────────────────
+  const dispatch = useCallback((action: Action) => {
+    rawDispatch(action);
+
+    if (!internalIdRef.current) return;
+    const iuid = internalIdRef.current;
+
+    switch (action.type) {
+      case "SET_PROGRAM":
+        dbSaveProgram(supabase, iuid, action.program).catch(console.warn);
+        break;
+
+      case "ADD_SESSION":
+        dbSaveSession(supabase, iuid, action.session).catch(console.warn);
+        break;
+
+      case "DELETE_SESSION":
+        dbDeleteSession(supabase, iuid, action.uid).catch(console.warn);
+        break;
+
+      case "UPDATE_SESSION_FEEDBACK":
+        dbUpdateFeedback(supabase, iuid, action.uid, action.feedback).catch(console.warn);
+        break;
+
+      case "SET_ONBOARDING_STEP":
+        saveOnboardingStep(supabase, iuid, action.step).catch(console.warn);
+        break;
+
+      case "SET_PROFILE_PARTIAL": {
+        const merged = { ...stateRef.current.profile, ...action.data };
+        if (isProfileSaveable(merged)) {
+          saveProfile(supabase, iuid, merged).catch(console.warn);
+        }
+        break;
+      }
+    }
+  }, []);
+
+  // ── Hydratation Supabase au montage ─────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) {
+      rawDispatch({ type: "HYDRATE", state: {} });
+      return;
+    }
+
+    void (async () => {
+      try {
+        const user = await upsertUser(supabase, {
+          userId: userId,
+          email: userEmail ?? "",
+          firstName: userFirstName ?? undefined,
+        });
+        internalIdRef.current = user.id;
+
+        const current = stateRef.current;
+        const [profile, program, remoteSessions, onboarding] = await Promise.all([
+          getProfile(supabase, user.id).catch(() => null),
+          getActiveProgram(supabase, user.id).catch(() => null),
+          getDailySessions(supabase, user.id, 30).catch(() => [] as DailySession[]),
+          getOnboardingProgress(supabase, user.id).catch(() => null),
+        ]);
+
+        rawDispatch({
+          type: "HYDRATE",
+          state: {
+            profile: profile ?? current.profile,
+            program: program ?? current.program,
+            sessions: remoteSessions.length > 0 ? remoteSessions : current.sessions,
+            onboardingStep:
+              onboarding == null ? current.onboardingStep : (onboarding as { step: number }).step,
+          },
+        });
+
+        // Upload des données locales si Supabase était vide (premier accès cross-device)
+        if (!profile && isProfileSaveable(current.profile)) {
+          saveProfile(supabase, user.id, current.profile).catch(console.warn);
+        }
+        if (!program && current.program) {
+          dbSaveProgram(supabase, user.id, current.program).catch(console.warn);
+        }
+      } catch (err) {
+        console.warn("[store] Hydratation Supabase échouée, données locales conservées", err);
+        rawDispatch({ type: "HYDRATE", state: {} });
+      }
+    })();
+    // Intentionnellement déclenché uniquement au changement d'utilisateur
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const contextValue = useMemo(() => ({ state, dispatch }), [state, dispatch]);
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }
 

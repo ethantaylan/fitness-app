@@ -12,7 +12,7 @@ import {
   Apple,
   Droplets,
 } from "lucide-react";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
 import { exportProgramToPDF } from "../lib/pdf";
 import { OBJECTIVE_LABELS } from "../lib/agents";
@@ -21,7 +21,7 @@ import Navbar from "../components/Navbar";
 
 function ExerciseRow({
   ex,
-}: {
+}: Readonly<{
   ex: {
     name: string;
     sets: number;
@@ -31,7 +31,15 @@ function ExerciseRow({
     alternative?: string;
     notes?: string;
   };
-}) {
+}>) {
+  let loadDisplay: string;
+  if (!ex.load_kg) {
+    loadDisplay = "—";
+  } else if (/^\d/.test(ex.load_kg)) {
+    loadDisplay = `${ex.load_kg} kg`;
+  } else {
+    loadDisplay = ex.load_kg;
+  }
   return (
     <tr className="border-b border-gray-100 last:border-0">
       <td className="py-3 pr-4">
@@ -43,7 +51,7 @@ function ExerciseRow({
       </td>
       <td className="py-3 text-sm text-center font-mono">{ex.sets}</td>
       <td className="py-3 text-sm text-center font-mono">{ex.reps}</td>
-      <td className="py-3 text-sm text-center font-semibold">{ex.load_kg ?? "—"}</td>
+      <td className="py-3 text-sm text-center font-semibold">{loadDisplay}</td>
       <td className="py-3 text-sm text-center text-gray-500">
         {ex.rest_sec ? `${ex.rest_sec}s` : "—"}
       </td>
@@ -51,14 +59,15 @@ function ExerciseRow({
   );
 }
 
-function SessionCard({ session, weekNum }: { session: Session; weekNum: number }) {
+function SessionCard({ session, weekNum }: Readonly<{ session: Session; weekNum: number }>) {
   const [expanded, setExpanded] = useState(weekNum === 1);
 
-  const intensityColor = session.intensity?.toLowerCase().includes("intense")
-    ? "text-red-500 bg-red-50"
-    : session.intensity?.toLowerCase().includes("modér")
-      ? "text-yellow-600 bg-yellow-50"
-      : "text-green-600 bg-green-50";
+  let intensityColor = "text-green-600 bg-green-50";
+  if (session.intensity?.toLowerCase().includes("intense")) {
+    intensityColor = "text-red-500 bg-red-50";
+  } else if (session.intensity?.toLowerCase().includes("modér")) {
+    intensityColor = "text-yellow-600 bg-yellow-50";
+  }
 
   return (
     <div className="border border-gray-200 rounded-2xl overflow-hidden">
@@ -100,8 +109,8 @@ function SessionCard({ session, weekNum }: { session: Session; weekNum: number }
                 Échauffement
               </div>
               <div className="flex flex-wrap gap-2">
-                {session.warmup.map((w, i) => (
-                  <span key={i} className="text-xs bg-gray-100 rounded-full px-2.5 py-1">
+                {session.warmup.map((w) => (
+                  <span key={w.name} className="text-xs bg-gray-100 rounded-full px-2.5 py-1">
                     {w.name} {w.duration_sec ? `· ${w.duration_sec}s` : ""}
                   </span>
                 ))}
@@ -110,25 +119,26 @@ function SessionCard({ session, weekNum }: { session: Session; weekNum: number }
           )}
 
           {/* Blocks */}
-          {session.blocks?.map((block, bi) => (
-            <div key={bi} className="mb-4">
+          {session.blocks?.map((block) => (
+            <div key={block.block_name} className="mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
                 {block.block_name}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px]">
+                <table className="w-full min-w-105">
                   <thead>
                     <tr className="text-xs text-gray-400 border-b border-gray-100">
                       <th className="text-left py-2 pr-4 font-semibold">Exercice</th>
                       <th className="text-center py-2 font-semibold">Séries</th>
                       <th className="text-center py-2 font-semibold">Reps</th>
                       <th className="text-center py-2 font-semibold">Charge</th>
+                      {/* kg est affiché inline sur la valeur, ce header reste court */}
                       <th className="text-center py-2 font-semibold">Repos</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {block.exercises?.map((ex, ei) => (
-                      <ExerciseRow key={ei} ex={ex} />
+                    {block.exercises?.map((ex) => (
+                      <ExerciseRow key={ex.name} ex={ex} />
                     ))}
                   </tbody>
                 </table>
@@ -143,8 +153,8 @@ function SessionCard({ session, weekNum }: { session: Session; weekNum: number }
                 Récupération
               </div>
               <div className="flex flex-wrap gap-2">
-                {session.cooldown.map((c, i) => (
-                  <span key={i} className="text-xs bg-gray-100 rounded-full px-2.5 py-1">
+                {session.cooldown.map((c) => (
+                  <span key={c.name} className="text-xs bg-gray-100 rounded-full px-2.5 py-1">
                     {c.name} {c.duration_sec ? `· ${c.duration_sec}s` : ""}
                   </span>
                 ))}
@@ -163,7 +173,7 @@ function SessionCard({ session, weekNum }: { session: Session; weekNum: number }
   );
 }
 
-function WeekSection({ week }: { week: Week }) {
+function WeekSection({ week }: Readonly<{ week: Week }>) {
   const [open, setOpen] = useState(week.week_number === 1);
 
   return (
@@ -180,8 +190,8 @@ function WeekSection({ week }: { week: Week }) {
       </button>
       {open && (
         <div className="space-y-3">
-          {week.sessions?.map((session, i) => (
-            <SessionCard key={i} session={session} weekNum={week.week_number} />
+          {week.sessions?.map((session) => (
+            <SessionCard key={session.day} session={session} weekNum={week.week_number} />
           ))}
         </div>
       )}
@@ -230,7 +240,7 @@ export default function ProgramResult() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 pt-20 pb-16 sm:px-6">
+      <div className="max-w-3xl mx-auto px-4 pt-20 pb-24 md:pb-16 sm:px-6">
         {/* Header */}
         <div className="mt-8 mb-8">
           <div className="flex items-center gap-2 mb-2">
@@ -239,7 +249,7 @@ export default function ProgramResult() {
               Programme généré avec succès
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black mb-2">Ton programme SportAI</h1>
+          <h1 className="text-3xl sm:text-4xl font-black mb-2">Ton programme Vincere</h1>
           <p className="text-gray-500">{program_overview.summary}</p>
         </div>
 

@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { X, Sparkles } from "lucide-react";
 import SupportChat from "./SupportChat";
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [pulse, setPulse] = useState(true);
+  const { pathname } = useLocation();
 
   useEffect(() => {
     function handleOpen() {
       setPulse(false);
       setOpen(true);
     }
-    globalThis.addEventListener("open-sportai-chat", handleOpen);
-    return () => globalThis.removeEventListener("open-sportai-chat", handleOpen);
+    globalThis.addEventListener("open-Vincere-chat", handleOpen);
+    return () => globalThis.removeEventListener("open-Vincere-chat", handleOpen);
   }, []);
 
   function toggle() {
@@ -20,10 +22,12 @@ export default function ChatWidget() {
     setOpen((v) => !v);
   }
 
+  if (pathname === "/onboarding") return null;
+
   return (
     <>
-      {/* ── Floating button ── */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* ── Floating button — masqué sur mobile (dans BottomNav) ── */}
+      <div className="hidden md:block fixed bottom-6 right-6 z-50">
         {/* Main FAB */}
         <button
           onClick={() => toggle()}
@@ -44,7 +48,7 @@ export default function ChatWidget() {
 
       {/* ── Chat panel ── */}
       <div
-        className={`fixed bottom-24 right-6 z-50 w-[min(420px,calc(100vw-3rem))] bg-[#0e0e0e] rounded-3xl shadow-2xl border border-white/8 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
+        className={`fixed md:bottom-24 bottom-22 right-6 z-50 w-[min(420px,calc(100vw-3rem))] bg-[#0e0e0e] rounded-3xl shadow-2xl border border-white/8 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
           open
             ? "opacity-100 scale-100 pointer-events-auto"
             : "opacity-0 scale-95 pointer-events-none"
@@ -61,7 +65,7 @@ export default function ChatWidget() {
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-[#0e0e0e]" />
             </div>
             <div>
-              <p className="text-white text-sm font-black leading-none">SportAI Assistant</p>
+              <p className="text-white text-sm font-black leading-none">Vincere Assistant</p>
               <p className="text-gray-500 text-[11px] mt-0.5">Toujours disponible</p>
             </div>
           </div>

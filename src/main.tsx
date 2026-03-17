@@ -1,16 +1,14 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ClerkProvider } from "@clerk/react";
+import { AuthProvider } from "./lib/auth";
 import "./index.css";
 import App from "./App.tsx";
 
+if ("serviceWorker" in navigator) {
+  void navigator.serviceWorker.register("/sw.js");
+}
+
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ClerkProvider
-      afterSignOutUrl="/"
-      publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string}
-    >
-      <App />
-    </ClerkProvider>
-  </StrictMode>,
+  <AuthProvider>
+    <App />
+  </AuthProvider>,
 );

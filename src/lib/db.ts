@@ -1,5 +1,5 @@
 /**
- * db.ts — Toutes les fonctions d'accès Supabase pour SportAI
+ * db.ts — Toutes les fonctions d'accès Supabase pour Vincere
  *
  * Chaque fonction accepte un `SupabaseClient` authentifié en premier argument
  * (obtenu via `useSupabaseClient()` ou `getSupabaseClient(token)`).
@@ -28,7 +28,6 @@ export type FeedbackValue = "good" | "normal" | "hard";
 
 export interface DbUser {
   id: string;
-  clerk_user_id: string;
   email: string;
   first_name: string | null;
   subscription: SubscriptionStatus;
@@ -147,45 +146,19 @@ function assertOk<T>(data: T | null, error: { message: string } | null, context:
 
 /**
  * Crée ou met à jour l'utilisateur dans la table `users`.
- * À appeler à chaque connexion Clerk.
- * Retourne l'utilisateur avec son UUID interne.
+ * L'id est le même UUID que auth.uid() (Supabase Auth).
  */
 export async function upsertUser(
   client: SupabaseClient,
-  data: { clerkUserId: string; email: string; firstName?: string | null },
+  data: { userId: string; email: string; firstName?: string | null },
 ): Promise<DbUser> {
-  const { data: row, error } = await client
-    .from("users")
-    .upsert(
-      {
-        clerk_user_id: data.clerkUserId,
-        email: data.email,
-        first_name: data.firstName ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "clerk_user_id" },
-    )
-    .select()
-    .single();
+  const { data: row, error } = await client.rpc("upsert_user", {
+    p_user_id: data.userId,
+    p_email: data.email,
+    p_first_name: data.firstName ?? null,
+  });
 
   return assertOk(row, error, "upsertUser") as DbUser;
-}
-
-/**
- * Récupère l'UUID interne (users.id) depuis le clerk_user_id.
- * Retourne null si l'utilisateur n'existe pas encore.
- */
-export async function getInternalUserId(
-  client: SupabaseClient,
-  clerkUserId: string,
-): Promise<string | null> {
-  const { data } = await client
-    .from("users")
-    .select("id")
-    .eq("clerk_user_id", clerkUserId)
-    .maybeSingle();
-
-  return (data as { id: string } | null)?.id ?? null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -451,25 +424,19 @@ export async function deleteAllPrograms(
 
 /**
  * Sauvegarde une séance quotidienne générée par l'IA.
- * Upsert sur (user_id, session_date) : une seule séance par jour.
- * Si une séance du même jour existe déjà, elle est remplacée.
+ * Chaque séance possède un UUID unique (session.uid) utilisé comme id DB.
+ * Plusieurs séances par jour sont autorisées.
  */
 export async function saveDailySession(
   client: SupabaseClient,
   internalUserId: string,
   session: DailySession,
 ): Promise<void> {
-  // Supprimer l'éventuelle séance existante du même jour
-  await client
-    .from("daily_sessions")
-    .delete()
-    .eq("user_id", internalUserId)
-    .eq("session_date_label", session.date);
-
-  // Insérer la nouvelle séance
+  // Insérer la séance en utilisant le uid local comme id DB
   const { data: sessRow, error: sessErr } = await client
     .from("daily_sessions")
     .insert({
+      id: session.uid,
       user_id: internalUserId,
       session_date: new Date().toISOString().split("T")[0],
       session_date_label: session.date,
@@ -546,6 +513,7 @@ export async function getDailySessions(
 
   return (data as Record<string, unknown>[]).map(
     (row): DailySession => ({
+      uid: row.id as string,
       date: row.session_date_label as string,
       intensity: row.intensity as string,
       goal: row.goal as string,
@@ -562,19 +530,19 @@ export async function getDailySessions(
 }
 
 /**
- * Met à jour le feedback d'une séance identifiée par son label de date.
+ * Met à jour le feedback d'une séance identifiée par son uid (= id DB UUID).
  */
 export async function updateSessionFeedback(
   client: SupabaseClient,
   internalUserId: string,
-  dateLabel: string,
+  sessionUid: string,
   feedback: "good" | "normal" | "hard",
 ): Promise<void> {
   const { error } = await client
     .from("daily_sessions")
     .update({ feedback })
     .eq("user_id", internalUserId)
-    .eq("session_date_label", dateLabel);
+    .eq("id", sessionUid);
 
   if (error) throw new Error(`[db/updateSessionFeedback] ${error.message}`);
 }
@@ -589,6 +557,23 @@ export async function deleteAllDailySessions(
   const { error } = await client.from("daily_sessions").delete().eq("user_id", internalUserId);
 
   if (error) throw new Error(`[db/deleteAllDailySessions] ${error.message}`);
+}
+
+/**
+ * Supprime une séance quotidienne par son uid.
+ */
+export async function deleteDailySession(
+  client: SupabaseClient,
+  internalUserId: string,
+  sessionUid: string,
+): Promise<void> {
+  const { error } = await client
+    .from("daily_sessions")
+    .delete()
+    .eq("user_id", internalUserId)
+    .eq("id", sessionUid);
+
+  if (error) throw new Error(`[db/deleteDailySession] ${error.message}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

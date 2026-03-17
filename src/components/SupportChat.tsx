@@ -13,7 +13,7 @@ function newMsg(role: Message["role"], content: string): Message {
 const INITIAL: Message[] = [
   newMsg(
     "assistant",
-    "Salut ! Je suis l'assistant SportAI 👋\nProgramme, sport, abonnement… pose-moi n'importe quelle question !",
+    "Salut ! Je suis l'assistant Vincere 👋\nProgramme, sport, abonnement… pose-moi n'importe quelle question !",
   ),
 ];
 

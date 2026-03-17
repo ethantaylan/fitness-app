@@ -94,6 +94,7 @@ export interface Program {
 }
 
 export interface DailySession {
+  uid: string;
   date: string;
   intensity: string;
   goal: string;

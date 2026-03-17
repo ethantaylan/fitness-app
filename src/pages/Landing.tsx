@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import logoUrl from "../assets/logo.png";
 import {
   Target,
   TrendingUp,
@@ -41,7 +42,7 @@ export default function Landing() {
   const FAQ = [
     {
       q: "Comment est généré mon programme ?",
-      a: "Tu décris tes objectifs, ton niveau et tes contraintes. Notre moteur génère un programme structuré avec séances, charges, tempo et périodes de récupération — prêt en moins de 30 secondes.",
+      a: "Tu décris tes objectifs, ton niveau et tes contraintes. Notre moteur génère un programme structuré avec séances, charges, tempo et périodes de récupération — prêt en moins de 2 minutes.",
     },
     {
       q: "Est-ce que le programme s'adapte à mon matériel ?",
@@ -53,7 +54,7 @@ export default function Landing() {
     },
     {
       q: "Quels sports sont supportés ?",
-      a: "SportAI couvre 9 disciplines : musculation, running, CrossFit, Hyrox, yoga, perte de poids, remise en forme, compétition et entretien physique général.",
+      a: "Vincere couvre 9 disciplines : musculation, running, CrossFit, Hyrox, yoga, perte de poids, remise en forme, compétition et entretien physique général.",
     },
     {
       q: "Le plan gratuit est-il vraiment illimité ?",
@@ -77,32 +78,42 @@ export default function Landing() {
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-linear-to-t from-white to-transparent pointer-events-none" />
 
         {/* Centre content */}
-        <div className="relative max-w-4xl mx-auto text-center">
+        <div className="relative w-full max-w-4xl mx-auto text-center">
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-6">
+            <img src={logoUrl} alt="Vincere" className="w-16 h-16 mb-2" />
+            <span className="text-xs font-black tracking-[0.3em] uppercase text-gray-400">
+              Vincere
+            </span>
+          </div>
           {/* H1 */}
-          <h1 className="text-6xl sm:text-7xl xl:text-8xl font-black leading-[0.95] tracking-tight mb-8">
+          <h1
+            className="font-black tracking-tight mb-8 wrap-break-word"
+            style={{ fontSize: "clamp(2rem, 8vw, 5rem)", lineHeight: 1.05 }}
+          >
             Ta meilleure version
             <br />
             commence ici.
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg text-gray-500 max-w-xl mx-auto mb-8">
+          <p className="text-base sm:text-lg text-gray-500 max-w-xl w-full mx-auto mb-8 px-1 sm:px-0">
             Décris tes objectifs, reçois un programme structuré avec charges, progressions et
             récupération. Personnalisé, prêt à l’emploi.
           </p>
 
           {/* CTAs */}
-          <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
             <button
               onClick={() => navigate("/onboarding")}
-              className="hero-cta-btn flex items-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
+              className="hero-cta-btn w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
             >
               Créer mon programme
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => navigate("/login")}
-              className="flex items-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
+              onClick={() => navigate("/sign-in")}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
             >
               J’ai déjà un compte
             </button>
@@ -161,7 +172,7 @@ export default function Landing() {
               Une plateforme taillée pour la performance.
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              SportAI réunit des spécialistes de chaque discipline pour t'offrir un programme de
+              Vincere réunit des spécialistes de chaque discipline pour t'offrir un programme de
               niveau coach, généré en quelques secondes.
             </p>
           </div>
@@ -172,7 +183,7 @@ export default function Landing() {
               { value: "9", label: "Disciplines sportives", sub: "Du yoga au Hyrox" },
               { value: "8", label: "Coachs spécialisés", sub: "Un expert par sport" },
               { value: "∞", label: "Programmes possibles", sub: "Jamais le même deux fois" },
-              { value: "30s", label: "Pour ton programme", sub: "Prêt à l'emploi" },
+              { value: "~2min", label: "Pour ton programme", sub: "Prêt à l'emploi" },
             ].map(({ value, label, sub }) => (
               <div key={label} className="bg-black px-6 py-8">
                 <div className="text-4xl font-black mb-1">{value}</div>
@@ -220,7 +231,7 @@ export default function Landing() {
           <div className="mb-16">
             <p className="text-sm text-gray-400 uppercase tracking-wide mb-3">Ce que tu reçois</p>
             <h2 className="text-3xl sm:text-4xl font-black max-w-lg leading-tight">
-              Concrètement, voici ce que SportAI génère pour toi.
+              Concrètement, voici ce que Vincere génère pour toi.
             </h2>
           </div>
 
@@ -291,7 +302,7 @@ export default function Landing() {
                 <Timer className="w-6 h-6 text-white" />
               </div>
               <div className="mt-8">
-                <p className="text-5xl font-black mb-2">30s</p>
+                <p className="text-5xl font-black mb-2">~2 min</p>
                 <p className="text-sm text-gray-400 leading-relaxed">
                   Temps moyen pour recevoir un programme complet, personnalisé.
                 </p>
@@ -320,7 +331,7 @@ export default function Landing() {
                 n: 2,
                 Icon: Zap,
                 title: "Génération instantanée",
-                desc: "Notre moteur analyse ton profil et génère un programme structuré avec séances, exercices, charges et périodes de récupération — en moins de 30 secondes.",
+                desc: "Notre moteur analyse ton profil et génère un programme structuré avec séances, exercices, charges et périodes de récupération — en moins de 2 minutes.",
               },
               {
                 n: 3,
@@ -508,7 +519,7 @@ export default function Landing() {
               </div>
             </div>
             <button
-              onClick={() => globalThis.dispatchEvent(new Event("open-sportai-chat"))}
+              onClick={() => globalThis.dispatchEvent(new Event("open-Vincere-chat"))}
               className="shrink-0 flex items-center gap-2 bg-black text-white text-sm font-bold px-5 py-3 rounded-full hover:bg-gray-800 active:scale-95 transition-all"
             >
               <Sparkles className="w-4 h-4" />
@@ -526,13 +537,16 @@ export default function Landing() {
             {/* Brand */}
             <div className="col-span-2 lg:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                  <Dumbbell className="w-4 h-4 text-black" />
-                </div>
-                <span className="font-black text-lg">SportAI</span>
+                <img
+                  src={logoUrl}
+                  alt="Vincere"
+                  className="w-8 h-8 rounded-lg"
+                  style={{ filter: "invert(1)" }}
+                />
+                <span className="font-black text-lg">Vincere</span>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed mb-6">
-                Génère ton programme d'entraînement sur mesure en moins de 30 secondes. Structuré,
+                Génère ton programme d'entraînement sur mesure en moins de 2 minutes. Structuré,
                 progressif, prêt à l'emploi.
               </p>
               <button
@@ -609,7 +623,7 @@ export default function Landing() {
               <div className="mt-8 space-y-2">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <Timer className="w-3.5 h-3.5 shrink-0" />
-                  Programme généré en 30 secondes
+                  Programme généré en ~2 minutes
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -626,7 +640,7 @@ export default function Landing() {
           {/* Bottom row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-xs text-gray-600">
             <p>
-              © {new Date().getFullYear()} SportAI. Les recommandations sont fournies à titre
+              © {new Date().getFullYear()} Vincere. Les recommandations sont fournies à titre
               informatif uniquement.
             </p>
           </div>

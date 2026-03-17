@@ -1,153 +1,76 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useUser } from "@clerk/react";
-import {
-  Dumbbell,
-  Activity,
-  Settings,
-  Mail,
-  X,
-  Menu,
-  ChevronRight,
-  ArrowRight,
-} from "lucide-react";
+import { useAuth } from "../lib/auth";
+import { Mail, X, ArrowRight, LogOut } from "lucide-react";
+import logoUrl from "../assets/logo.png";
 export default function Navbar() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, signOut } = useAuth();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
 
   return (
     <>
       {/* ── Navbar ── */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-100/80">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-14 flex items-center justify-between gap-6">
+      <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           {/* Logo */}
-          <Link
-            to="/"
-            className="flex items-center gap-2 font-black text-sm tracking-tight shrink-0 group"
-          >
-            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center group-hover:rotate-6 transition-transform">
-              <Dumbbell className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="hidden sm:inline">SportAI</span>
+          <Link to="/" className="flex items-center gap-2.5 shrink-0">
+            <img src={logoUrl} alt="Vincere" className="w-7 h-7 rounded-lg" />
+            <span className="font-black text-sm tracking-tight">Vincere</span>
           </Link>
 
-          {/* Centre — nav links (signed in) */}
-          {isSignedIn && (
-            <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-black transition-colors"
-              >
-                <Activity className="w-3.5 h-3.5" /> Suivi
-              </Link>
-              <Link
-                to="/settings"
-                className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-black transition-colors"
-              >
-                <Settings className="w-3.5 h-3.5" /> Profil
-              </Link>
-            </div>
-          )}
-
           {/* Right */}
-          <div className="flex items-center gap-2 ml-auto">
-            {/* CTA */}
-            <button
-              onClick={() => navigate("/onboarding")}
-              className="hidden sm:flex items-center gap-1.5 text-xs font-bold bg-black text-white px-4 py-2 rounded-full hover:bg-gray-800 active:scale-95 transition-all"
-            >
-              Créer un programme <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-5 bg-gray-200 mx-1" />
-
-            {/* Contact */}
-            <button
-              aria-label="Contact"
-              onClick={() => {
-                setContactOpen(true);
-                setMenuOpen(false);
-              }}
-              className="w-8 h-8 text-gray-500 rounded-lg flex items-center justify-center hover:bg-gray-100 hover:text-black transition-all"
-            >
-              <Mail className="w-4 h-4" />
-            </button>
-
-            {/* Menu — mobile only */}
-            <button
-              aria-label="Menu"
-              onClick={() => {
-                setMenuOpen((v) => !v);
-                setContactOpen(false);
-              }}
-              className="md:hidden w-8 h-8 text-gray-500 rounded-lg flex items-center justify-center hover:bg-gray-100 hover:text-black transition-all"
-            >
-              {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
+          <div className="flex items-center gap-2">
+            {!isSignedIn ? (
+              <>
+                <Link
+                  to="/login"
+                  className="hidden md:inline-flex text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Connexion
+                </Link>
+                <Link
+                  to="/onboarding"
+                  className="text-sm font-bold bg-black text-white px-4 py-1.5 rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  Commencer
+                </Link>
+              </>
+            ) : (
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  to="/dashboard"
+                  className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/settings"
+                  className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Profil
+                </Link>
+                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <button
+                  aria-label="Contact"
+                  onClick={() => setContactOpen(true)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                >
+                  <Mail className="w-4 h-4" />
+                </button>
+                <button
+                  aria-label="Se déconnecter"
+                  onClick={() => void signOut().then(() => navigate("/"))}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
-
-      {/* ── Mobile menu (dropdown under navbar) ── */}
-      <div
-        className={`fixed top-14 inset-x-0 z-40 md:hidden bg-white border-b border-gray-100 shadow-lg transition-all duration-200 ${
-          menuOpen
-            ? "opacity-100 pointer-events-auto translate-y-0"
-            : "opacity-0 pointer-events-none -translate-y-2"
-        }`}
-      >
-        <div className="max-w-6xl mx-auto px-5 py-3 flex flex-col gap-0.5">
-          <Link
-            to="/onboarding"
-            onClick={() => setMenuOpen(false)}
-            className="flex items-center justify-between px-3 py-3 rounded-xl bg-black text-white font-bold text-sm mb-1"
-          >
-            Créer ton programme
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-          {isSignedIn && (
-            <>
-              <Link
-                to="/dashboard"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Activity className="w-4 h-4 text-gray-400" /> Suivi
-              </Link>
-              <Link
-                to="/settings"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Settings className="w-4 h-4 text-gray-400" /> Profil
-              </Link>
-            </>
-          )}
-          {!isSignedIn && (
-            <Link
-              to="/login"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Connexion
-            </Link>
-          )}
-          <div className="h-px bg-gray-100 my-1" />
-          <button
-            onClick={() => {
-              setContactOpen(true);
-              setMenuOpen(false);
-            }}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
-          >
-            <Mail className="w-4 h-4 text-gray-400" /> Contact
-          </button>
-        </div>
-      </div>
 
       {/* ── Contact drawer ── */}
       <div
@@ -311,19 +234,19 @@ export default function Navbar() {
               {[
                 {
                   label: "Instagram",
-                  handle: "@sportai_app",
+                  handle: "@Vincere_app",
                   grad: "from-fuchsia-500 via-pink-500 to-orange-400",
                   letter: "IG",
                 },
                 {
                   label: "LinkedIn",
-                  handle: "SportAI",
+                  handle: "Vincere",
                   grad: "from-blue-700 to-blue-500",
                   letter: "in",
                 },
                 {
                   label: "Twitter / X",
-                  handle: "@sportai_app",
+                  handle: "@Vincere_app",
                   grad: "from-gray-700 to-gray-500",
                   letter: "X",
                 },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Save,
@@ -13,74 +13,44 @@ import {
   Flame,
   Activity,
   Zap,
+  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
-import { useUser, UserProfile } from "@clerk/react";
+import { CheckCircle } from "lucide-react";
+import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
+import { supabase } from "../lib/supabase";
 import type { ObjectiveType, LevelType, GenderType, AvailabilityType } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
+import { OBJECTIVE_META, EQUIPMENT_OPTIONS } from "../lib/constants";
 import Navbar from "../components/Navbar";
-
-const EQUIPMENT_OPTIONS = [
-  { label: "Haltères", emoji: "🏋️" },
-  { label: "Barre + disques", emoji: "⚖️" },
-  { label: "Kettlebell", emoji: "🔔" },
-  { label: "Machine câbles", emoji: "⚙️" },
-  { label: "Banc de musculation", emoji: "🛋️" },
-  { label: "Rack / cage", emoji: "🏗️" },
-  { label: "TRX / Sangles", emoji: "🪢" },
-  { label: "Corde à sauter", emoji: "🪃" },
-  { label: "Vélo / Rameur", emoji: "🚴" },
-  { label: "Tapis de course", emoji: "🏃" },
-  { label: "Poids du corps uniquement", emoji: "💪" },
-];
-
-const OBJECTIVE_META: Record<
-  ObjectiveType,
-  { emoji: string; color: string; bg: string; border: string }
-> = {
-  "perte-poids": {
-    emoji: "🔥",
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    border: "border-orange-400",
-  },
-  "prise-masse": {
-    emoji: "💪",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    border: "border-blue-400",
-  },
-  entretien: {
-    emoji: "🌿",
-    color: "text-green-600",
-    bg: "bg-green-50",
-    border: "border-green-400",
-  },
-  competition: {
-    emoji: "🏆",
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-amber-400",
-  },
-  hyrox: { emoji: "⚡", color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-400" },
-  crossfit: { emoji: "🎯", color: "text-red-600", bg: "bg-red-50", border: "border-red-400" },
-  running: { emoji: "👟", color: "text-sky-600", bg: "bg-sky-50", border: "border-sky-400" },
-  yoga: { emoji: "🧘", color: "text-teal-600", bg: "bg-teal-50", border: "border-teal-400" },
-  "remise-en-forme": {
-    emoji: "✨",
-    color: "text-pink-600",
-    bg: "bg-pink-50",
-    border: "border-pink-400",
-  },
-};
 
 export default function Settings() {
   const { state, dispatch } = useApp();
-  const { user } = useUser();
+  const { userEmail, userFirstName } = useAuth();
   const navigate = useNavigate();
   const profile = state.profile;
   const [saved, setSaved] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [tab, setTab] = useState<"entrainement" | "compte">("entrainement");
+
+  useEffect(() => {
+    if (!resetSent) return;
+    const t = setTimeout(() => setResetSent(false), 5000);
+    return () => clearTimeout(t);
+  }, [resetSent]);
+
+  useEffect(() => {
+    if (!confirmReset) return;
+    const t = setTimeout(() => setConfirmReset(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmReset]);
+
+  function handleResetProfile() {
+    dispatch({ type: "RESET" });
+    void navigate("/onboarding");
+  }
 
   const [form, setForm] = useState({
     objective: profile?.objective ?? "",
@@ -148,7 +118,7 @@ export default function Settings() {
     <div className="min-h-screen bg-[#f5f5f5]">
       <Navbar />
 
-      <div className="max-w-2xl mx-auto px-4 pt-20 pb-24 sm:px-6">
+      <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 md:pb-24 sm:px-6">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-black mt-6 mb-5 transition-colors"
@@ -159,10 +129,6 @@ export default function Settings() {
 
         {/* ── Hero profile card ── */}
         <div className={`relative overflow-hidden rounded-3xl p-6 mb-6 ${heroBg}`}>
-          {/* Decorative circles */}
-          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10 bg-black" />
-          <div className="absolute -bottom-12 -right-4 w-56 h-56 rounded-full opacity-5 bg-black" />
-
           <div className="relative flex items-start justify-between">
             <div>
               <div
@@ -173,12 +139,12 @@ export default function Settings() {
               <h1
                 className={`text-2xl font-black leading-tight ${objMeta ? "text-gray-900" : "text-white"}`}
               >
-                {user?.firstName ?? user?.emailAddresses[0]?.emailAddress ?? "Athlète"}
+                {userFirstName ?? userEmail ?? "Athlète"}
               </h1>
-              {user?.emailAddresses[0] && (
-                <p className={`text-xs mt-0.5 ${objMeta ? "text-gray-500" : "text-white/50"}`}>
-                  {user.emailAddresses[0].emailAddress}
-                </p>
+              {userEmail && (
+                <div className={`text-xs mt-0.5 ${objMeta ? "text-gray-500" : "text-white/50"}`}>
+                  {userEmail}
+                </div>
               )}
             </div>
             <div
@@ -663,13 +629,80 @@ export default function Settings() {
                 </>
               )}
             </button>
+
+            {/* Reset profile */}
+            <div className="border border-red-200 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <p className="text-xs font-bold uppercase tracking-wider text-red-500">
+                  Tout remettre à zéro
+                </p>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Recommence l&apos;onboarding depuis le début — utile si tu changes d&apos;objectif
+                (prise de masse → perte de poids, etc.).
+              </p>
+              {confirmReset ? (
+                <button
+                  onClick={handleResetProfile}
+                  className="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 transition-colors"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Confirmer la réinitialisation
+                </button>
+              ) : (
+                <button
+                  onClick={() => setConfirmReset(true)}
+                  className="inline-flex items-center gap-2 border border-red-300 text-red-600 text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-50 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Réinitialiser mon profil
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {/* ── Tab Compte ── */}
         {tab === "compte" && (
-          <div className="[&_.cl-card]:shadow-none [&_.cl-card]:border [&_.cl-card]:border-gray-100 [&_.cl-card]:rounded-2xl [&_.cl-rootBox]:w-full [&_.cl-navbar]:hidden [&_.cl-pageScrollBox]:p-0 [&_.cl-headerTitle]:text-xl [&_.cl-headerTitle]:font-black [&_.cl-headerSubtitle]:text-sm [&_.cl-headerSubtitle]:text-gray-500 [&_.cl-formButtonPrimary]:bg-black [&_.cl-formButtonPrimary]:rounded-xl [&_.cl-formButtonPrimary]:shadow-none [&_.cl-formButtonPrimary:hover]:bg-gray-900 [&_.cl-formFieldInput]:rounded-xl [&_.cl-formFieldInput]:border-gray-200 [&_.cl-footerAction]:hidden [&_.cl-profileSectionPrimaryButton]:rounded-xl">
-            <UserProfile routing="hash" />
+          <div className="space-y-4">
+            <div className="border border-gray-100 rounded-2xl p-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
+                Adresse e-mail
+              </p>
+              <p className="font-semibold text-sm text-gray-900">{userEmail ?? "—"}</p>
+            </div>
+            <div className="border border-gray-100 rounded-2xl p-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                Mot de passe
+              </p>
+              <p className="text-xs text-gray-500 mb-4">
+                Reçois un e-mail pour réinitialiser ton mot de passe.
+              </p>
+              {resetSent && (
+                <div
+                  role="alert"
+                  className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium px-4 py-3 rounded-xl mb-4"
+                >
+                  <CheckCircle className="w-4 h-4 shrink-0" />
+                  E-mail de réinitialisation envoyé !
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  if (userEmail) {
+                    void supabase.auth.resetPasswordForEmail(userEmail, {
+                      redirectTo: `${globalThis.location.origin}/reset-password`,
+                    });
+                    setResetSent(true);
+                  }
+                }}
+                disabled={resetSent}
+                className="inline-flex items-center gap-2 bg-black text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Envoyer le lien de réinitialisation
+              </button>
+            </div>
           </div>
         )}
       </div>

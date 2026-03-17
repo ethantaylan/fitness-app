@@ -42,7 +42,7 @@ export async function exportProgramToPDF(program: Program): Promise<void> {
       yOffset += pageHeight;
     }
 
-    pdf.save(`programme-sportai-${Date.now()}.pdf`);
+    pdf.save(`programme-Vincere-${Date.now()}.pdf`);
   } finally {
     document.body.removeChild(container);
   }
@@ -160,7 +160,7 @@ function buildPDFHtml(program: Program): string {
       .disclaimer { margin-top: 32px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 11px; color: #888; }
     </style>
     <div class="header">
-      <h1>SportAI</h1>
+      <h1>Vincere</h1>
       <p class="tagline">Programme sportif personnalisé · Généré par IA · ${new Date().toLocaleDateString("fr-FR")}</p>
     </div>
     ${profileSection}

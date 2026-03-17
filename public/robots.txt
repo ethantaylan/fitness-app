@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /session
+Disallow: /settings
+Disallow: /builder
+Disallow: /onboarding
+Disallow: /generating
+Sitemap: https://Vincerefit.app/sitemap.xml
