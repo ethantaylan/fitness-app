@@ -119,26 +119,21 @@ export default function Landing() {
             </button>
           </div>
 
-          {/* Social proof */}
-          <div className="flex items-center justify-center gap-3 mb-14">
-            <div className="flex -space-x-2">
-              {[
-                { bg: "bg-violet-200", text: "text-violet-700", initials: "ML" },
-                { bg: "bg-sky-200", text: "text-sky-700", initials: "JR" },
-                { bg: "bg-amber-200", text: "text-amber-700", initials: "AT" },
-              ].map(({ bg, text, initials }) => (
-                <div
-                  key={initials}
-                  className={`w-7 h-7 rounded-full border-2 border-white ${bg} ${text} text-[9px] font-bold flex items-center justify-center`}
-                >
-                  {initials}
-                </div>
-              ))}
-            </div>
-            <p className="text-sm text-gray-400">
-              <span className="font-semibold text-gray-700">+2 400</span> programmes créés cette
-              semaine
-            </p>
+          {/* Trust badges */}
+          <div className="flex items-center justify-center flex-wrap gap-2 mb-14">
+            {[
+              { icon: "⚡", label: "Prêt en 60 secondes" },
+              { icon: "🎯", label: "100% personnalisé" },
+              { icon: "🔓", label: "Gratuit" },
+            ].map(({ icon, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full px-3 py-1.5"
+              >
+                <span>{icon}</span>
+                {label}
+              </span>
+            ))}
           </div>
 
           {/* Sport tags ticker */}

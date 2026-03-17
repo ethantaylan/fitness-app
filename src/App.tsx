@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import ResetPassword from "./pages/ResetPassword";
 import WorkoutBuilder from "./pages/WorkoutBuilder";
 import SharedSession from "./pages/SharedSession";
+import Records from "./pages/Records";
 
 import ChatWidget from "./components/ChatWidget";
 import BottomNav from "./components/BottomNav";
@@ -92,6 +93,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/records"
+            element={
+              <ProtectedRoute>
+                <Records />
               </ProtectedRoute>
             }
           />

@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import type { UserProfile, Program, DailySession, Exercise } from "./types";
+import type { UserProfile, Program, DailySession, Exercise, PersonalRecord } from "./types";
 import { supabase } from "./supabase";
 import {
   upsertUser,
@@ -28,6 +28,7 @@ interface AppState {
   profile: Partial<UserProfile> | null;
   program: Program | null;
   sessions: DailySession[];
+  records: PersonalRecord[];
   onboardingStep: number;
   /** true une fois l'hydratation Supabase terminée (ou si pas de client) */
   _hydrated: boolean;
@@ -46,6 +47,8 @@ type Action =
       exerciseName: string;
       newExercise: Exercise;
     }
+  | { type: "ADD_RECORD"; record: PersonalRecord }
+  | { type: "DELETE_RECORD"; id: string }
   | { type: "SET_ONBOARDING_STEP"; step: number }
   | { type: "HYDRATE"; state: Partial<AppState> }
   | { type: "RESET" };
@@ -54,6 +57,7 @@ const initialState: AppState = {
   profile: null,
   program: null,
   sessions: [],
+  records: [],
   onboardingStep: 0,
   _hydrated: false,
 };
@@ -96,6 +100,10 @@ function reducer(state: AppState, action: Action): AppState {
             : s,
         ),
       };
+    case "ADD_RECORD":
+      return { ...state, records: [action.record, ...state.records] };
+    case "DELETE_RECORD":
+      return { ...state, records: state.records.filter((r) => r.id !== action.id) };
     case "SET_ONBOARDING_STEP":
       return { ...state, onboardingStep: action.step };
     case "HYDRATE":
@@ -145,7 +153,7 @@ export function AppProvider({
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved) as AppState;
-        return { ...parsed, _hydrated: false };
+        return { ...parsed, records: parsed.records ?? [], _hydrated: false };
       }
     } catch {
       /* ignore */

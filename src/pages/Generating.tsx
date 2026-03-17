@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dumbbell } from "lucide-react";
+import logo from "../assets/logo.png";
 import { useApp } from "../lib/store";
 import { generateProgram } from "../lib/openai";
 import type { UserProfile } from "../lib/types";
@@ -21,6 +21,14 @@ export default function Generating() {
   const [messageIdx, setMessageIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const hasStarted = useRef(false);
+  const [logoVisible, setLogoVisible] = useState(true);
+
+  useEffect(() => {
+    const logoInterval = setInterval(() => {
+      setLogoVisible((v) => !v);
+    }, 1400);
+    return () => clearInterval(logoInterval);
+  }, []);
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -34,14 +42,14 @@ export default function Generating() {
     // Launch generation
     void (async () => {
       try {
-        if (!state.profile || !state.profile.objective) {
-          void navigate("/onboarding");
+        if (!state.profile?.objective) {
+          navigate("/onboarding");
           return;
         }
         const program = await generateProgram(state.profile as UserProfile);
         dispatch({ type: "SET_PROGRAM", program });
         clearInterval(interval);
-        void navigate("/result");
+        navigate("/result");
       } catch (err) {
         clearInterval(interval);
         const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -78,28 +86,22 @@ export default function Generating() {
         </div>
       ) : (
         <div className="max-w-sm text-center">
-          {/* Animated logo */}
-          <div className="relative mb-12">
-            <div className="w-20 h-20 border-2 border-white rounded-2xl flex items-center justify-center mx-auto">
-              <Dumbbell className="w-10 h-10 animate-pulse" />
-            </div>
-            {/* Orbit rings */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="w-32 h-32 border border-white/20 rounded-full animate-spin"
-                style={{ animationDuration: "3s" }}
-              />
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="w-44 h-44 border border-white/10 rounded-full animate-spin"
-                style={{ animationDuration: "5s", animationDirection: "reverse" }}
-              />
-            </div>
+          {/* Logo pulse */}
+          <div className="flex items-center justify-center mb-12">
+            <img
+              src={logo}
+              alt="Vincere"
+              className="w-24 h-24 object-contain transition-all duration-1400 ease-in-out"
+              style={{
+                filter: "invert(1)",
+                opacity: logoVisible ? 1 : 0.15,
+                transform: logoVisible ? "scale(1)" : "scale(0.88)",
+              }}
+            />
           </div>
 
           <h1 className="text-2xl font-black mb-4">Ton coach travaille pour toi</h1>
-          <p className="text-gray-400 text-sm mb-8 min-h-[1.5rem] transition-all duration-300">
+          <p className="text-gray-400 text-sm mb-8 min-h-6 transition-all duration-300">
             {MESSAGES[messageIdx]}
           </p>
 

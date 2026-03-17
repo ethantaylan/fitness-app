@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { LayoutDashboard, Zap, Hammer, UserCircle, Sparkles } from "lucide-react";
+import { LayoutDashboard, Zap, Trophy, UserCircle, Sparkles } from "lucide-react";
 
 const HIDE_ROUTES = ["/", "/sign-in", "/sign-up", "/onboarding", "/generating"];
 
@@ -16,7 +16,7 @@ const TABS: Tab[] = [
   { key: "dashboard", label: "Accueil", icon: LayoutDashboard, matchPath: "/dashboard" },
   { key: "session", label: "Séance", icon: Zap, matchPath: "/session" },
   { key: "ai", label: "IA", icon: Sparkles, isAI: true },
-  { key: "builder", label: "Builder", icon: Hammer, matchPath: "/builder" },
+  { key: "records", label: "Suivi", icon: Trophy, matchPath: "/records" },
   { key: "settings", label: "Profil", icon: UserCircle, matchPath: "/settings" },
 ];
 
@@ -38,9 +38,9 @@ export default function BottomNav() {
       return;
     }
     if (tab.key === "session") {
-      void navigate("/session");
+      navigate("/session");
     } else if (tab.matchPath) {
-      void navigate(tab.matchPath);
+      navigate(tab.matchPath);
     }
   }
 

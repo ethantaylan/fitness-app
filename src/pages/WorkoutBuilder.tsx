@@ -751,8 +751,18 @@ export default function WorkoutBuilder() {
         {/* Coach IA advisory */}
         <AdvisoryPanel advisories={advisories} visible={totalItems > 0} />
 
+        {/* Hint */}
+        <div className="flex items-center gap-2 mt-5 mb-1">
+          <span className="inline-flex items-center gap-1.5 bg-black text-white text-[11px] font-bold rounded-full px-3 py-1.5">
+            <span className="text-sm leading-none">👆</span>1 clic = 1 exercice
+          </span>
+          <span className="text-[11px] text-gray-500 font-medium">
+            Ajoute autant d&apos;exercices que tu veux
+          </span>
+        </div>
+
         {/* Zones musculaires */}
-        <section className="mt-7 mb-7">
+        <section className="mt-4 mb-7">
           <div className="flex items-center gap-2 mb-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
               Zones musculaires

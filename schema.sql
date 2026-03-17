@@ -1,5 +1,5 @@
 ﻿-- ============================================================
--- SportAI � Sch�ma PostgreSQL complet
+-- Vincere � Sch�ma PostgreSQL complet
 -- Compatible : PostgreSQL 14+ / Supabase
 -- Auth       : Supabase Auth (auth.uid() = users.id)
 -- Idempotent : peut �tre rejou� sans erreur (IF NOT EXISTS, etc.)

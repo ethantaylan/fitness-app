@@ -105,3 +105,17 @@ export interface DailySession {
   motivation_message: string;
   feedback?: "good" | "normal" | "hard";
 }
+
+export type RecordCategory = "force" | "cardio" | "corps" | "autre";
+
+export interface PersonalRecord {
+  id: string;
+  name: string;
+  category: RecordCategory;
+  date: string;
+  weight_kg?: number;
+  reps?: number;
+  distance_km?: number;
+  time_min?: number;
+  notes?: string;
+}

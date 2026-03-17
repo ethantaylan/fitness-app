@@ -1,1 +1,0 @@
-Vincere
