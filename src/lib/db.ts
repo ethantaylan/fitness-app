@@ -17,6 +17,8 @@ import type {
   SessionBlock,
   Exercise,
   WarmupItem,
+  PersonalRecord,
+  RecordCategory,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +59,7 @@ export interface ChatMessage {
 export interface RemoteAppState {
   profile: UserProfile | null;
   program: Program | null;
+  programStartDate: string | null;
   sessions: DailySession[];
   onboardingStep: number;
 }
@@ -248,6 +251,7 @@ export async function saveProgram(
       nutrition_water_l: program.nutrition_recommendations?.water_intake_l ?? null,
       nutrition_notes: program.nutrition_recommendations?.notes ?? null,
       is_active: true,
+      started_at: new Date().toISOString().split("T")[0],
       profile_snapshot: program.user_profile ?? null,
     })
     .select("id")
@@ -329,10 +333,25 @@ export async function saveProgram(
  * Charge le programme actif de l'utilisateur avec toutes les données imbriquées.
  * Retourne null si aucun programme actif.
  */
+export async function deactivateProgram(
+  client: SupabaseClient,
+  internalUserId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("programs")
+    .update({ is_active: false })
+    .eq("user_id", internalUserId)
+    .eq("is_active", true);
+  if (error) throw new Error(`[db/deactivateProgram] ${error.message}`);
+}
+
+/**
+ * Retourne null si aucun programme actif.
+ */
 export async function getActiveProgram(
   client: SupabaseClient,
   internalUserId: string,
-): Promise<Program | null> {
+): Promise<{ program: Program; startedAt: string | null } | null> {
   const { data, error } = await client
     .from("programs")
     .select(`
@@ -385,24 +404,27 @@ export async function getActiveProgram(
     );
 
   return {
-    program_overview: {
-      duration_weeks: row.duration_weeks as number,
-      training_days_per_week: row.training_days_per_week as number,
-      summary: row.summary as string,
-      agent_used: row.agent_used as string | undefined,
+    startedAt: (row.started_at as string | null) ?? null,
+    program: {
+      program_overview: {
+        duration_weeks: row.duration_weeks as number,
+        training_days_per_week: row.training_days_per_week as number,
+        summary: row.summary as string,
+        agent_used: row.agent_used as string | undefined,
+      },
+      weeks,
+      nutrition_recommendations: row.nutrition_daily_calories
+        ? {
+            daily_calories_estimate: row.nutrition_daily_calories as number,
+            protein_target_g: row.nutrition_protein_g as number,
+            water_intake_l: row.nutrition_water_l as number,
+            notes: (row.nutrition_notes as string) ?? "",
+          }
+        : undefined,
+      general_advice: row.general_advice as string | undefined,
+      legal_disclaimer: row.legal_disclaimer as string | undefined,
+      user_profile: row.profile_snapshot as Partial<UserProfile> | undefined,
     },
-    weeks,
-    nutrition_recommendations: row.nutrition_daily_calories
-      ? {
-          daily_calories_estimate: row.nutrition_daily_calories as number,
-          protein_target_g: row.nutrition_protein_g as number,
-          water_intake_l: row.nutrition_water_l as number,
-          notes: (row.nutrition_notes as string) ?? "",
-        }
-      : undefined,
-    general_advice: row.general_advice as string | undefined,
-    legal_disclaimer: row.legal_disclaimer as string | undefined,
-    user_profile: row.profile_snapshot as Partial<UserProfile> | undefined,
   };
 }
 
@@ -729,7 +751,7 @@ export async function loadAppState(
   client: SupabaseClient,
   internalUserId: string,
 ): Promise<RemoteAppState> {
-  const [profile, program, sessions, onboarding] = await Promise.all([
+  const [profile, result, sessions, onboarding] = await Promise.all([
     getProfile(client, internalUserId),
     getActiveProgram(client, internalUserId),
     getDailySessions(client, internalUserId),
@@ -738,10 +760,81 @@ export async function loadAppState(
 
   return {
     profile,
-    program,
+    program: result?.program ?? null,
+    programStartDate: result?.startedAt ?? null,
     sessions,
     onboardingStep: onboarding?.step ?? 0,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PERSONAL RECORDS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Insère un record personnel.
+ */
+export async function saveRecord(
+  client: SupabaseClient,
+  internalUserId: string,
+  record: PersonalRecord,
+): Promise<void> {
+  const { error } = await client.from("personal_records").insert({
+    id: record.id,
+    user_id: internalUserId,
+    name: record.name,
+    category: record.category,
+    record_date: record.date,
+    weight_kg: record.weight_kg ?? null,
+    reps: record.reps ?? null,
+    distance_km: record.distance_km ?? null,
+    time_min: record.time_min ?? null,
+    notes: record.notes ?? null,
+  });
+  if (error) throw new Error(`[db/saveRecord] ${error.message}`);
+}
+
+/**
+ * Supprime un record personnel par son id.
+ */
+export async function deleteRecord(
+  client: SupabaseClient,
+  internalUserId: string,
+  recordId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("personal_records")
+    .delete()
+    .eq("id", recordId)
+    .eq("user_id", internalUserId);
+  if (error) throw new Error(`[db/deleteRecord] ${error.message}`);
+}
+
+/**
+ * Charge tous les records personnels de l'utilisateur.
+ */
+export async function getRecords(
+  client: SupabaseClient,
+  internalUserId: string,
+): Promise<PersonalRecord[]> {
+  const { data, error } = await client
+    .from("personal_records")
+    .select("*")
+    .eq("user_id", internalUserId)
+    .order("record_date", { ascending: false });
+  if (error) throw new Error(`[db/getRecords] ${error.message}`);
+  if (!data) return [];
+  return (data as Record<string, unknown>[]).map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    category: row.category as RecordCategory,
+    date: row.record_date as string,
+    weight_kg: row.weight_kg === null ? undefined : Number(row.weight_kg),
+    reps: row.reps === null ? undefined : Number(row.reps),
+    distance_km: row.distance_km === null ? undefined : Number(row.distance_km),
+    time_min: row.time_min === null ? undefined : Number(row.time_min),
+    notes: row.notes as string | undefined,
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

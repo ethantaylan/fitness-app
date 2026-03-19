@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../lib/auth";
 import logoUrl from "../assets/logo.png";
 import {
   Target,
@@ -37,7 +38,14 @@ const TICKER_ITEMS = [...TICKER_SPORTS, ...TICKER_SPORTS];
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { isLoaded, isSignedIn } = useAuth();
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isLoaded, isSignedIn, navigate]);
 
   const FAQ = [
     {
@@ -587,9 +595,9 @@ export default function Landing() {
               <ul className="space-y-2.5 text-sm text-gray-400">
                 {[
                   { label: "Générer un programme", path: "/onboarding" },
-                  { label: "Connexion", path: "/login" },
-                  { label: "Créer un compte", path: "/register" },
-                  { label: "Dashboard", path: "/dashboard" },
+                  { label: "Connexion", path: "/sign-in" },
+                  { label: "Créer un compte", path: "/sign-up" },
+                  { label: "Mon dashboard", path: "/sign-in" },
                 ].map(({ label, path }) => (
                   <li key={label}>
                     <button
@@ -609,11 +617,14 @@ export default function Landing() {
                 Informations
               </p>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                {["À propos", "Confidentialité", "Conditions d'utilisation", "Contact"].map((l) => (
-                  <li key={l}>
-                    <span className="hover:text-white transition-colors cursor-pointer">{l}</span>
-                  </li>
-                ))}
+                <li>
+                  <button
+                    onClick={() => globalThis.dispatchEvent(new Event("open-contact"))}
+                    className="hover:text-white transition-colors"
+                  >
+                    Contact
+                  </button>
+                </li>
               </ul>
               <div className="mt-8 space-y-2">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -634,10 +645,7 @@ export default function Landing() {
 
           {/* Bottom row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-xs text-gray-600">
-            <p>
-              © {new Date().getFullYear()} Vincere. Les recommandations sont fournies à titre
-              informatif uniquement.
-            </p>
+            <p>© 2026 Vincere. Les recommandations sont fournies à titre informatif uniquement.</p>
           </div>
         </div>
       </footer>

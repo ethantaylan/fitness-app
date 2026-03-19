@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth";
 import { Mail, X, ArrowRight, LogOut } from "lucide-react";
 import logoUrl from "../assets/logo.png";
@@ -8,6 +8,14 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
+
+  useEffect(() => {
+    function handleOpen() {
+      setContactOpen(true);
+    }
+    globalThis.addEventListener("open-contact", handleOpen);
+    return () => globalThis.removeEventListener("open-contact", handleOpen);
+  }, []);
 
   return (
     <>
@@ -22,10 +30,70 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-2">
-            {!isSignedIn ? (
+            {isSignedIn ? (
+              <>
+                {/* Mobile: contact + logout */}
+                <button
+                  aria-label="Contact"
+                  onClick={() => setContactOpen(true)}
+                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                >
+                  <Mail className="w-4 h-4" />
+                </button>
+                <button
+                  aria-label="Se déconnecter"
+                  onClick={() => void signOut().then(() => navigate("/"))}
+                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+                {/* Desktop: nav complète */}
+                <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    to="/dashboard"
+                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Accueil
+                  </Link>
+                  <Link
+                    to="/result"
+                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Programme
+                  </Link>
+                  <Link
+                    to="/records"
+                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Suivi
+                  </Link>
+                  <Link
+                    to="/settings"
+                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Profil
+                  </Link>
+                  <div className="w-px h-4 bg-gray-200 mx-1" />
+                  <button
+                    aria-label="Contact"
+                    onClick={() => setContactOpen(true)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                  </button>
+                  <button
+                    aria-label="Se déconnecter"
+                    onClick={() => void signOut().then(() => navigate("/"))}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
               <>
                 <Link
-                  to="/login"
+                  to="/sign-in"
                   className="hidden md:inline-flex text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   Connexion
@@ -37,36 +105,6 @@ export default function Navbar() {
                   Commencer
                 </Link>
               </>
-            ) : (
-              <div className="hidden md:flex items-center gap-2">
-                <Link
-                  to="/dashboard"
-                  className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  to="/settings"
-                  className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  Profil
-                </Link>
-                <div className="w-px h-4 bg-gray-200 mx-1" />
-                <button
-                  aria-label="Contact"
-                  onClick={() => setContactOpen(true)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-                >
-                  <Mail className="w-4 h-4" />
-                </button>
-                <button
-                  aria-label="Se déconnecter"
-                  onClick={() => void signOut().then(() => navigate("/"))}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
             )}
           </div>
         </div>

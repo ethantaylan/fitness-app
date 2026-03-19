@@ -17,24 +17,29 @@ export default function ProgramSection({ program, downloadingPDF, onDownloadPDF 
         title="Programme"
         color="text-indigo-600"
         bg="bg-indigo-50"
+        noPad
       >
-        <div className="text-center">
+        <div className="p-5 flex items-center gap-4">
           <div
-            className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3"
+            className="w-12 h-12 shrink-0 bg-indigo-50 rounded-2xl flex items-center justify-center"
             aria-hidden="true"
           >
-            <Target className="w-4 h-4 text-gray-400" />
+            <Target className="w-5 h-5 text-indigo-400" />
           </div>
-          <p className="font-bold text-gray-900 text-sm mb-1">Aucun programme genere</p>
-          <p className="text-xs text-gray-400 mb-4">
-            Reponds a quelques questions, l'IA cree ton plan sur mesure.
-          </p>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-gray-900 text-sm mb-0.5">Aucun programme actif</p>
+            <p className="text-xs text-gray-400 leading-snug">
+              Réponds à quelques questions — ton plan sur mesure est prêt en 2 minutes.
+            </p>
+          </div>
+        </div>
+        <div className="px-5 pb-5">
           <Link
             to="/onboarding"
-            className="inline-flex items-center gap-2 bg-black text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-gray-900 transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-black text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all active:scale-95 hover:bg-gray-900"
           >
-            <Dumbbell className="w-3.5 h-3.5" aria-hidden="true" />
-            Creer mon programme
+            <Dumbbell className="w-4 h-4" aria-hidden="true" />
+            Créer mon programme
           </Link>
         </div>
       </Section>

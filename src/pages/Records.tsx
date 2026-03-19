@@ -152,7 +152,6 @@ const BLANK_FORM: FormState = {
 
 export default function Records() {
   const { state, dispatch } = useApp();
-  const [filter, setFilter] = useState<RecordCategory | "tous">("tous");
   const [showAdd, setShowAdd] = useState(false);
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(BLANK_FORM);
@@ -160,10 +159,7 @@ export default function Records() {
 
   // ── Derived data ─────────────────────────────────────────────────────────────
 
-  const filtered = useMemo(
-    () => (filter === "tous" ? state.records : state.records.filter((r) => r.category === filter)),
-    [state.records, filter],
-  );
+  const filtered = useMemo(() => state.records, [state.records]);
 
   const grouped = useMemo(
     () =>
@@ -237,6 +233,17 @@ export default function Records() {
     setExpandedExercise((prev) => (prev === name ? null : name));
   }
 
+  const [today] = useState(() => Date.now());
+
+  const currentWeekNum = useMemo(() => {
+    if (state.programStartDate === null) return 1;
+    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    const elapsed = today - new Date(state.programStartDate).getTime();
+    const week = Math.ceil(elapsed / msPerWeek) + 1;
+    const totalWeeks = state.program?.program_overview.duration_weeks ?? 1;
+    return Math.min(Math.max(week, 1), totalWeeks);
+  }, [state.programStartDate, state.program, today]);
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -258,22 +265,39 @@ export default function Records() {
           </div>
         </div>
 
-        {/* Category filter pills */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-          {(["tous", "force", "cardio", "corps", "autre"] as const).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className={`shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all ${
-                filter === cat
-                  ? "bg-black text-white"
-                  : "bg-white border border-gray-200 text-gray-500 hover:border-gray-300"
-              }`}
-            >
-              {cat === "tous" ? "Tous" : `${CATEGORY_META[cat].emoji} ${CATEGORY_META[cat].label}`}
-            </button>
-          ))}
-        </div>
+        {/* Programme progress banner */}
+        {state.program !== null && (
+          <div className="bg-white rounded-2xl p-4 mb-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">
+                  Programme en cours
+                </p>
+                <p className="font-black text-sm leading-tight line-clamp-2">
+                  {state.program.program_overview.summary}
+                </p>
+                {state.programStartDate !== null && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Commencé le{" "}
+                    {new Date(state.programStartDate).toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
+              {state.programStartDate !== null && (
+                <div className="text-right shrink-0 ml-4">
+                  <p className="text-2xl font-black leading-none">S{currentWeekNum}</p>
+                  <p className="text-xs text-gray-400">
+                    / {state.program.program_overview.duration_weeks} sem.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Empty state */}
         {sortedExercises.length === 0 && (
@@ -291,37 +315,6 @@ export default function Records() {
             >
               + Ajouter un record
             </button>
-
-            {/* Preview cards */}
-            <div className="mt-8 flex flex-col gap-2 w-full max-w-xs opacity-40 pointer-events-none select-none">
-              {[
-                {
-                  name: "Développé couché",
-                  value: "120 kg × 3 reps",
-                  cat: "force" as RecordCategory,
-                },
-                { name: "Tractions", value: "30 reps", cat: "corps" as RecordCategory },
-                { name: "Running 5km", value: "5 km en 23 min", cat: "cardio" as RecordCategory },
-              ].map(({ name, value, cat }) => {
-                const m = CATEGORY_META[cat];
-                return (
-                  <div
-                    key={name}
-                    className="bg-white rounded-2xl p-4 flex items-center justify-between border border-gray-100"
-                  >
-                    <div>
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${m.lightBg} ${m.text} rounded-full px-2 py-0.5 mb-1`}
-                      >
-                        {m.emoji} {m.label}
-                      </span>
-                      <p className="font-black text-sm text-gray-900">{name}</p>
-                    </div>
-                    <p className="font-black text-base text-gray-900">{value}</p>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         )}
 

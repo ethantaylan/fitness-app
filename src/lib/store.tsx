@@ -16,17 +16,22 @@ import {
   saveProfile,
   getActiveProgram,
   saveProgram as dbSaveProgram,
+  deactivateProgram as dbClearProgram,
   getDailySessions,
   saveDailySession as dbSaveSession,
   updateSessionFeedback as dbUpdateFeedback,
   deleteDailySession as dbDeleteSession,
   getOnboardingProgress,
   saveOnboardingStep,
+  saveRecord as dbSaveRecord,
+  deleteRecord as dbDeleteRecord,
+  getRecords as dbGetRecords,
 } from "./db";
 
 interface AppState {
   profile: Partial<UserProfile> | null;
   program: Program | null;
+  programStartDate: string | null;
   sessions: DailySession[];
   records: PersonalRecord[];
   onboardingStep: number;
@@ -50,12 +55,14 @@ type Action =
   | { type: "ADD_RECORD"; record: PersonalRecord }
   | { type: "DELETE_RECORD"; id: string }
   | { type: "SET_ONBOARDING_STEP"; step: number }
+  | { type: "CLEAR_PROGRAM" }
   | { type: "HYDRATE"; state: Partial<AppState> }
   | { type: "RESET" };
 
 const initialState: AppState = {
   profile: null,
   program: null,
+  programStartDate: null,
   sessions: [],
   records: [],
   onboardingStep: 0,
@@ -67,7 +74,11 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_PROFILE_PARTIAL":
       return { ...state, profile: { ...state.profile, ...action.data } };
     case "SET_PROGRAM":
-      return { ...state, program: action.program };
+      return {
+        ...state,
+        program: action.program,
+        programStartDate: state.programStartDate ?? new Date().toISOString().split("T")[0],
+      };
     case "ADD_SESSION":
       return { ...state, sessions: [action.session, ...state.sessions] };
     case "DELETE_SESSION":
@@ -106,6 +117,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, records: state.records.filter((r) => r.id !== action.id) };
     case "SET_ONBOARDING_STEP":
       return { ...state, onboardingStep: action.step };
+    case "CLEAR_PROGRAM":
+      return { ...state, program: null, programStartDate: null };
     case "HYDRATE":
       return { ...state, ...action.state, _hydrated: true };
     case "RESET":
@@ -181,6 +194,10 @@ export function AppProvider({
         dbSaveProgram(supabase, iuid, action.program).catch(console.warn);
         break;
 
+      case "CLEAR_PROGRAM":
+        dbClearProgram(supabase, iuid).catch(console.warn);
+        break;
+
       case "ADD_SESSION":
         dbSaveSession(supabase, iuid, action.session).catch(console.warn);
         break;
@@ -191,6 +208,14 @@ export function AppProvider({
 
       case "UPDATE_SESSION_FEEDBACK":
         dbUpdateFeedback(supabase, iuid, action.uid, action.feedback).catch(console.warn);
+        break;
+
+      case "ADD_RECORD":
+        dbSaveRecord(supabase, iuid, action.record).catch(console.warn);
+        break;
+
+      case "DELETE_RECORD":
+        dbDeleteRecord(supabase, iuid, action.id).catch(console.warn);
         break;
 
       case "SET_ONBOARDING_STEP":
@@ -224,19 +249,23 @@ export function AppProvider({
         internalIdRef.current = user.id;
 
         const current = stateRef.current;
-        const [profile, program, remoteSessions, onboarding] = await Promise.all([
-          getProfile(supabase, user.id).catch(() => null),
-          getActiveProgram(supabase, user.id).catch(() => null),
-          getDailySessions(supabase, user.id, 30).catch(() => [] as DailySession[]),
-          getOnboardingProgress(supabase, user.id).catch(() => null),
-        ]);
+        const [profile, programResult, remoteSessions, onboarding, remoteRecords] =
+          await Promise.all([
+            getProfile(supabase, user.id).catch(() => null),
+            getActiveProgram(supabase, user.id).catch(() => null),
+            getDailySessions(supabase, user.id, 30).catch(() => [] as DailySession[]),
+            getOnboardingProgress(supabase, user.id).catch(() => null),
+            dbGetRecords(supabase, user.id).catch(() => [] as PersonalRecord[]),
+          ]);
 
         rawDispatch({
           type: "HYDRATE",
           state: {
             profile: profile ?? current.profile,
-            program: program ?? current.program,
+            program: programResult?.program ?? current.program,
+            programStartDate: programResult?.startedAt ?? current.programStartDate,
             sessions: remoteSessions.length > 0 ? remoteSessions : current.sessions,
+            records: remoteRecords.length > 0 ? remoteRecords : current.records,
             onboardingStep:
               onboarding == null ? current.onboardingStep : (onboarding as { step: number }).step,
           },
@@ -246,7 +275,7 @@ export function AppProvider({
         if (!profile && isProfileSaveable(current.profile)) {
           saveProfile(supabase, user.id, current.profile).catch(console.warn);
         }
-        if (!program && current.program) {
+        if (!programResult?.program && current.program) {
           dbSaveProgram(supabase, user.id, current.program).catch(console.warn);
         }
       } catch (err) {

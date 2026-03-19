@@ -13,6 +13,19 @@ import SessionPickerSheet from "../components/SessionPickerSheet";
 import Section from "../components/ui/Section";
 import TodayCard from "../components/dashboard/TodayCard";
 import ProgramSection from "../components/dashboard/ProgramSection";
+import WeekProgressCard from "../components/dashboard/WeekProgressCard";
+
+function getThisWeekDates(): string[] {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  });
+}
 
 export default function Dashboard() {
   const { state, dispatch } = useApp();
@@ -23,6 +36,9 @@ export default function Dashboard() {
   const [sessionError, setSessionError] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [showSessionPicker, setShowSessionPicker] = useState(false);
+
+  // Weekly progress — hooks must be before any early return
+  const thisWeekDates = getThisWeekDates();
 
   if (!isSignedIn) {
     return (
@@ -46,6 +62,15 @@ export default function Dashboard() {
   const todaySessions = sessions.filter((s) => s.date === todayDate);
   const lastFeedback = sessions.find((s) => s.feedback)?.feedback;
 
+  // Weekly progress computed values
+  const sessionsThisWeek = sessions.filter((s) => thisWeekDates.includes(s.date)).length;
+  const weeklyFreq = profile?.weeklyFrequency ?? 3;
+  const currentWeekNum = program
+    ? Math.min(Math.floor(sessions.length / weeklyFreq) + 1, program.weeks?.length ?? 1)
+    : null;
+  const currentWeekFocus =
+    currentWeekNum === null ? null : (program?.weeks?.[currentWeekNum - 1]?.focus ?? null);
+
   const objMeta = profile?.objective ? OBJECTIVE_META[profile.objective] : null;
   const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
   const firstName = userFirstName ?? userEmail?.split("@")[0] ?? "Athlète";
@@ -53,7 +78,7 @@ export default function Dashboard() {
 
   function handleGenerateSession() {
     if (!profile?.objective) {
-      void navigate("/onboarding");
+      navigate("/onboarding");
       return;
     }
     setShowSessionPicker(true);
@@ -72,7 +97,7 @@ export default function Dashboard() {
       const session = await generateDailySession(profileForSession, lastFeedback);
       const uid = crypto.randomUUID();
       dispatch({ type: "ADD_SESSION", session: { ...session, uid, date: todayDate } });
-      void navigate(`/session?uid=${uid}`);
+      navigate(`/session?uid=${uid}`);
     } catch (err) {
       setSessionError(err instanceof Error ? err.message : "Erreur lors de la génération.");
     } finally {
@@ -99,7 +124,7 @@ export default function Dashboard() {
           onClose={() => setShowSessionPicker(false)}
           onBuildOwn={() => {
             setShowSessionPicker(false);
-            void navigate("/builder");
+            navigate("/builder");
           }}
         />
       )}
@@ -172,6 +197,17 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Weekly progress card */}
+        {profile?.weeklyFrequency && program !== null && (
+          <WeekProgressCard
+            sessionsThisWeek={sessionsThisWeek}
+            weeklyFreq={weeklyFreq}
+            currentWeekNum={currentWeekNum}
+            currentWeekFocus={currentWeekFocus}
+            hasProgram={program !== null}
+          />
+        )}
 
         <div className="space-y-4">
           {/* Today session */}

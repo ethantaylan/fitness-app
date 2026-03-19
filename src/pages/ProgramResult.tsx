@@ -11,6 +11,7 @@ import {
   Flame,
   Apple,
   Droplets,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
@@ -59,8 +60,8 @@ function ExerciseRow({
   );
 }
 
-function SessionCard({ session, weekNum }: Readonly<{ session: Session; weekNum: number }>) {
-  const [expanded, setExpanded] = useState(weekNum === 1);
+function SessionCard({ session }: Readonly<{ session: Session; weekNum: number }>) {
+  const [expanded, setExpanded] = useState(false);
 
   let intensityColor = "text-green-600 bg-green-50";
   if (session.intensity?.toLowerCase().includes("intense")) {
@@ -174,7 +175,7 @@ function SessionCard({ session, weekNum }: Readonly<{ session: Session; weekNum:
 }
 
 function WeekSection({ week }: Readonly<{ week: Week }>) {
-  const [open, setOpen] = useState(week.week_number === 1);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="mb-6">
@@ -200,23 +201,37 @@ function WeekSection({ week }: Readonly<{ week: Week }>) {
 }
 
 export default function ProgramResult() {
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
   const [downloading, setDownloading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const program = state.program;
 
   if (!program) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Aucun programme généré.</p>
-          <button
-            onClick={() => navigate("/onboarding")}
-            className="bg-black text-white px-6 py-3 rounded-xl font-bold"
-          >
-            Créer mon programme
-          </button>
+      <div className="min-h-screen bg-[#f5f5f5]">
+        <Navbar />
+        <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 sm:px-6">
+          <div className="mt-6 mb-6">
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Entraînement</p>
+            <h1 className="text-2xl font-black">📋 Mon Programme</h1>
+          </div>
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-4xl mb-5 shadow-sm">
+              📋
+            </div>
+            <h2 className="text-lg font-black mb-2">Aucun programme actif</h2>
+            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+              Réponds à quelques questions — ton plan sur mesure est prêt en 2 minutes.
+            </p>
+            <button
+              onClick={() => navigate("/onboarding")}
+              className="mt-6 bg-black text-white font-bold px-6 py-3 rounded-2xl text-sm active:scale-95 transition-transform"
+            >
+              Créer mon programme
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -306,6 +321,34 @@ export default function ProgramResult() {
               className="flex items-center justify-center gap-2 border border-gray-300 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors"
             >
               Voir mon dashboard
+            </button>
+          )}
+          {confirmDelete ? (
+            <div className="flex items-center gap-2 border border-red-200 rounded-xl px-4 py-2 bg-red-50">
+              <span className="text-sm text-red-700 font-medium">Supprimer ce programme ?</span>
+              <button
+                onClick={() => {
+                  dispatch({ type: "CLEAR_PROGRAM" });
+                  navigate("/dashboard");
+                }}
+                className="text-sm font-bold text-red-600 hover:text-red-800 transition-colors"
+              >
+                Confirmer
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center justify-center gap-2 border border-gray-200 text-gray-400 font-medium px-4 py-3 rounded-xl hover:border-red-200 hover:text-red-500 transition-colors text-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              Supprimer le programme
             </button>
           )}
         </div>

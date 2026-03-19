@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { LayoutDashboard, Zap, Trophy, UserCircle, Sparkles } from "lucide-react";
+import { LayoutDashboard, BookOpen, Trophy, UserCircle, Sparkles } from "lucide-react";
 
 const HIDE_ROUTES = ["/", "/sign-in", "/sign-up", "/onboarding", "/generating"];
 
@@ -14,7 +14,7 @@ type Tab = {
 
 const TABS: Tab[] = [
   { key: "dashboard", label: "Accueil", icon: LayoutDashboard, matchPath: "/dashboard" },
-  { key: "session", label: "Séance", icon: Zap, matchPath: "/session" },
+  { key: "programme", label: "Programme", icon: BookOpen, matchPath: "/result" },
   { key: "ai", label: "IA", icon: Sparkles, isAI: true },
   { key: "records", label: "Suivi", icon: Trophy, matchPath: "/records" },
   { key: "settings", label: "Profil", icon: UserCircle, matchPath: "/settings" },
@@ -37,9 +37,7 @@ export default function BottomNav() {
       globalThis.dispatchEvent(new Event("open-Vincere-chat"));
       return;
     }
-    if (tab.key === "session") {
-      navigate("/session");
-    } else if (tab.matchPath) {
+    if (tab.matchPath) {
       navigate(tab.matchPath);
     }
   }

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../lib/auth";
 import logoUrl from "../assets/logo.png";
 
 function signInWithGoogle() {
@@ -14,10 +15,17 @@ function signInWithGoogle() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const { isLoaded, isSignedIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isLoaded, isSignedIn, navigate]);
 
   async function handleEmail(e: React.SyntheticEvent) {
     e.preventDefault();
@@ -27,7 +35,7 @@ export default function Login() {
     if (err) {
       setError("Email ou mot de passe incorrect.");
     } else {
-      void navigate("/dashboard");
+      navigate("/dashboard");
     }
     setLoading(false);
   }

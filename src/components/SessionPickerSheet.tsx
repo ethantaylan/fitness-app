@@ -15,6 +15,7 @@ const ALL_OBJECTIVES = Object.entries(OBJECTIVE_LABELS) as [ObjectiveType, strin
 
 export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuildOwn }: Props) {
   const [duration, setDuration] = useState<number>(profile.sessionDuration?.[0] ?? 45);
+  const [pendingObjective, setPendingObjective] = useState<ObjectiveType | null>(null);
 
   return (
     <div
@@ -110,22 +111,25 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
           {ALL_OBJECTIVES.map(([key, label]) => {
             const meta = OBJECTIVE_META[key];
             const isActive = key === profile.objective;
+            const isSelected = key === pendingObjective;
             return (
               <button
                 key={key}
-                onClick={() => onConfirm(key, duration)}
-                aria-pressed={isActive}
-                className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border transition-all active:scale-95 ${
-                  isActive
-                    ? `${meta.bg} border-transparent`
-                    : "bg-gray-50 border-transparent hover:border-gray-200"
+                onClick={() => setPendingObjective(key)}
+                aria-pressed={isSelected}
+                className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all active:scale-95 ${
+                  isSelected
+                    ? `${meta.bg} ${meta.border}`
+                    : isActive
+                      ? `${meta.bg} border-transparent`
+                      : "bg-gray-50 border-transparent hover:border-gray-200"
                 }`}
               >
                 <span className="text-xl" aria-hidden="true">
                   {meta.emoji}
                 </span>
                 <span
-                  className={`text-[10px] font-bold leading-tight text-center ${isActive ? meta.color : "text-gray-600"}`}
+                  className={`text-[10px] font-bold leading-tight text-center ${isSelected || isActive ? meta.color : "text-gray-600"}`}
                 >
                   {label}
                 </span>
@@ -133,6 +137,16 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
             );
           })}
         </div>
+
+        {/* Confirm button for selected sport */}
+        {pendingObjective && (
+          <button
+            onClick={() => onConfirm(pendingObjective, duration)}
+            className="w-full mt-3 bg-black text-white font-black text-sm py-3.5 rounded-2xl hover:bg-gray-900 active:scale-[0.99] transition-all"
+          >
+            Générer · {OBJECTIVE_LABELS[pendingObjective]}
+          </button>
+        )}
 
         {/* Divider */}
         <div className="flex items-center gap-3 mt-4 mb-3" aria-hidden="true">
