@@ -15,24 +15,40 @@ import {
   Zap,
   AlertTriangle,
   RotateCcw,
+  Sun,
+  Moon,
+  Monitor,
+  Plus,
 } from "lucide-react";
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
 import { supabase } from "../lib/supabase";
+import { useTheme, type ThemeMode } from "../lib/theme";
+import { getAppRedirectUrl } from "../lib/appUrl";
 import type { ObjectiveType, LevelType, GenderType, AvailabilityType } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import { OBJECTIVE_META, EQUIPMENT_OPTIONS } from "../lib/constants";
+import {
+  addEquipmentLabel,
+  getCustomEquipment,
+  hasEquipmentLabel,
+  normalizeEquipmentLabel,
+  removeEquipmentLabel,
+} from "../lib/equipment";
 import Navbar from "../components/Navbar";
 
 export default function Settings() {
   const { state, dispatch } = useApp();
   const { userEmail, userFirstName } = useAuth();
+  const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const navigate = useNavigate();
   const profile = state.profile;
   const [saved, setSaved] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [showCustomEquipmentInput, setShowCustomEquipmentInput] = useState(false);
+  const [customEquipmentDraft, setCustomEquipmentDraft] = useState("");
   const [tab, setTab] = useState<"entrainement" | "compte">("entrainement");
 
   useEffect(() => {
@@ -74,10 +90,22 @@ export default function Settings() {
   function toggleEquipment(label: string) {
     setForm((f) => ({
       ...f,
-      equipment: f.equipment.includes(label)
-        ? f.equipment.filter((e) => e !== label)
-        : [...f.equipment, label],
+      equipment: hasEquipmentLabel(f.equipment, label)
+        ? removeEquipmentLabel(f.equipment, label)
+        : addEquipmentLabel(f.equipment, label),
     }));
+  }
+
+  function addCustomEquipment() {
+    const normalized = normalizeEquipmentLabel(customEquipmentDraft);
+    if (!normalized || hasEquipmentLabel(form.equipment, normalized)) return;
+
+    setForm((f) => ({
+      ...f,
+      equipment: addEquipmentLabel(f.equipment, normalized),
+    }));
+    setCustomEquipmentDraft("");
+    setShowCustomEquipmentInput(false);
   }
 
   function toggleAvailability(val: AvailabilityType) {
@@ -113,6 +141,10 @@ export default function Settings() {
 
   const objMeta = form.objective ? OBJECTIVE_META[form.objective as ObjectiveType] : null;
   const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
+  const customEquipment = getCustomEquipment(form.equipment);
+  const canAddCustomEquipment =
+    normalizeEquipmentLabel(customEquipmentDraft) !== "" &&
+    !hasEquipmentLabel(form.equipment, customEquipmentDraft);
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
@@ -549,7 +581,7 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 {EQUIPMENT_OPTIONS.map(({ label, emoji }) => {
-                  const active = form.equipment.includes(label);
+                  const active = hasEquipmentLabel(form.equipment, label);
                   return (
                     <button
                       key={label}
@@ -566,6 +598,83 @@ export default function Settings() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Ajouter du matériel perso</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pratique si tu as du matériel spécifique qu'on n'a pas listé.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomEquipmentInput((open) => !open)}
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold transition-all active:scale-[0.98] ${
+                      showCustomEquipmentInput
+                        ? "bg-black text-white"
+                        : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    {!showCustomEquipmentInput && <Plus className="w-3.5 h-3.5" />}
+                    {showCustomEquipmentInput ? "Fermer" : "J'aimerais ajouter"}
+                  </button>
+                </div>
+
+                {showCustomEquipmentInput && (
+                  <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <input
+                        type="text"
+                        value={customEquipmentDraft}
+                        onChange={(e) => setCustomEquipmentDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomEquipment();
+                          }
+                        }}
+                        placeholder="Ex : traîneau, slam ball, bandes élastiques..."
+                        className="flex-1 rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomEquipment}
+                        disabled={!canAddCustomEquipment}
+                        className="rounded-2xl bg-black px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-30 hover:bg-gray-900"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      {normalizeEquipmentLabel(customEquipmentDraft) &&
+                      hasEquipmentLabel(form.equipment, customEquipmentDraft)
+                        ? "Ce matériel est déjà présent."
+                        : "On en tiendra compte pour les prochaines séances et programmes."}
+                    </p>
+                  </div>
+                )}
+
+                {customEquipment.length > 0 && (
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      Ajouts perso
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {customEquipment.map((label) => (
+                        <button
+                          key={label}
+                          onClick={() => toggleEquipment(label)}
+                          className="flex items-center gap-1.5 rounded-full border-2 border-black bg-black px-3.5 py-2 text-xs font-semibold text-white transition-all active:scale-[0.96]"
+                        >
+                          {label}
+                          <Check className="w-3 h-3 ml-0.5 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </Section>
 
@@ -639,8 +748,8 @@ export default function Settings() {
                 </p>
               </div>
               <p className="text-xs text-gray-500 mb-4">
-                Recommence l&apos;onboarding depuis le début — utile si tu changes d&apos;objectif
-                (prise de masse → perte de poids, etc.).
+                Recommence l'onboarding depuis le début — utile si tu changes d'objectif (prise de
+                masse → perte de poids, etc.).
               </p>
               {confirmReset ? (
                 <button
@@ -667,6 +776,91 @@ export default function Settings() {
         {tab === "compte" && (
           <div className="space-y-4">
             <div className="border border-gray-100 rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    Apparence
+                  </p>
+                  <p className="font-semibold text-sm text-gray-900">Thème de l'application</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Choisis un mode fixe ou laisse Vincere suivre le thème de ton appareil.
+                  </p>
+                  <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-700">
+                    Dark mode en cours d'optimisation
+                  </span>
+                </div>
+                <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">
+                  {resolvedTheme === "dark" ? (
+                    <>
+                      <Moon className="w-3.5 h-3.5" />
+                      Sombre actif
+                    </>
+                  ) : (
+                    <>
+                      <Sun className="w-3.5 h-3.5" />
+                      Clair actif
+                    </>
+                  )}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    {
+                      value: "light",
+                      label: "Clair",
+                      sub: "Toujours lumineux",
+                      Icon: Sun,
+                    },
+                    {
+                      value: "dark",
+                      label: "Sombre",
+                      sub: "Repos des yeux",
+                      Icon: Moon,
+                    },
+                    {
+                      value: "system",
+                      label: "Système",
+                      sub: "Suit l'appareil",
+                      Icon: Monitor,
+                    },
+                  ] as {
+                    value: ThemeMode;
+                    label: string;
+                    sub: string;
+                    Icon: React.ElementType;
+                  }[]
+                ).map(({ value, label, sub, Icon }) => {
+                  const active = themeMode === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => setThemeMode(value)}
+                      className={`rounded-2xl border-2 px-3 py-3 text-left transition-all active:scale-[0.98] ${
+                        active
+                          ? "border-black bg-black text-white"
+                          : "border-gray-100 bg-gray-50 text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 mb-2" />
+                      <div className="text-xs font-black uppercase tracking-wider">{label}</div>
+                      <div
+                        className={`text-[11px] mt-1 leading-tight ${active ? "text-gray-300" : "text-gray-400"}`}
+                      >
+                        {sub}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                Le mode sombre est encore en work in progress. Certaines pages ou certains
+                composants peuvent rester imparfaits pendant cette phase.
+              </div>
+            </div>
+
+            <div className="border border-gray-100 rounded-2xl p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
                 Adresse e-mail
               </p>
@@ -692,7 +886,7 @@ export default function Settings() {
                 onClick={() => {
                   if (userEmail) {
                     void supabase.auth.resetPasswordForEmail(userEmail, {
-                      redirectTo: `${globalThis.location.origin}/reset-password`,
+                      redirectTo: getAppRedirectUrl("/reset-password"),
                     });
                     setResetSent(true);
                   }

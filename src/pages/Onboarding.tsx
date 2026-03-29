@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, CalendarDays, Check, X } from "lucide-react";
+import { ChevronLeft, Check, Plus, X } from "lucide-react";
 import { useApp } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import type {
@@ -12,8 +12,15 @@ import type {
 } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import { EQUIPMENT_LABELS } from "../lib/constants";
+import {
+  addEquipmentLabel,
+  getCustomEquipment,
+  hasEquipmentLabel,
+  normalizeEquipmentLabel,
+  removeEquipmentLabel,
+} from "../lib/equipment";
 
-const TOTAL_STEPS = 12;
+const TOTAL_STEPS = 13;
 
 const STEP_LABELS = [
   "Objectif",
@@ -23,15 +30,13 @@ const STEP_LABELS = [
   "Fréquence",
   "Durée",
   "Équipement",
-  "Exercices",
+  "Exercices aimés",
+  "Exercices à éviter",
   "Timing",
   "Contraintes",
   "Objectif chiffré",
   "Démarrer",
 ];
-
-// Steps that auto-advance on selection (single-choice only)
-const AUTO_ADVANCE = new Set([1, 2, 4]);
 
 const OBJECTIVES: { id: ObjectiveType; emoji: string }[] = [
   { id: "perte-poids", emoji: "🔥" },
@@ -63,6 +68,39 @@ const COMMON_EXERCISES = [
   "Abdos",
 ];
 
+function normalizeExerciseLabel(value: string): string {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (!trimmed) return "";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+function hasExerciseLabel(list: string[], candidate: string): boolean {
+  const normalized = normalizeExerciseLabel(candidate).toLocaleLowerCase();
+  if (!normalized) return false;
+
+  return list.some((item) => normalizeExerciseLabel(item).toLocaleLowerCase() === normalized);
+}
+
+function addExerciseLabel(list: string[], candidate: string): string[] {
+  const normalized = normalizeExerciseLabel(candidate);
+  if (!normalized || hasExerciseLabel(list, normalized)) return list;
+  return [...list, normalized];
+}
+
+function removeExerciseLabel(list: string[], candidate: string): string[] {
+  const normalized = normalizeExerciseLabel(candidate).toLocaleLowerCase();
+  return list.filter((item) => normalizeExerciseLabel(item).toLocaleLowerCase() !== normalized);
+}
+
+function isPresetExercise(label: string): boolean {
+  const normalized = normalizeExerciseLabel(label).toLocaleLowerCase();
+  return COMMON_EXERCISES.some((item) => item.toLocaleLowerCase() === normalized);
+}
+
+function getCustomExercises(list: string[]): string[] {
+  return list.filter((item) => !isPresetExercise(item));
+}
+
 interface FormState {
   objective: ObjectiveType | "";
   gender: GenderType | "";
@@ -79,6 +117,7 @@ interface FormState {
   injuries: string;
   nutritionRestrictions: string;
   targetWeight: string;
+  targetDurationMonths: string;
   targetDate: string;
 }
 
@@ -98,7 +137,8 @@ const defaultForm: FormState = {
   injuries: "",
   nutritionRestrictions: "",
   targetWeight: "",
-  targetDate: "",
+  targetDurationMonths: "6",
+  targetDate: addMonthsToToday(6),
 };
 
 function ChoiceCard({
@@ -150,211 +190,162 @@ function ChoiceCard({
   );
 }
 
-const MONTHS_FR = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
-];
-const DAYS_FR = ["L", "M", "M", "J", "V", "S", "D"];
+const MIN_TARGET_MONTHS = 1;
+const MAX_TARGET_MONTHS = 24;
+const DEFAULT_TARGET_MONTHS = 6;
 
-const DATE_PRESETS = [
-  { label: "3 mois", months: 3 },
-  { label: "6 mois", months: 6 },
-  { label: "1 an", months: 12 },
-  { label: "18 mois", months: 18 },
-  { label: "2 ans", months: 24 },
-];
+function toDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function addMonthsToToday(n: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().split("T")[0];
+  return toDateInputValue(d);
 }
 
-function DatePicker({
-  value,
-  onChange,
-}: Readonly<{ value: string; onChange: (v: string) => void }>) {
-  const today = new Date();
-  const parsed = value ? new Date(`${value}T12:00:00`) : null;
-  const [open, setOpen] = useState(false);
-  const [viewYear, setViewYear] = useState(parsed?.getFullYear() ?? today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(parsed?.getMonth() ?? today.getMonth());
+function monthsToWeeks(months: number): number {
+  return Math.max(4, Math.round(months * 4.345));
+}
 
-  const firstDayOffset = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+function formatDurationMonths(months: number): string {
+  if (months === 12) return "1 an";
+  if (months === 24) return "2 ans";
+  if (months % 12 === 0 && months > 12) return `${months / 12} ans`;
+  return `${months} mois`;
+}
 
-  function prevMonth() {
-    if (viewMonth === 0) {
-      setViewYear((y) => y - 1);
-      setViewMonth(11);
-    } else setViewMonth((m) => m - 1);
+function formatSuggestedDuration(months: number): string {
+  if (months > MAX_TARGET_MONTHS) return "plus de 24 mois";
+  return formatDurationMonths(months);
+}
+
+function formatDateLabel(dateValue: string): string {
+  return new Date(`${dateValue}T12:00:00`).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatWeight(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+type TimelineAssessment = {
+  tone: "neutral" | "good" | "warn" | "error";
+  title: string;
+  message: string;
+};
+
+function getTimelineAssessment(form: FormState): TimelineAssessment {
+  const months = Number.parseInt(form.targetDurationMonths, 10);
+  const safeMonths = Number.isNaN(months) ? DEFAULT_TARGET_MONTHS : months;
+  const dateValue = form.targetDate || addMonthsToToday(safeMonths);
+
+  if (!form.targetWeight) {
+    return {
+      tone: "neutral",
+      title: `${formatDurationMonths(safeMonths)} sélectionnés`,
+      message: `Programme calibré jusqu'au ${formatDateLabel(dateValue)}. Si tu vises un poids précis, ajoute-le pour vérifier le rythme.`,
+    };
   }
-  function nextMonth() {
-    if (viewMonth === 11) {
-      setViewYear((y) => y + 1);
-      setViewMonth(0);
-    } else setViewMonth((m) => m + 1);
+
+  const currentWeight = Number.parseFloat(form.weight);
+  const targetWeight = Number.parseFloat(form.targetWeight);
+
+  if (Number.isNaN(currentWeight) || Number.isNaN(targetWeight)) {
+    return {
+      tone: "neutral",
+      title: `${formatDurationMonths(safeMonths)} sélectionnés`,
+      message: `On utilisera cette échéance pour structurer la progression jusqu'au ${formatDateLabel(dateValue)}.`,
+    };
   }
-  function selectDay(day: number) {
-    const d = new Date(viewYear, viewMonth, day);
-    onChange(d.toISOString().split("T")[0]);
-    setOpen(false);
+
+  const diffKg = targetWeight - currentWeight;
+
+  if (Math.abs(diffKg) < 0.1) {
+    return {
+      tone: "neutral",
+      title: "Poids stable",
+      message: `Tu gardes le même poids de référence sur ${formatDurationMonths(safeMonths)}. On peut surtout travailler la forme, la perf et la recomposition.`,
+    };
   }
 
-  const displayLabel = parsed
-    ? parsed.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
-    : "Choisir une date";
+  const isLoss = diffKg < 0;
+  const absDiffKg = Math.abs(diffKg);
 
-  return (
-    <div>
-      {/* Preset pills */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        {/* No deadline option */}
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-all active:scale-95 ${
-            value === ""
-              ? "bg-black text-white border-black"
-              : "border-gray-200 hover:border-gray-400"
-          }`}
-        >
-          Sans échéance
-        </button>
-        {DATE_PRESETS.map(({ label, months }) => {
-          const preset = addMonthsToToday(months);
-          return (
-            <button
-              key={label}
-              type="button"
-              onClick={() => onChange(preset)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-all active:scale-95 ${
-                value === preset
-                  ? "bg-black text-white border-black"
-                  : "border-gray-200 hover:border-gray-400"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+  if (form.objective === "perte-poids" && !isLoss) {
+    return {
+      tone: "error",
+      title: "Poids cible incohérent",
+      message: `Avec un objectif perte de poids, ton poids cible doit être inférieur à ${formatWeight(currentWeight)} kg.`,
+    };
+  }
 
-      {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center justify-between border-2 rounded-2xl px-5 py-4 text-left transition-colors ${
-          open ? "border-black" : "border-gray-200 hover:border-gray-400"
-        }`}
-      >
-        <span className={`font-semibold text-sm ${value ? "text-black" : "text-gray-400"}`}>
-          {displayLabel}
-        </span>
-        <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
-      </button>
+  if (form.objective === "prise-masse" && isLoss) {
+    return {
+      tone: "error",
+      title: "Poids cible incohérent",
+      message: `Avec un objectif prise de masse, ton poids cible doit être supérieur à ${formatWeight(currentWeight)} kg.`,
+    };
+  }
 
-      {/* Calendar panel */}
-      {open && (
-        <div className="mt-2 border-2 border-gray-200 rounded-2xl p-4 bg-white shadow-sm">
-          {/* Month nav */}
-          <div className="flex items-center justify-between mb-3">
-            <button
-              type="button"
-              onClick={prevMonth}
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-black text-sm">
-              {MONTHS_FR[viewMonth]} {viewYear}
-            </span>
-            <button
-              type="button"
-              onClick={nextMonth}
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          {/* Day headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {DAYS_FR.map((d, i) => (
-              <div key={i} className="text-center text-[10px] font-bold text-gray-400 py-1">
-                {d}
-              </div>
-            ))}
-          </div>
-          {/* Days */}
-          <div className="grid grid-cols-7 gap-y-0.5">
-            {Array.from({ length: firstDayOffset }).map((_, i) => (
-              <div key={`e-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = new Date(viewYear, viewMonth, day).toISOString().split("T")[0];
-              const isPast =
-                new Date(viewYear, viewMonth, day) <
-                new Date(today.getFullYear(), today.getMonth(), today.getDate());
-              const isSelected = value === dateStr;
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  disabled={isPast}
-                  onClick={() => selectDay(day)}
-                  className={`aspect-square flex items-center justify-center rounded-xl text-sm font-medium transition-all ${
-                    isSelected
-                      ? "bg-black text-white font-black"
-                      : isPast
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "hover:bg-gray-100"
-                  }`}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-          {/* Clear */}
-          {value && (
-            <button
-              type="button"
-              onClick={() => {
-                onChange("");
-                setOpen(false);
-              }}
-              className="mt-3 w-full text-xs text-gray-400 hover:text-red-400 transition-colors py-1"
-            >
-              Effacer la date
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+  const weeks = monthsToWeeks(safeMonths);
+  const weeklyChange = absDiffKg / weeks;
+  const recommendedWeekly = isLoss ? 0.75 : 0.3;
+  const maxWeekly = isLoss ? 1 : 0.5;
+  const minMonths = Math.max(MIN_TARGET_MONTHS, Math.ceil(absDiffKg / maxWeekly / 4.345));
+  const comfortableMonths = Math.max(
+    MIN_TARGET_MONTHS,
+    Math.ceil(absDiffKg / recommendedWeekly / 4.345),
   );
+  const directionLabel = isLoss ? "perte" : "prise";
+  const weightSummary = `${formatWeight(currentWeight)} → ${formatWeight(targetWeight)} kg`;
+
+  if (weeklyChange > maxWeekly) {
+    return {
+      tone: "error",
+      title: "Délai trop agressif",
+      message: `Passer de ${weightSummary} en ${formatDurationMonths(safeMonths)} demanderait une ${directionLabel} d'environ ${weeklyChange.toFixed(1)} kg/semaine. Vise plutôt ${formatSuggestedDuration(minMonths)} minimum, ou ajuste ton poids cible.`,
+    };
+  }
+
+  if (weeklyChange > recommendedWeekly) {
+    return {
+      tone: "warn",
+      title: "Objectif ambitieux",
+      message: `${weightSummary} en ${formatDurationMonths(safeMonths)} représente environ ${weeklyChange.toFixed(1)} kg/semaine. C'est jouable, mais ${formatSuggestedDuration(comfortableMonths)} serait plus réaliste.`,
+    };
+  }
+
+  return {
+    tone: "good",
+    title: "Délai cohérent",
+    message: `${weightSummary} en ${formatDurationMonths(safeMonths)} représente environ ${weeklyChange.toFixed(1)} kg/semaine. C'est un rythme réaliste pour construire ton programme.`,
+  };
 }
 
 function ChipToggle({
   label,
   selected,
+  disabled = false,
   onClick,
-}: Readonly<{ label: string; selected: boolean; onClick: () => void }>) {
+}: Readonly<{ label: string; selected: boolean; disabled?: boolean; onClick: () => void }>) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.96] ${
-        selected ? "border-black bg-black text-white" : "border-gray-200 hover:border-gray-400"
+      disabled={disabled}
+      className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all duration-150 ${
+        disabled
+          ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+          : selected
+            ? "border-black bg-black text-white active:scale-[0.96]"
+            : "border-gray-200 hover:border-gray-400 active:scale-[0.96]"
       }`}
     >
       {selected && <Check className="w-3 h-3 shrink-0" />}
@@ -410,6 +401,12 @@ function BigNumberInput({
 export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(defaultForm);
+  const [showCustomEquipmentInput, setShowCustomEquipmentInput] = useState(false);
+  const [customEquipmentDraft, setCustomEquipmentDraft] = useState("");
+  const [showLikedExerciseInput, setShowLikedExerciseInput] = useState(false);
+  const [likedExerciseDraft, setLikedExerciseDraft] = useState("");
+  const [showDislikedExerciseInput, setShowDislikedExerciseInput] = useState(false);
+  const [dislikedExerciseDraft, setDislikedExerciseDraft] = useState("");
   const { dispatch } = useApp();
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
@@ -418,19 +415,82 @@ export default function Onboarding() {
     setForm((f) => ({ ...f, ...data }));
   }
 
-  function pick(data: Partial<FormState>) {
-    setForm((f) => ({ ...f, ...data }));
-    setTimeout(() => setStep((s) => s + 1), 220);
-  }
-
   function toggleList(
     field: "equipment" | "likedExercises" | "dislikedExercises" | "sessionDuration",
     val: string,
   ) {
     setForm((f) => {
+      if (field === "equipment") {
+        return {
+          ...f,
+          equipment: hasEquipmentLabel(f.equipment, val)
+            ? removeEquipmentLabel(f.equipment, val)
+            : addEquipmentLabel(f.equipment, val),
+        };
+      }
+
+      if (field === "likedExercises" || field === "dislikedExercises") {
+        const oppositeField = field === "likedExercises" ? "dislikedExercises" : "likedExercises";
+        const targetList = f[field];
+
+        if (hasExerciseLabel(targetList, val)) {
+          return {
+            ...f,
+            [field]: removeExerciseLabel(targetList, val),
+          };
+        }
+
+        return {
+          ...f,
+          [field]: addExerciseLabel(targetList, val),
+          [oppositeField]: removeExerciseLabel(f[oppositeField], val),
+        };
+      }
+
       const list = f[field];
       return { ...f, [field]: list.includes(val) ? list.filter((x) => x !== val) : [...list, val] };
     });
+  }
+
+  function addCustomEquipment() {
+    const normalized = normalizeEquipmentLabel(customEquipmentDraft);
+    if (!normalized || hasEquipmentLabel(form.equipment, normalized)) return;
+
+    setForm((f) => ({
+      ...f,
+      equipment: addEquipmentLabel(f.equipment, normalized),
+    }));
+    setCustomEquipmentDraft("");
+    setShowCustomEquipmentInput(false);
+  }
+
+  function addCustomExercise(field: "likedExercises" | "dislikedExercises") {
+    const draft = field === "likedExercises" ? likedExerciseDraft : dislikedExerciseDraft;
+    const normalized = normalizeExerciseLabel(draft);
+    const oppositeField = field === "likedExercises" ? "dislikedExercises" : "likedExercises";
+    if (
+      !normalized ||
+      hasExerciseLabel(form[field], normalized) ||
+      hasExerciseLabel(form[oppositeField], normalized)
+    ) {
+      return;
+    }
+
+    setForm((f) => {
+      return {
+        ...f,
+        [field]: addExerciseLabel(f[field], normalized),
+        [oppositeField]: removeExerciseLabel(f[oppositeField], normalized),
+      };
+    });
+
+    if (field === "likedExercises") {
+      setLikedExerciseDraft("");
+      setShowLikedExerciseInput(false);
+    } else {
+      setDislikedExerciseDraft("");
+      setShowDislikedExerciseInput(false);
+    }
   }
 
   function toggleAvailability(val: AvailabilityType) {
@@ -442,11 +502,25 @@ export default function Onboarding() {
     }));
   }
 
+  function updateTargetDuration(monthsValue: string) {
+    const months = Number.parseInt(monthsValue, 10);
+    if (Number.isNaN(months)) return;
+
+    update({
+      targetDurationMonths: monthsValue,
+      targetDate: addMonthsToToday(months),
+    });
+  }
+
   function canProceed(): boolean {
     if (step === 0) return form.objective !== "";
+    if (step === 1) return form.gender !== "";
+    if (step === 2) return form.level !== "";
     if (step === 3) return form.age !== "" && form.height !== "" && form.weight !== "";
+    if (step === 4) return form.weeklyFrequency !== "";
     if (step === 5) return form.sessionDuration.length > 0;
-    if (step === 8) return form.availability.length > 0;
+    if (step === 9) return form.availability.length > 0;
+    if (step === 11) return getTimelineAssessment(form).tone !== "error";
     return true;
   }
 
@@ -474,7 +548,31 @@ export default function Onboarding() {
     });
   }
 
-  const showFooter = !AUTO_ADVANCE.has(step) && step < TOTAL_STEPS - 1;
+  const showFooter = step < TOTAL_STEPS - 1;
+  const customEquipment = getCustomEquipment(form.equipment);
+  const canAddCustomEquipment =
+    normalizeEquipmentLabel(customEquipmentDraft) !== "" &&
+    !hasEquipmentLabel(form.equipment, customEquipmentDraft);
+  const customLikedExercises = getCustomExercises(form.likedExercises);
+  const canAddLikedExercise =
+    normalizeExerciseLabel(likedExerciseDraft) !== "" &&
+    !hasExerciseLabel(form.likedExercises, likedExerciseDraft) &&
+    !hasExerciseLabel(form.dislikedExercises, likedExerciseDraft);
+  const customDislikedExercises = getCustomExercises(form.dislikedExercises);
+  const canAddDislikedExercise =
+    normalizeExerciseLabel(dislikedExerciseDraft) !== "" &&
+    !hasExerciseLabel(form.dislikedExercises, dislikedExerciseDraft) &&
+    !hasExerciseLabel(form.likedExercises, dislikedExerciseDraft);
+  const targetDurationMonths =
+    Number.parseInt(form.targetDurationMonths, 10) || DEFAULT_TARGET_MONTHS;
+  const targetTimelineAssessment = getTimelineAssessment(form);
+  const targetTimelineDate = form.targetDate || addMonthsToToday(targetDurationMonths);
+  const targetTimelineToneClasses = {
+    neutral: "border-gray-200 bg-gray-50 text-gray-800",
+    good: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    warn: "border-amber-200 bg-amber-50 text-amber-900",
+    error: "border-red-200 bg-red-50 text-red-900",
+  } as const;
 
   return (
     <div
@@ -527,7 +625,7 @@ export default function Onboarding() {
             <div>
               <h1 className="text-2xl font-black mb-1">Ton objectif&nbsp;?</h1>
               <p className="text-gray-500 text-sm mb-6">
-                L&apos;IA sélectionnera l&apos;agent le mieux adapté.
+                L'IA sélectionnera l'agent le mieux adapté.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {OBJECTIVES.map(({ id, emoji }) => (
@@ -565,19 +663,19 @@ export default function Onboarding() {
                   label="Homme"
                   emoji="👨"
                   selected={form.gender === "homme"}
-                  onClick={() => pick({ gender: "homme" })}
+                  onClick={() => update({ gender: "homme" })}
                 />
                 <ChoiceCard
                   label="Femme"
                   emoji="👩"
                   selected={form.gender === "femme"}
-                  onClick={() => pick({ gender: "femme" })}
+                  onClick={() => update({ gender: "femme" })}
                 />
                 <ChoiceCard
                   label="Autre / Je préfère ne pas préciser"
                   emoji="🧑"
                   selected={form.gender === "autre"}
-                  onClick={() => pick({ gender: "autre" })}
+                  onClick={() => update({ gender: "autre" })}
                 />
               </div>
             </div>
@@ -587,9 +685,7 @@ export default function Onboarding() {
           {step === 2 && (
             <div>
               <h1 className="text-2xl font-black mb-1">Ton niveau&nbsp;?</h1>
-              <p className="text-gray-500 text-sm mb-6">
-                Sois honnête&nbsp;— l&apos;IA adapte tout.
-              </p>
+              <p className="text-gray-500 text-sm mb-6">Sois honnête&nbsp;— l'IA adapte tout.</p>
               <div className="space-y-3">
                 <ChoiceCard
                   label="Débutant"
@@ -597,7 +693,7 @@ export default function Onboarding() {
                   emoji="🌱"
                   desc="Tu apprends les gestes de base, tu établis tes premières habitudes sportives et tu n’as pas encore de plan structuré."
                   selected={form.level === "débutant"}
-                  onClick={() => pick({ level: "débutant" })}
+                  onClick={() => update({ level: "débutant" })}
                 />
                 <ChoiceCard
                   label="Intermédiaire"
@@ -605,7 +701,7 @@ export default function Onboarding() {
                   emoji="⚡"
                   desc="Tu maîtrises les exercices fondamentaux, tu t’entraînes régulièrement et tu progresses encore de manière linéaire."
                   selected={form.level === "intermédiaire"}
-                  onClick={() => pick({ level: "intermédiaire" })}
+                  onClick={() => update({ level: "intermédiaire" })}
                 />
                 <ChoiceCard
                   label="Avancé"
@@ -613,7 +709,7 @@ export default function Onboarding() {
                   emoji="🔥"
                   desc="Tu périodises ton entraînement, tu connais tes maximums et tu cherches à optimiser chaque variable pour continuer à progresser."
                   selected={form.level === "avancé"}
-                  onClick={() => pick({ level: "avancé" })}
+                  onClick={() => update({ level: "avancé" })}
                 />
               </div>
             </div>
@@ -623,7 +719,7 @@ export default function Onboarding() {
           {step === 3 && (
             <div>
               <h1 className="text-2xl font-black mb-1">Ton corps</h1>
-              <p className="text-gray-500 text-sm mb-6">Calibre les charges et l&apos;intensité.</p>
+              <p className="text-gray-500 text-sm mb-6">Calibre les charges et l'intensité.</p>
               <div className="space-y-4">
                 <BigNumberInput
                   inputId="age"
@@ -677,7 +773,7 @@ export default function Onboarding() {
                     label={label}
                     sub={sub}
                     selected={form.weeklyFrequency === val}
-                    onClick={() => pick({ weeklyFrequency: val })}
+                    onClick={() => update({ weeklyFrequency: val })}
                   />
                 ))}
               </div>
@@ -722,38 +818,195 @@ export default function Onboarding() {
                   <ChipToggle
                     key={eq}
                     label={eq}
-                    selected={form.equipment.includes(eq)}
+                    selected={hasEquipmentLabel(form.equipment, eq)}
                     onClick={() => toggleList("equipment", eq)}
                   />
                 ))}
               </div>
+
+              <div className="mt-5 rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">
+                      Tu ne trouves pas ton matériel ?
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Ajoute-le ici, on l'intégrera aussi dans ton programme.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomEquipmentInput((open) => !open)}
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold transition-all active:scale-[0.98] ${
+                      showCustomEquipmentInput
+                        ? "bg-black text-white"
+                        : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    {!showCustomEquipmentInput && <Plus className="w-3.5 h-3.5" />}
+                    {showCustomEquipmentInput ? "Fermer" : "J'aimerais ajouter"}
+                  </button>
+                </div>
+
+                {showCustomEquipmentInput && (
+                  <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <input
+                        type="text"
+                        value={customEquipmentDraft}
+                        onChange={(e) => setCustomEquipmentDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomEquipment();
+                          }
+                        }}
+                        placeholder="Ex : élastiques, anneaux, médecine ball..."
+                        className="flex-1 rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomEquipment}
+                        disabled={!canAddCustomEquipment}
+                        className="rounded-2xl bg-black px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-30 hover:bg-gray-900"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      {normalizeEquipmentLabel(customEquipmentDraft) &&
+                      hasEquipmentLabel(form.equipment, customEquipmentDraft)
+                        ? "Ce matériel est déjà sélectionné."
+                        : "Tu pourras ensuite le retirer d'un simple clic."}
+                    </p>
+                  </div>
+                )}
+
+                {customEquipment.length > 0 && (
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                      Ajouts perso
+                    </p>
+                    <div className="flex flex-wrap gap-2.5">
+                      {customEquipment.map((equipment) => (
+                        <ChipToggle
+                          key={equipment}
+                          label={equipment}
+                          selected
+                          onClick={() => toggleList("equipment", equipment)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Step 7 — Exercices */}
+          {/* Step 7 — Exercices favoris */}
           {step === 7 && (
             <div>
-              <h1 className="text-2xl font-black mb-1">Tes préférences</h1>
+              <h1 className="text-2xl font-black mb-1">Exercices que tu kiffes ✅</h1>
               <p className="text-gray-500 text-sm mb-6">
-                L&apos;IA priorisera tes exercices favoris.
+                L'IA les priorisera quand c'est pertinent dans ton programme.
               </p>
               <div className="space-y-5">
                 <div>
-                  <p className="text-sm font-bold mb-3">
-                    Exercices que tu <span className="text-green-600">kiffes</span> ✅
-                  </p>
                   <div className="flex flex-wrap gap-2">
                     {COMMON_EXERCISES.map((ex) => (
                       <ChipToggle
                         key={ex}
                         label={ex}
-                        selected={form.likedExercises.includes(ex)}
+                        selected={hasExerciseLabel(form.likedExercises, ex)}
+                        disabled={hasExerciseLabel(form.dislikedExercises, ex)}
                         onClick={() => toggleList("likedExercises", ex)}
                       />
                     ))}
                   </div>
+                  <p className="mt-3 text-[11px] text-gray-400">
+                    Les exercices déjà marqués dans “à éviter” sont bloqués ici.
+                  </p>
                 </div>
-                <div className="border-t border-gray-100 pt-5">
+                <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        Tu veux rajouter un autre exercice ?
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Tu peux aussi nous indiquer tes mouvements favoris plus spécifiques.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLikedExerciseInput((open) => !open)}
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold transition-all active:scale-[0.98] ${
+                        showLikedExerciseInput
+                          ? "bg-black text-white"
+                          : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      {!showLikedExerciseInput && <Plus className="w-3.5 h-3.5" />}
+                      {showLikedExerciseInput ? "Fermer" : "J'aimerais ajouter"}
+                    </button>
+                  </div>
+
+                  {showLikedExerciseInput && (
+                    <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-3">
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                          type="text"
+                          value={likedExerciseDraft}
+                          onChange={(e) => setLikedExerciseDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCustomExercise("likedExercises");
+                            }
+                          }}
+                          placeholder="Ex : farmer walk, tractions australiennes..."
+                          className="flex-1 rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => addCustomExercise("likedExercises")}
+                          disabled={!canAddLikedExercise}
+                          className="rounded-2xl bg-black px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-30 hover:bg-gray-900"
+                        >
+                          Ajouter
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11px] text-gray-400">
+                        {normalizeExerciseLabel(likedExerciseDraft) &&
+                        hasExerciseLabel(form.likedExercises, likedExerciseDraft)
+                          ? "Cet exercice est déjà sélectionné."
+                          : normalizeExerciseLabel(likedExerciseDraft) &&
+                              hasExerciseLabel(form.dislikedExercises, likedExerciseDraft)
+                            ? "Retire-le d'abord de la liste “à éviter” pour le mettre ici."
+                            : "Tu pourras ensuite le retirer d'un simple clic."}
+                      </p>
+                    </div>
+                  )}
+
+                  {customLikedExercises.length > 0 && (
+                    <div className="mt-4 border-t border-gray-200 pt-4">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Ajouts perso
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {customLikedExercises.map((exercise) => (
+                          <ChipToggle
+                            key={exercise}
+                            label={exercise}
+                            selected
+                            onClick={() => toggleList("likedExercises", exercise)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="hidden border-t border-gray-100 pt-5">
                   <p className="text-sm font-bold mb-3">
                     Exercices à <span className="text-red-500">éviter</span> ❌
                   </p>
@@ -762,7 +1015,7 @@ export default function Onboarding() {
                       <ChipToggle
                         key={ex}
                         label={ex}
-                        selected={form.dislikedExercises.includes(ex)}
+                        selected={hasExerciseLabel(form.dislikedExercises, ex)}
                         onClick={() => toggleList("dislikedExercises", ex)}
                       />
                     ))}
@@ -772,10 +1025,114 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 8 — Disponibilité */}
+          {/* Step 8 — Exercices à éviter */}
           {step === 8 && (
             <div>
-              <h1 className="text-2xl font-black mb-1">Tu préfères t&apos;entraîner&hellip;</h1>
+              <h1 className="text-2xl font-black mb-1">Exercices à éviter ❌</h1>
+              <p className="text-gray-500 text-sm mb-6">
+                L'IA les écartera autant que possible dans tes séances.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {COMMON_EXERCISES.map((ex) => (
+                  <ChipToggle
+                    key={ex}
+                    label={ex}
+                    selected={hasExerciseLabel(form.dislikedExercises, ex)}
+                    disabled={hasExerciseLabel(form.likedExercises, ex)}
+                    onClick={() => toggleList("dislikedExercises", ex)}
+                  />
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] text-gray-400">
+                Les exercices déjà marqués dans “kiffés” sont bloqués ici.
+              </p>
+
+              <div className="mt-5 rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">
+                      Tu veux en signaler un autre ?
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Ajoute tout mouvement que tu n'aimes pas ou que tu veux éviter.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDislikedExerciseInput((open) => !open)}
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold transition-all active:scale-[0.98] ${
+                      showDislikedExerciseInput
+                        ? "bg-black text-white"
+                        : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    {!showDislikedExerciseInput && <Plus className="w-3.5 h-3.5" />}
+                    {showDislikedExerciseInput ? "Fermer" : "J'aimerais ajouter"}
+                  </button>
+                </div>
+
+                {showDislikedExerciseInput && (
+                  <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <input
+                        type="text"
+                        value={dislikedExerciseDraft}
+                        onChange={(e) => setDislikedExerciseDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomExercise("dislikedExercises");
+                          }
+                        }}
+                        placeholder="Ex : burpee broad jump, pistols, sprint côte..."
+                        className="flex-1 rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addCustomExercise("dislikedExercises")}
+                        disabled={!canAddDislikedExercise}
+                        className="rounded-2xl bg-black px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-30 hover:bg-gray-900"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      {normalizeExerciseLabel(dislikedExerciseDraft) &&
+                      hasExerciseLabel(form.dislikedExercises, dislikedExerciseDraft)
+                        ? "Cet exercice est déjà sélectionné."
+                        : normalizeExerciseLabel(dislikedExerciseDraft) &&
+                            hasExerciseLabel(form.likedExercises, dislikedExerciseDraft)
+                          ? "Retire-le d'abord de la liste “kiffés” pour le mettre ici."
+                          : "Tu pourras ensuite le retirer d'un simple clic."}
+                    </p>
+                  </div>
+                )}
+
+                {customDislikedExercises.length > 0 && (
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                      Ajouts perso
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {customDislikedExercises.map((exercise) => (
+                        <ChipToggle
+                          key={exercise}
+                          label={exercise}
+                          selected
+                          onClick={() => toggleList("dislikedExercises", exercise)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 9 — Disponibilité */}
+          {step === 9 && (
+            <div>
+              <h1 className="text-2xl font-black mb-1">Tu préfères t'entraîner&hellip;</h1>
               <p className="text-gray-500 text-sm mb-6">On adapte les conseils de récupération.</p>
               <div className="space-y-3">
                 {(
@@ -814,13 +1171,11 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 9 — Contraintes */}
-          {step === 9 && (
+          {/* Step 10 — Contraintes */}
+          {step === 10 && (
             <div>
               <h1 className="text-2xl font-black mb-1">Contraintes</h1>
-              <p className="text-gray-500 text-sm mb-6">
-                L&apos;IA adapte pour protéger ton corps.
-              </p>
+              <p className="text-gray-500 text-sm mb-6">L'IA adapte pour protéger ton corps.</p>
               <div className="space-y-4">
                 <div>
                   <label
@@ -858,24 +1213,71 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 10 — Objectifs chiffrés */}
-          {step === 10 && (
+          {/* Step 11 — Objectifs chiffrés */}
+          {step === 11 && (
             <div>
-              <h1 className="text-2xl font-black mb-1">Objectifs chiffrés</h1>
-              <p className="text-gray-500 text-sm mb-1">
-                Optionnel — aide l&apos;IA à calibrer la progression.
+              <h1 className="text-2xl font-black mb-1">En combien de temps ?</h1>
+              <p className="text-gray-500 text-sm mb-6">
+                Définis ton délai avec le curseur. On vérifie aussi si le rythme reste crédible par
+                rapport à ton objectif.
               </p>
-              <button
-                type="button"
-                onClick={() => setStep(TOTAL_STEPS - 1)}
-                className="inline-block text-xs bg-gray-100 text-gray-500 rounded-full px-3 py-1 mb-6 font-medium hover:bg-gray-200 transition-colors active:scale-95"
-              >
-                Tu peux passer cette étape →
-              </button>
               <div className="space-y-4">
+                <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Délai visé</p>
+                      <p className="mt-1 text-xs text-gray-500">Minimum 1 mois · maximum 2 ans</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-gray-900">
+                        {formatDurationMonths(targetDurationMonths)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Jusqu'au {formatDateLabel(targetTimelineDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <input
+                      type="range"
+                      min={MIN_TARGET_MONTHS}
+                      max={MAX_TARGET_MONTHS}
+                      step={1}
+                      value={targetDurationMonths}
+                      onChange={(e) => updateTargetDuration(e.target.value)}
+                      className="range range-sm w-full accent-black"
+                    />
+                    <div className="mt-2 flex items-center justify-between text-[11px] font-medium text-gray-400">
+                      <span>1 mois</span>
+                      <span>12 mois</span>
+                      <span>24 mois</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        Échéance
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-gray-900">
+                        {formatDateLabel(targetTimelineDate)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 bg-white p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        Durée estimée
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-gray-900">
+                        {monthsToWeeks(targetDurationMonths)} semaines
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <BigNumberInput
                   inputId="target-weight"
-                  label="Poids cible"
+                  label="Poids cible (optionnel)"
                   unit="kg"
                   placeholder="80"
                   value={form.targetWeight}
@@ -883,21 +1285,24 @@ export default function Onboarding() {
                   max={300}
                   onChange={(v) => update({ targetWeight: v })}
                 />
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">
-                    Date cible (compétition, évènement…)
-                  </label>
-                  <DatePicker value={form.targetDate} onChange={(v) => update({ targetDate: v })} />
+
+                <div
+                  className={`rounded-3xl border p-4 ${targetTimelineToneClasses[targetTimelineAssessment.tone]}`}
+                >
+                  <p className="text-sm font-bold">{targetTimelineAssessment.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed opacity-90">
+                    {targetTimelineAssessment.message}
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 11 — Démarrer */}
-          {step === 11 && (
+          {/* Step 12 — Démarrer */}
+          {step === 12 && (
             <div>
               <div className="text-5xl mb-4">🚀</div>
-              <h1 className="text-2xl font-black mb-1">C&apos;est parti&nbsp;!</h1>
+              <h1 className="text-2xl font-black mb-1">C'est parti&nbsp;!</h1>
               <p className="text-gray-500 text-sm mb-8">
                 Comment veux-tu récupérer ton programme&nbsp;?
               </p>
@@ -965,7 +1370,7 @@ export default function Onboarding() {
         </div>
       </div>
 
-      {/* Footer CTA (non-auto-advance steps) */}
+      {/* Footer CTA */}
       {showFooter && (
         <div
           className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full bg-white/95 backdrop-blur-sm border-t border-gray-100 px-4 pt-3"
@@ -976,7 +1381,7 @@ export default function Onboarding() {
             disabled={!canProceed()}
             className="w-full bg-black text-white font-bold py-4 rounded-2xl text-[15px] disabled:opacity-25 disabled:cursor-not-allowed hover:bg-gray-900 transition-colors active:scale-[0.98]"
           >
-            {step === 10 ? "Finaliser" : "Continuer →"}
+            {step === 11 ? "Finaliser" : "Continuer →"}
           </button>
         </div>
       )}

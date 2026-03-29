@@ -59,7 +59,7 @@ export default function ChatWidget() {
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/8 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center">
+              <div className="theme-keep-light w-8 h-8 bg-white rounded-xl flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-black" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-[#0e0e0e]" />

@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { getAppRedirectUrl } from "../lib/appUrl";
 import logoUrl from "../assets/logo.png";
+import BetaBadge from "../components/BetaBadge";
 
 function signInWithGoogle() {
   supabase.auth
     .signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${globalThis.location.origin}/dashboard` },
+      options: { redirectTo: getAppRedirectUrl("/dashboard") },
     })
     .catch(console.warn);
 }
@@ -45,8 +47,9 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 justify-center mb-8">
-          <img src={logoUrl} alt="Vincere" className="w-9 h-9 rounded-xl" />
+          <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-9 h-9 rounded-xl" />
           <span className="font-black text-xl">Vincere</span>
+          <BetaBadge compact />
         </Link>
 
         <h1 className="text-2xl font-black text-center mb-1">Connexion</h1>

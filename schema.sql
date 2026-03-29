@@ -260,6 +260,23 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 -- ============================================================
+-- TABLE : contact
+-- Messages envoyés depuis le drawer de contact.
+-- user_id est optionnel pour autoriser les visiteurs anonymes.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS contact (
+  id         UUID        NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id    UUID        REFERENCES users(id) ON DELETE SET NULL,
+  first_name TEXT        NOT NULL,
+  last_name  TEXT,
+  email      TEXT        NOT NULL,
+  subject    TEXT        NOT NULL,
+  message    TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- INDEX
 -- ============================================================
 
@@ -279,6 +296,8 @@ CREATE INDEX IF NOT EXISTS idx_ds_feedback          ON daily_sessions(user_id, f
 CREATE INDEX IF NOT EXISTS idx_dsb_session_id       ON daily_session_blocks(session_id);
 CREATE INDEX IF NOT EXISTS idx_dse_block_id         ON daily_session_exercises(block_id);
 CREATE INDEX IF NOT EXISTS idx_chat_user_id         ON chat_messages(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contact_created_at   ON contact(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contact_user_id      ON contact(user_id, created_at DESC);
 
 -- ============================================================
 -- TRIGGERS � mise � jour automatique de updated_at
@@ -366,6 +385,7 @@ ALTER TABLE daily_session_exercises  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_progress      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contact                  ENABLE ROW LEVEL SECURITY;
 
 -- Fonction helper : retourne l'UUID de l'utilisateur connect�
 CREATE OR REPLACE FUNCTION auth_user_id()
@@ -570,6 +590,13 @@ DROP POLICY IF EXISTS chat_insert ON chat_messages;
 CREATE POLICY chat_select ON chat_messages FOR SELECT USING (user_id = auth_user_id());
 CREATE POLICY chat_insert ON chat_messages FOR INSERT WITH CHECK (user_id = auth_user_id());
 
+-- contact
+DROP POLICY IF EXISTS contact_insert ON contact;
+CREATE POLICY contact_insert ON contact
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (user_id IS NULL OR user_id = auth.uid());
+
 -- ============================================================
 -- VUES
 -- ============================================================
@@ -691,6 +718,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE daily_session_exercises TO authent
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE onboarding_progress     TO authenticated;
 GRANT SELECT                          ON TABLE subscriptions          TO authenticated;
 GRANT SELECT, INSERT                  ON TABLE chat_messages          TO authenticated;
+GRANT INSERT                          ON TABLE contact                TO anon, authenticated;
 
 GRANT SELECT ON v_user_dashboard      TO authenticated;
 GRANT SELECT ON v_daily_session_full  TO authenticated;

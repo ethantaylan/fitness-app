@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, CheckCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import logoUrl from "../assets/logo.png";
+import BetaBadge from "../components/BetaBadge";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -63,8 +64,9 @@ export default function ResetPassword() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-10">
-          <img src={logoUrl} alt="Vincere" className="w-9 h-9 rounded-xl" />
+          <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-9 h-9 rounded-xl" />
           <span className="font-extrabold text-xl tracking-tight">Vincere</span>
+          <BetaBadge compact />
         </div>
 
         <h1 className="text-2xl font-extrabold text-center mb-2">Nouveau mot de passe</h1>
@@ -82,7 +84,10 @@ export default function ResetPassword() {
           </div>
         ) : !ready ? (
           <div className="flex flex-col items-center gap-4 text-center py-8">
-            <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            <div
+              className="w-6 h-6 border-2 rounded-full animate-spin"
+              style={{ borderColor: "var(--theme-text)", borderTopColor: "transparent" }}
+            />
             <p className="text-sm text-gray-500">Vérification du lien en cours…</p>
           </div>
         ) : (

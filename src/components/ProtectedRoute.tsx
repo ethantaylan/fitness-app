@@ -8,7 +8,10 @@ export default function ProtectedRoute({ children }: Readonly<{ children: ReactN
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        <div
+          className="w-6 h-6 border-2 rounded-full animate-spin"
+          style={{ borderColor: "var(--theme-text)", borderTopColor: "transparent" }}
+        />
       </div>
     );
   }

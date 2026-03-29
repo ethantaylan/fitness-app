@@ -63,6 +63,7 @@ Renseigne `.env.local` :
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 VITE_OPENAI_API_KEY=sk-...
+VITE_APP_URL=http://localhost:5173
 ```
 
 ```bash
@@ -151,6 +152,9 @@ Landing -> Register/Login -> Onboarding -> Dashboard
 | `VITE_SUPABASE_URL`      | Oui    |
 | `VITE_SUPABASE_ANON_KEY` | Oui    |
 | `VITE_OPENAI_API_KEY`    | Oui    |
+| `VITE_APP_URL`           | Non    |
+
+Pour les redirects d'auth Supabase en local, ajoute aussi `http://localhost:5173/dashboard` et `http://localhost:5173/reset-password` dans `Authentication > URL Configuration > Redirect URLs`. Sinon Supabase peut retomber sur la `Site URL` de production.
 
 ---
 

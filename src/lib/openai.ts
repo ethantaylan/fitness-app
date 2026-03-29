@@ -160,6 +160,22 @@ function buildDurationInstruction(profile: UserProfile): string {
   return `L'utilisateur n'a pas fixé d'échéance. Détermine toi-même la durée optimale selon son niveau et son objectif (entre 4 et 16 semaines). Ne te limite pas à 4 semaines par défaut.`;
 }
 
+function buildTargetPaceInstruction(profile: UserProfile): string {
+  if (!profile.targetWeight || !profile.targetDate) return "";
+
+  const diffKg = profile.targetWeight - profile.weight;
+  if (Math.abs(diffKg) < 0.1) return "";
+
+  const today = new Date();
+  const target = new Date(profile.targetDate);
+  const diffMs = target.getTime() - today.getTime();
+  const diffWeeks = Math.max(1, Math.round(diffMs / (7 * 24 * 60 * 60 * 1000)));
+  const weeklyChange = Math.abs(diffKg) / diffWeeks;
+  const direction = diffKg < 0 ? "perte" : "prise";
+
+  return `Le poids cible implique une ${direction} moyenne d'environ ${weeklyChange.toFixed(2)} kg/semaine. Le programme doit rester progressif, prudent et réaliste : ne promets jamais une transformation extrême ou malsaine.`;
+}
+
 export async function generateProgram(profile: UserProfile): Promise<Program> {
   const client = getClient();
 
@@ -172,6 +188,8 @@ export async function generateProgram(profile: UserProfile): Promise<Program> {
 ${buildProfileDescription(profile)}
 
 ${buildDurationInstruction(profile)}
+
+${buildTargetPaceInstruction(profile)}
 
 ${VOLUME_RULES}
 

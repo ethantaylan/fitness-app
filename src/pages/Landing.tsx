@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { useAuth } from "../lib/auth";
+import { useState } from "react";
 import logoUrl from "../assets/logo.png";
 import {
   Target,
@@ -21,6 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
+import BetaBadge from "../components/BetaBadge";
 
 const TICKER_SPORTS = [
   { label: "Musculation", Icon: Dumbbell, bg: "bg-violet-50", color: "text-violet-500" },
@@ -38,14 +38,7 @@ const TICKER_ITEMS = [...TICKER_SPORTS, ...TICKER_SPORTS];
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { isLoaded, isSignedIn } = useAuth();
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isLoaded, isSignedIn, navigate]);
 
   const FAQ = [
     {
@@ -89,10 +82,13 @@ export default function Landing() {
         <div className="relative w-full max-w-4xl mx-auto text-center">
           {/* Logo */}
           <div className="flex flex-col items-center mb-6">
-            <img src={logoUrl} alt="Vincere" className="w-16 h-16 mb-2" />
-            <span className="text-xs font-black tracking-[0.3em] uppercase text-gray-400">
-              Vincere
-            </span>
+            <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-16 h-16 mb-2" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black tracking-[0.3em] uppercase text-gray-400">
+                Vincere
+              </span>
+              <BetaBadge compact />
+            </div>
           </div>
           {/* H1 */}
           <h1
@@ -109,6 +105,13 @@ export default function Landing() {
             Décris tes objectifs, reçois un programme structuré avec charges, progressions et
             récupération. Personnalisé, prêt à l’emploi.
           </p>
+          <div className="mb-8">
+            <p className="inline-flex max-w-2xl items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
+              <BetaBadge compact />
+              Vincere est encore en développement, mais l'application est déjà utilisable au
+              quotidien.
+            </p>
+          </div>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
@@ -120,7 +123,7 @@ export default function Landing() {
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => navigate("/sign-in")}
+              onClick={() => navigate("/dashboard")}
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
             >
               J’ai déjà un compte
@@ -526,7 +529,7 @@ export default function Landing() {
               className="shrink-0 flex items-center gap-2 bg-black text-white text-sm font-bold px-5 py-3 rounded-full hover:bg-gray-800 active:scale-95 transition-all"
             >
               <Sparkles className="w-4 h-4" />
-              Demander à l&apos;assistant
+              Demander à l'assistant
             </button>
           </div>{" "}
         </div>
@@ -597,7 +600,7 @@ export default function Landing() {
                   { label: "Générer un programme", path: "/onboarding" },
                   { label: "Connexion", path: "/sign-in" },
                   { label: "Créer un compte", path: "/sign-up" },
-                  { label: "Mon dashboard", path: "/sign-in" },
+                  { label: "Mon dashboard", path: "/dashboard" },
                 ].map(({ label, path }) => (
                   <li key={label}>
                     <button

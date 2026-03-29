@@ -20,13 +20,36 @@ import ChatWidget from "./components/ChatWidget";
 import BottomNav from "./components/BottomNav";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+function HomeRoute() {
+  const { isSignedIn } = useAuth();
+
+  if (isSignedIn) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Landing />;
+}
+
+function PublicOnlyRoute({ children }: Readonly<{ children: ReactNode }>) {
+  const { isSignedIn } = useAuth();
+
+  if (isSignedIn) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppWithProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { userId, isLoaded, userEmail, userFirstName } = useAuth();
 
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        <div
+          className="w-6 h-6 border-2 rounded-full animate-spin"
+          style={{ borderColor: "var(--theme-text)", borderTopColor: "transparent" }}
+        />
       </div>
     );
   }
@@ -49,11 +72,25 @@ export default function App() {
     <BrowserRouter>
       <AppWithProvider>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<HomeRoute />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/generating" element={<Generating />} />
-          <Route path="/sign-in/*" element={<Login />} />
-          <Route path="/sign-up/*" element={<Register />} />
+          <Route
+            path="/sign-in/*"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/sign-up/*"
+            element={
+              <PublicOnlyRoute>
+                <Register />
+              </PublicOnlyRoute>
+            }
+          />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/s" element={<SharedSession />} />
           <Route

@@ -52,14 +52,14 @@ export default function BottomNav() {
       <div
         className="absolute inset-x-0 -top-8 h-8 pointer-events-none"
         style={{
-          background: "linear-gradient(to top, rgba(255,255,255,0.9) 0%, transparent 100%)",
+          background: "linear-gradient(to top, var(--theme-nav-fade) 0%, transparent 100%)",
         }}
       />
 
       <div
         className="relative bg-white/95 backdrop-blur-2xl border-t border-gray-100"
         style={{
-          boxShadow: "0 -1px 0 0 rgba(0,0,0,0.04), 0 -8px 40px rgba(0,0,0,0.07)",
+          boxShadow: "var(--theme-nav-shadow)",
           paddingBottom: "env(safe-area-inset-bottom, 8px)",
         }}
       >
@@ -79,7 +79,7 @@ export default function BottomNav() {
                 >
                   <div
                     className="absolute -top-5 w-14 h-14 bg-black rounded-2xl flex items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.25)] active:scale-90 transition-transform duration-150"
-                    style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.30), 0 1px 3px rgba(0,0,0,0.12)" }}
+                    style={{ boxShadow: "var(--theme-floating-shadow)" }}
                   >
                     <Sparkles className="w-5 h-5 text-white" style={{ strokeWidth: 2 }} />
                   </div>
@@ -102,6 +102,7 @@ export default function BottomNav() {
                   style={{
                     width: active ? "28px" : "0px",
                     opacity: active ? 1 : 0,
+                    background: "var(--theme-accent)",
                   }}
                 />
 
@@ -111,7 +112,7 @@ export default function BottomNav() {
                   style={{
                     width: active ? "42px" : "34px",
                     height: active ? "34px" : "28px",
-                    background: active ? "#000" : "transparent",
+                    background: active ? "var(--theme-accent)" : "transparent",
                   }}
                 >
                   <Icon
@@ -119,7 +120,7 @@ export default function BottomNav() {
                     style={{
                       width: "18px",
                       height: "18px",
-                      color: active ? "#fff" : "#9ca3af",
+                      color: active ? "var(--theme-accent-contrast)" : "var(--theme-text-soft)",
                       strokeWidth: active ? 2.4 : 1.7,
                     }}
                   />
@@ -128,7 +129,7 @@ export default function BottomNav() {
                 {/* Label */}
                 <span
                   className="text-[10px] leading-none font-semibold tracking-tight transition-colors duration-200"
-                  style={{ color: active ? "#000" : "#9ca3af" }}
+                  style={{ color: active ? "var(--theme-text)" : "var(--theme-text-soft)" }}
                 >
                   {tab.label}
                 </span>

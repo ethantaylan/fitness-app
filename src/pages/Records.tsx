@@ -233,17 +233,6 @@ export default function Records() {
     setExpandedExercise((prev) => (prev === name ? null : name));
   }
 
-  const [today] = useState(() => Date.now());
-
-  const currentWeekNum = useMemo(() => {
-    if (state.programStartDate === null) return 1;
-    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-    const elapsed = today - new Date(state.programStartDate).getTime();
-    const week = Math.ceil(elapsed / msPerWeek) + 1;
-    const totalWeeks = state.program?.program_overview.duration_weeks ?? 1;
-    return Math.min(Math.max(week, 1), totalWeeks);
-  }, [state.programStartDate, state.program, today]);
-
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -264,40 +253,6 @@ export default function Records() {
             )}
           </div>
         </div>
-
-        {/* Programme progress banner */}
-        {state.program !== null && (
-          <div className="bg-white rounded-2xl p-4 mb-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">
-                  Programme en cours
-                </p>
-                <p className="font-black text-sm leading-tight line-clamp-2">
-                  {state.program.program_overview.summary}
-                </p>
-                {state.programStartDate !== null && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Commencé le{" "}
-                    {new Date(state.programStartDate).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                )}
-              </div>
-              {state.programStartDate !== null && (
-                <div className="text-right shrink-0 ml-4">
-                  <p className="text-2xl font-black leading-none">S{currentWeekNum}</p>
-                  <p className="text-xs text-gray-400">
-                    / {state.program.program_overview.duration_weeks} sem.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Empty state */}
         {sortedExercises.length === 0 && (

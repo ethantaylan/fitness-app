@@ -757,7 +757,7 @@ export default function WorkoutBuilder() {
             <span className="text-sm leading-none">👆</span>1 clic = 1 exercice
           </span>
           <span className="text-[11px] text-gray-500 font-medium">
-            Ajoute autant d&apos;exercices que tu veux
+            Ajoute autant d'exercices que tu veux
           </span>
         </div>
 

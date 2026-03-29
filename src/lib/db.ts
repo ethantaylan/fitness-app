@@ -55,6 +55,15 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface ContactMessageInput {
+  userId?: string | null;
+  firstName: string;
+  lastName?: string | null;
+  email: string;
+  subject: string;
+  message: string;
+}
+
 /** État complet chargé depuis Supabase au démarrage de l'app */
 export interface RemoteAppState {
   profile: UserProfile | null;
@@ -742,6 +751,25 @@ export async function getChatHistory(
 // ─────────────────────────────────────────────────────────────────────────────
 // CHARGEMENT GLOBAL — hydratation initiale de l'app
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Enregistre un message de contact depuis le drawer de support.
+ */
+export async function saveContactMessage(
+  client: SupabaseClient,
+  input: ContactMessageInput,
+): Promise<void> {
+  const { error } = await client.from("contact").insert({
+    user_id: input.userId ?? null,
+    first_name: input.firstName,
+    last_name: input.lastName ?? null,
+    email: input.email,
+    subject: input.subject,
+    message: input.message,
+  });
+
+  if (error) throw new Error(`[db/saveContactMessage] ${error.message}`);
+}
 
 /**
  * Charge tout l'état de l'app depuis Supabase en parallèle.
