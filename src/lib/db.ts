@@ -181,6 +181,37 @@ export async function upsertUser(
  * Sauvegarde (créé ou met à jour) le profil utilisateur.
  * Utilisé à la fin de l'onboarding et depuis la page Profil (Settings).
  */
+export async function getUserAccount(
+  client: SupabaseClient,
+  internalUserId: string,
+): Promise<DbUser | null> {
+  const { data, error } = await client
+    .from("users")
+    .select("*")
+    .eq("id", internalUserId)
+    .maybeSingle();
+
+  if (error) throw new Error(`[db/getUserAccount] ${error.message}`);
+  return (data as DbUser | null) ?? null;
+}
+
+export async function updateUserDisplayName(
+  client: SupabaseClient,
+  internalUserId: string,
+  displayName: string,
+): Promise<DbUser> {
+  const normalized = displayName.trim();
+
+  const { data, error } = await client
+    .from("users")
+    .update({ first_name: normalized })
+    .eq("id", internalUserId)
+    .select("*")
+    .single();
+
+  return assertOk(data as DbUser | null, error, "updateUserDisplayName");
+}
+
 export async function saveProfile(
   client: SupabaseClient,
   internalUserId: string,
@@ -191,6 +222,50 @@ export async function saveProfile(
     .upsert(profileToDbRow(internalUserId, profile), { onConflict: "user_id" });
 
   if (error) throw new Error(`[db/saveProfile] ${error.message}`);
+}
+
+export async function updateProgramSessionCompletion(
+  client: SupabaseClient,
+  internalUserId: string,
+  weekNumber: number,
+  sessionId: string,
+  completed: boolean,
+): Promise<void> {
+  const { data: programRow, error: programError } = await client
+    .from("programs")
+    .select("id")
+    .eq("user_id", internalUserId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (programError) {
+    throw new Error(`[db/updateProgramSessionCompletion/program] ${programError.message}`);
+  }
+
+  const programId = (programRow as { id: string } | null)?.id;
+  if (!programId) return;
+
+  const { data: weekRow, error: weekError } = await client
+    .from("program_weeks")
+    .select("id")
+    .eq("program_id", programId)
+    .eq("week_number", weekNumber)
+    .maybeSingle();
+
+  if (weekError) {
+    throw new Error(`[db/updateProgramSessionCompletion/week] ${weekError.message}`);
+  }
+
+  const weekId = (weekRow as { id: string } | null)?.id;
+  if (!weekId) return;
+
+  const { error } = await client
+    .from("program_sessions")
+    .update({ completed_at: completed ? new Date().toISOString() : null })
+    .eq("week_id", weekId)
+    .eq("session_label", sessionId);
+
+  if (error) throw new Error(`[db/updateProgramSessionCompletion] ${error.message}`);
 }
 
 /**
@@ -404,6 +479,8 @@ export async function getActiveProgram(
               warmup: (s.warmup as WarmupItem[]) ?? [],
               cooldown: (s.cooldown as WarmupItem[]) ?? [],
               notes: s.notes as string | undefined,
+              completed: Boolean(s.completed_at),
+              completedAt: (s.completed_at as string | null) ?? null,
               blocks: ((s.program_session_blocks as Record<string, unknown>[]) ?? [])
                 .sort((a, b) => (a.sort_order as number) - (b.sort_order as number))
                 .map((b) => dbRowToBlock(b, "exercises")),

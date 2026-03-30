@@ -47,7 +47,7 @@ export default function TodayCard({
         </div>
         <p className="font-black text-gray-900 mb-1 text-sm">Configure ton profil</p>
         <p className="text-xs text-gray-400 mb-4">
-          Remplis ton profil pour debloquer les seances quotidiennes.
+          Remplis ton profil pour debloquer les seances bonus a ajouter en plus du programme.
         </p>
         <Link
           to="/onboarding"
@@ -60,15 +60,34 @@ export default function TodayCard({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm font-black text-gray-900">Tu as plus de dispo aujourd'hui ?</p>
+        <p className="mt-1 text-xs leading-relaxed text-gray-600">
+          Cette zone sert a generer une seance bonus en plus de ton programme si tu veux t'entrainer
+          davantage.
+        </p>
+      </div>
+
+      {todaySessions.length > 0 && (
+        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">
+            Seances bonus du jour
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Tu peux revoir ici les seances supplementaires que tu as deja ajoutees aujourd'hui.
+          </p>
+        </div>
+      )}
+
       {todaySessions.map((s, i) => {
         const fb = s.feedback ? FEEDBACK_META[s.feedback as FeedbackType] : null;
         return (
           <button
             key={s.uid}
             type="button"
-            aria-label={`Voir la seance ${s.goal}`}
-            className="w-full flex items-center justify-between text-left rounded-xl hover:bg-gray-50 transition-colors p-1 -m-1 active:scale-[0.99]"
+            aria-label={`Voir la seance bonus ${s.goal}`}
+            className="w-full flex items-center justify-between text-left rounded-2xl border border-gray-200 bg-white p-3 transition-colors hover:bg-gray-50 active:scale-[0.99]"
             onClick={() => onNavigate(s.uid)}
           >
             <div className="flex items-center gap-4">
@@ -123,9 +142,12 @@ export default function TodayCard({
               >
                 <Dumbbell className={`w-5 h-5 ${objMeta?.color ?? "text-gray-400"}`} />
               </div>
-              <p className="font-black text-gray-900 mb-1 text-sm">Pret pour ta seance ?</p>
+              <p className="font-black text-gray-900 mb-1 text-sm">
+                Tu veux rajouter une seance en plus ?
+              </p>
               <p className="text-xs text-gray-400 mb-4">
-                L'IA genere une seance adaptee a ton niveau en 10 secondes.
+                Si tu as une disponibilite supplementaire, l'IA te prepare une seance bonus adaptee
+                a ton niveau en quelques secondes.
               </p>
             </>
           )}
@@ -143,19 +165,21 @@ export default function TodayCard({
             {generatingSession ? (
               <>
                 <RotateCcw className="w-4 h-4 animate-spin" aria-hidden="true" />
-                Generation en cours...
+                Generation de la seance bonus...
               </>
             ) : (
               <>
                 <Play className="w-4 h-4" aria-hidden="true" />
-                {todaySessions.length === 0 ? "Generer ma seance" : "Ajouter une seance"}
+                {todaySessions.length === 0
+                  ? "Generer une seance bonus"
+                  : "Ajouter une autre seance bonus"}
               </>
             )}
           </button>
         </div>
       ) : (
         <p className="text-xs text-center text-gray-400 py-1">
-          Maximum {MAX_SESSIONS_PER_DAY} seances par jour atteint
+          Maximum {MAX_SESSIONS_PER_DAY} seances bonus par jour atteint
         </p>
       )}
     </div>

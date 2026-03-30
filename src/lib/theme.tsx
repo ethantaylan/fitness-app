@@ -23,9 +23,9 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 export function readStoredThemeMode(): ThemeMode {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return isThemeMode(stored) ? stored : "system";
+  return isThemeMode(stored) ? stored : "light";
 }
 
 export function resolveThemeMode(mode: ThemeMode): ResolvedTheme {

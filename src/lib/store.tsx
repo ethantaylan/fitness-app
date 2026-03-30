@@ -17,6 +17,7 @@ import {
   getActiveProgram,
   saveProgram as dbSaveProgram,
   deactivateProgram as dbClearProgram,
+  updateProgramSessionCompletion as dbUpdateProgramSessionCompletion,
   getDailySessions,
   saveDailySession as dbSaveSession,
   updateSessionFeedback as dbUpdateFeedback,
@@ -42,6 +43,12 @@ interface AppState {
 type Action =
   | { type: "SET_PROFILE_PARTIAL"; data: Partial<UserProfile> }
   | { type: "SET_PROGRAM"; program: Program }
+  | {
+      type: "SET_PROGRAM_SESSION_COMPLETION";
+      weekNumber: number;
+      sessionId: string;
+      completed: boolean;
+    }
   | { type: "ADD_SESSION"; session: DailySession }
   | { type: "DELETE_SESSION"; uid: string }
   | { type: "UPDATE_SESSION_FEEDBACK"; uid: string; feedback: "good" | "normal" | "hard" }
@@ -78,6 +85,31 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         program: action.program,
         programStartDate: state.programStartDate ?? new Date().toISOString().split("T")[0],
+      };
+    case "SET_PROGRAM_SESSION_COMPLETION":
+      if (!state.program) return state;
+
+      return {
+        ...state,
+        program: {
+          ...state.program,
+          weeks: state.program.weeks.map((week) =>
+            week.week_number !== action.weekNumber
+              ? week
+              : {
+                  ...week,
+                  sessions: week.sessions.map((session) =>
+                    session.session_id !== action.sessionId
+                      ? session
+                      : {
+                          ...session,
+                          completed: action.completed,
+                          completedAt: action.completed ? new Date().toISOString() : null,
+                        },
+                  ),
+                },
+          ),
+        },
       };
     case "ADD_SESSION":
       return { ...state, sessions: [action.session, ...state.sessions] };
@@ -196,6 +228,16 @@ export function AppProvider({
 
       case "CLEAR_PROGRAM":
         dbClearProgram(supabase, iuid).catch(console.warn);
+        break;
+
+      case "SET_PROGRAM_SESSION_COMPLETION":
+        dbUpdateProgramSessionCompletion(
+          supabase,
+          iuid,
+          action.weekNumber,
+          action.sessionId,
+          action.completed,
+        ).catch(console.warn);
         break;
 
       case "ADD_SESSION":

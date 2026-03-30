@@ -1,9 +1,11 @@
 import { useAuth } from "../lib/auth";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
+import { buildAuthPath } from "../lib/authRedirect";
 
 export default function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
   const { isSignedIn, isLoaded } = useAuth();
+  const location = useLocation();
 
   if (!isLoaded) {
     return (
@@ -16,6 +18,10 @@ export default function ProtectedRoute({ children }: Readonly<{ children: ReactN
     );
   }
 
-  if (!isSignedIn) return <Navigate to="/sign-in" replace />;
+  if (!isSignedIn) {
+    const nextPath = `${location.pathname}${location.search}`;
+    return <Navigate to={buildAuthPath("/sign-in", nextPath)} replace />;
+  }
+
   return <>{children}</>;
 }

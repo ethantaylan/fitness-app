@@ -40,7 +40,7 @@ import Navbar from "../components/Navbar";
 
 export default function Settings() {
   const { state, dispatch } = useApp();
-  const { userEmail, userFirstName } = useAuth();
+  const { userEmail, userFirstName, updateUserDisplayName } = useAuth();
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const navigate = useNavigate();
   const profile = state.profile;
@@ -49,6 +49,10 @@ export default function Settings() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [showCustomEquipmentInput, setShowCustomEquipmentInput] = useState(false);
   const [customEquipmentDraft, setCustomEquipmentDraft] = useState("");
+  const [nicknameDraft, setNicknameDraft] = useState(userFirstName ?? "");
+  const [savingNickname, setSavingNickname] = useState(false);
+  const [nicknameSaved, setNicknameSaved] = useState(false);
+  const [nicknameError, setNicknameError] = useState("");
   const [tab, setTab] = useState<"entrainement" | "compte">("entrainement");
 
   useEffect(() => {
@@ -63,9 +67,42 @@ export default function Settings() {
     return () => clearTimeout(t);
   }, [confirmReset]);
 
+  useEffect(() => {
+    setNicknameDraft(userFirstName ?? "");
+  }, [userFirstName]);
+
+  useEffect(() => {
+    if (!nicknameSaved) return;
+    const t = setTimeout(() => setNicknameSaved(false), 2500);
+    return () => clearTimeout(t);
+  }, [nicknameSaved]);
+
   function handleResetProfile() {
     dispatch({ type: "RESET" });
     void navigate("/onboarding");
+  }
+
+  async function handleSaveNickname() {
+    const normalized = nicknameDraft.trim();
+
+    if (normalized.length < 2) {
+      setNicknameError("Ajoute au moins 2 caracteres pour ton pseudo.");
+      return;
+    }
+
+    setSavingNickname(true);
+    setNicknameError("");
+
+    try {
+      await updateUserDisplayName(normalized);
+      setNicknameSaved(true);
+    } catch (error) {
+      setNicknameError(
+        error instanceof Error ? error.message : "Impossible d'enregistrer le pseudo.",
+      );
+    } finally {
+      setSavingNickname(false);
+    }
   }
 
   const [form, setForm] = useState({
@@ -171,7 +208,7 @@ export default function Settings() {
               <h1
                 className={`text-2xl font-black leading-tight ${objMeta ? "text-gray-900" : "text-white"}`}
               >
-                {userFirstName ?? userEmail ?? "Athlète"}
+                {userFirstName ?? "Athlete"}
               </h1>
               {userEmail && (
                 <div className={`text-xs mt-0.5 ${objMeta ? "text-gray-500" : "text-white/50"}`}>
@@ -775,6 +812,58 @@ export default function Settings() {
         {/* ── Tab Compte ── */}
         {tab === "compte" && (
           <div className="space-y-4">
+            <div className="border border-gray-100 rounded-2xl p-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                Pseudo
+              </p>
+              <p className="text-xs text-gray-500 mb-4">
+                Ce nom sera utilise dans le message d'accueil et sur ton profil.
+              </p>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="text"
+                  value={nicknameDraft}
+                  onChange={(e) => {
+                    setNicknameDraft(e.target.value);
+                    setNicknameError("");
+                  }}
+                  placeholder="Ex : John, Jdoe, Coach Max"
+                  maxLength={32}
+                  className="flex-1 rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm font-semibold bg-gray-50 focus:outline-none focus:border-black focus:bg-white transition-all"
+                />
+                <button
+                  onClick={() => void handleSaveNickname()}
+                  disabled={
+                    savingNickname ||
+                    nicknameDraft.trim().length < 2 ||
+                    nicknameDraft.trim() === (userFirstName ?? "")
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {savingNickname ? (
+                    "Enregistrement..."
+                  ) : nicknameSaved ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Pseudo enregistre
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Enregistrer
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {nicknameError && (
+                <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+                  {nicknameError}
+                </div>
+              )}
+            </div>
+
             <div className="border border-gray-100 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>

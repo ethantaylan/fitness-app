@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { UserProfile, Program, DailySession, Exercise } from "./types";
 import { getAgentSystemPrompt, OBJECTIVE_LABELS, SUPPORT_AGENT_PROMPT } from "./agents";
+import { normalizeProgramWeeks } from "./program";
 
 function getClient(): OpenAI {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
@@ -54,6 +55,22 @@ function validateProgramVolume(program: Program): string | null {
       }
     }
   }
+  return null;
+}
+
+function validateProgramCoverage(program: Program): string | null {
+  const expectedWeeks = program.program_overview.duration_weeks;
+
+  if (program.weeks.length !== expectedWeeks) {
+    return `Le programme annonce ${expectedWeeks} semaines mais en contient ${program.weeks.length}.`;
+  }
+
+  for (let weekNumber = 1; weekNumber <= expectedWeeks; weekNumber++) {
+    if (!program.weeks.some((week) => week.week_number === weekNumber)) {
+      return `La semaine ${weekNumber} est absente du programme genere.`;
+    }
+  }
+
   return null;
 }
 
@@ -212,14 +229,20 @@ Important : génère ${profile.weeklyFrequency} séances par semaine. Assure une
     if (!content) throw new Error("Pas de réponse de l'IA");
 
     const parsed = JSON.parse(content) as Program;
-    const error = validateProgramVolume(parsed);
+    const coverageError = validateProgramCoverage(parsed);
+    const normalizedProgram = normalizeProgramWeeks(parsed);
+    const volumeError = validateProgramVolume(normalizedProgram);
 
-    if (!error) return { ...parsed, user_profile: profile };
+    if (!coverageError && !volumeError) {
+      return { ...normalizedProgram, user_profile: profile };
+    }
 
     if (attempt === 2) {
-      // Last attempt: return anyway to not block the user
-      console.warn("Programme généré avec volume insuffisant après 3 tentatives:", error);
-      return { ...parsed, user_profile: profile };
+      console.warn("Programme genere avec structure incomplete ou volume insuffisant:", {
+        coverageError,
+        volumeError,
+      });
+      return { ...normalizedProgram, user_profile: profile };
     }
   }
 

@@ -1,33 +1,37 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { getAppRedirectUrl } from "../lib/appUrl";
+import { buildAuthPath, sanitizeNextPath } from "../lib/authRedirect";
 import logoUrl from "../assets/logo.png";
 import BetaBadge from "../components/BetaBadge";
 
-function signInWithGoogle() {
-  supabase.auth
-    .signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: getAppRedirectUrl("/dashboard") },
-    })
-    .catch(console.warn);
-}
-
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isLoaded, isSignedIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const nextPath = sanitizeNextPath(searchParams.get("next"));
+  const signUpPath = buildAuthPath("/sign-up", nextPath);
+
+  function signInWithGoogle() {
+    supabase.auth
+      .signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: getAppRedirectUrl(nextPath) },
+      })
+      .catch(console.warn);
+  }
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      navigate("/dashboard", { replace: true });
+      void navigate(nextPath, { replace: true });
     }
-  }, [isLoaded, isSignedIn, navigate]);
+  }, [isLoaded, isSignedIn, navigate, nextPath]);
 
   async function handleEmail(e: React.SyntheticEvent) {
     e.preventDefault();
@@ -37,7 +41,7 @@ export default function Login() {
     if (err) {
       setError("Email ou mot de passe incorrect.");
     } else {
-      navigate("/dashboard");
+      void navigate(nextPath, { replace: true });
     }
     setLoading(false);
   }
@@ -45,7 +49,6 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 justify-center mb-8">
           <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-9 h-9 rounded-xl" />
           <span className="font-black text-xl">Vincere</span>
@@ -53,9 +56,10 @@ export default function Login() {
         </Link>
 
         <h1 className="text-2xl font-black text-center mb-1">Connexion</h1>
-        <p className="text-gray-400 text-sm text-center mb-8">Bienvenue sur Vincere</p>
+        <p className="text-gray-400 text-sm text-center mb-8">
+          Connecte-toi pour retrouver ton programme, ton PDF et ton suivi.
+        </p>
 
-        {/* Google */}
         <button
           onClick={signInWithGoogle}
           className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-2xl py-3.5 font-semibold text-sm hover:bg-gray-50 active:scale-[0.98] transition-all mb-6"
@@ -116,7 +120,7 @@ export default function Login() {
 
         <p className="text-center text-sm text-gray-400 mt-6">
           Pas de compte ?{" "}
-          <Link to="/sign-up" className="text-black font-semibold hover:underline">
+          <Link to={signUpPath} className="text-black font-semibold hover:underline">
             S'inscrire
           </Link>
         </p>

@@ -19,6 +19,7 @@ import {
   Footprints,
   Sparkles,
 } from "lucide-react";
+import { buildAuthPath } from "../lib/authRedirect";
 import Navbar from "../components/Navbar";
 import BetaBadge from "../components/BetaBadge";
 
@@ -39,6 +40,8 @@ const TICKER_ITEMS = [...TICKER_SPORTS, ...TICKER_SPORTS];
 export default function Landing() {
   const navigate = useNavigate();
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const onboardingSignUpPath = buildAuthPath("/sign-up", "/onboarding");
+  const signInPath = buildAuthPath("/sign-in", "/dashboard");
 
   const FAQ = [
     {
@@ -102,31 +105,31 @@ export default function Landing() {
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-gray-500 max-w-xl w-full mx-auto mb-8 px-1 sm:px-0">
-            Décris tes objectifs, reçois un programme structuré avec charges, progressions et
-            récupération. Personnalisé, prêt à l’emploi.
+            Cree ton compte gratuit, decris tes objectifs et recupere un programme structure avec
+            PDF, suivi et seances dans un seul espace.
           </p>
           <div className="mb-8">
             <p className="inline-flex max-w-2xl items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
               <BetaBadge compact />
-              Vincere est encore en développement, mais l'application est déjà utilisable au
-              quotidien.
+              Un compte gratuit est maintenant requis pour generer, exporter ton PDF et suivre tes
+              seances.
             </p>
           </div>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
             <button
-              onClick={() => navigate("/onboarding")}
+              onClick={() => navigate(onboardingSignUpPath)}
               className="hero-cta-btn w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
             >
-              Créer mon programme
+              Creer mon compte
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate(signInPath)}
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
             >
-              J’ai déjà un compte
+              J'ai deja un compte
             </button>
           </div>
 
@@ -403,7 +406,7 @@ export default function Landing() {
               <div
                 key={label}
                 className="border border-gray-200 rounded-xl p-3 text-center hover:border-black hover:bg-black hover:text-white transition-all cursor-pointer group"
-                onClick={() => navigate("/onboarding")}
+                onClick={() => navigate(onboardingSignUpPath)}
               >
                 <div className="text-2xl mb-1">{emoji}</div>
                 <div className="text-xs font-semibold leading-tight">{label}</div>
@@ -441,7 +444,7 @@ export default function Landing() {
                 ))}
               </ul>
               <button
-                onClick={() => navigate("/onboarding")}
+                onClick={() => navigate(onboardingSignUpPath)}
                 className="w-full border border-white text-white font-bold py-2 rounded-xl hover:bg-white hover:text-black transition-colors"
               >
                 Commencer
@@ -469,7 +472,7 @@ export default function Landing() {
                 ))}
               </ul>
               <button
-                onClick={() => navigate("/register")}
+                onClick={() => navigate(onboardingSignUpPath)}
                 className="w-full bg-white text-black font-bold py-2 rounded-xl hover:bg-gray-100 transition-colors"
               >
                 Créer un compte
@@ -556,7 +559,7 @@ export default function Landing() {
                 progressif, prêt à l'emploi.
               </p>
               <button
-                onClick={() => navigate("/onboarding")}
+                onClick={() => navigate(onboardingSignUpPath)}
                 className="text-sm font-bold bg-white text-black px-5 py-2.5 rounded-full hover:bg-gray-100 transition-colors"
               >
                 Créer mon programme →
@@ -580,7 +583,7 @@ export default function Landing() {
                 ].map((d) => (
                   <li key={d}>
                     <button
-                      onClick={() => navigate("/onboarding")}
+                      onClick={() => navigate(onboardingSignUpPath)}
                       className="hover:text-white transition-colors"
                     >
                       {d}
@@ -597,7 +600,7 @@ export default function Landing() {
               </p>
               <ul className="space-y-2.5 text-sm text-gray-400">
                 {[
-                  { label: "Générer un programme", path: "/onboarding" },
+                  { label: "Générer un programme", path: onboardingSignUpPath },
                   { label: "Connexion", path: "/sign-in" },
                   { label: "Créer un compte", path: "/sign-up" },
                   { label: "Mon dashboard", path: "/dashboard" },

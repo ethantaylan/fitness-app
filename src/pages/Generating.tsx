@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { useApp } from "../lib/store";
 import { generateProgram } from "../lib/openai";
+import { normalizeProgramWeeks } from "../lib/program";
 import type { UserProfile } from "../lib/types";
 
 const MESSAGES = [
@@ -43,13 +44,13 @@ export default function Generating() {
     void (async () => {
       try {
         if (!state.profile?.objective) {
-          navigate("/onboarding");
+          void navigate("/onboarding");
           return;
         }
         const program = await generateProgram(state.profile as UserProfile);
-        dispatch({ type: "SET_PROGRAM", program });
+        dispatch({ type: "SET_PROGRAM", program: normalizeProgramWeeks(program) });
         clearInterval(interval);
-        navigate("/result");
+        void navigate("/result");
       } catch (err) {
         clearInterval(interval);
         const message = err instanceof Error ? err.message : "Erreur inconnue";

@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS program_sessions (
   intensity     TEXT     NOT NULL,
   warmup        JSONB    NOT NULL DEFAULT '[]',
   cooldown      JSONB    NOT NULL DEFAULT '[]',
+  completed_at  TIMESTAMPTZ,
   notes         TEXT,
   sort_order    SMALLINT NOT NULL DEFAULT 0
 );
@@ -438,6 +439,7 @@ CREATE POLICY pw_delete ON program_weeks FOR DELETE USING (
 -- program_sessions
 DROP POLICY IF EXISTS ps_select ON program_sessions;
 DROP POLICY IF EXISTS ps_insert ON program_sessions;
+DROP POLICY IF EXISTS ps_update ON program_sessions;
 DROP POLICY IF EXISTS ps_delete ON program_sessions;
 CREATE POLICY ps_select ON program_sessions FOR SELECT USING (
   week_id IN (
@@ -447,6 +449,13 @@ CREATE POLICY ps_select ON program_sessions FOR SELECT USING (
   )
 );
 CREATE POLICY ps_insert ON program_sessions FOR INSERT WITH CHECK (
+  week_id IN (
+    SELECT pw.id FROM program_weeks pw
+    JOIN programs p ON p.id = pw.program_id
+    WHERE p.user_id = auth_user_id()
+  )
+);
+CREATE POLICY ps_update ON program_sessions FOR UPDATE USING (
   week_id IN (
     SELECT pw.id FROM program_weeks pw
     JOIN programs p ON p.id = pw.program_id
@@ -678,6 +687,7 @@ SELECT
   ps.type               AS session_type,
   ps.duration_min,
   ps.intensity,
+  ps.completed_at,
   psb.block_name,
   psb.sort_order        AS block_order,
   e.name                AS exercise_name,
@@ -839,7 +849,7 @@ BEGIN
   VALUES (p_user_id, p_email, p_first_name, NOW())
   ON CONFLICT (id) DO UPDATE SET
     email      = EXCLUDED.email,
-    first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+    first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
     updated_at = NOW()
   RETURNING * INTO result;
   RETURN result;

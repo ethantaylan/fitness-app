@@ -1,7 +1,8 @@
 import { type ReactNode } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { AppProvider } from "./lib/store";
+import { sanitizeNextPath } from "./lib/authRedirect";
 import Landing from "./pages/Landing";
 import Onboarding from "./pages/Onboarding";
 import Generating from "./pages/Generating";
@@ -32,9 +33,11 @@ function HomeRoute() {
 
 function PublicOnlyRoute({ children }: Readonly<{ children: ReactNode }>) {
   const { isSignedIn } = useAuth();
+  const location = useLocation();
+  const nextPath = sanitizeNextPath(new URLSearchParams(location.search).get("next"));
 
   if (isSignedIn) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={nextPath} replace />;
   }
 
   return <>{children}</>;
@@ -73,8 +76,22 @@ export default function App() {
       <AppWithProvider>
         <Routes>
           <Route path="/" element={<HomeRoute />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/generating" element={<Generating />} />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/generating"
+            element={
+              <ProtectedRoute>
+                <Generating />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/sign-in/*"
             element={

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Calendar, Zap, Target } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
@@ -15,21 +15,10 @@ import TodayCard from "../components/dashboard/TodayCard";
 import ProgramSection from "../components/dashboard/ProgramSection";
 import WeekProgressCard from "../components/dashboard/WeekProgressCard";
 
-function getThisWeekDates(): string[] {
-  const today = new Date();
-  const dow = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  });
-}
-
 export default function Dashboard() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isSignedIn, userEmail, userFirstName } = useAuth();
 
   const [generatingSession, setGeneratingSession] = useState(false);
@@ -37,14 +26,11 @@ export default function Dashboard() {
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [showSessionPicker, setShowSessionPicker] = useState(false);
 
-  // Weekly progress — hooks must be before any early return
-  const thisWeekDates = getThisWeekDates();
-
   if (!isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Connecte-toi pour accéder à ton suivi.</p>
+          <p className="text-gray-500 mb-4">Connecte-toi pour acceder a ton suivi.</p>
           <Link to="/sign-in" className="bg-black text-white px-6 py-3 rounded-xl font-bold">
             Connexion
           </Link>
@@ -54,6 +40,15 @@ export default function Dashboard() {
   }
 
   const { program, sessions, profile } = state;
+  const weeksWithSessions = program?.weeks.filter((week) => (week.sessions?.length ?? 0) > 0) ?? [];
+  const currentProgramWeek =
+    weeksWithSessions.find((week) => week.sessions.some((session) => !session.completed)) ??
+    weeksWithSessions[weeksWithSessions.length - 1] ??
+    null;
+  const completedSessions =
+    currentProgramWeek?.sessions.filter((session) => session.completed).length ?? 0;
+  const totalSessions = currentProgramWeek?.sessions.length ?? 0;
+
   const todayDate = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -62,23 +57,27 @@ export default function Dashboard() {
   const todaySessions = sessions.filter((s) => s.date === todayDate);
   const lastFeedback = sessions.find((s) => s.feedback)?.feedback;
 
-  // Weekly progress computed values
-  const sessionsThisWeek = sessions.filter((s) => thisWeekDates.includes(s.date)).length;
-  const weeklyFreq = profile?.weeklyFrequency ?? 3;
-  const currentWeekNum = program
-    ? Math.min(Math.floor(sessions.length / weeklyFreq) + 1, program.weeks?.length ?? 1)
-    : null;
-  const currentWeekFocus =
-    currentWeekNum === null ? null : (program?.weeks?.[currentWeekNum - 1]?.focus ?? null);
-
   const objMeta = profile?.objective ? OBJECTIVE_META[profile.objective] : null;
   const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
-  const firstName = userFirstName ?? userEmail?.split("@")[0] ?? "Athlète";
+  const firstName = userFirstName ?? "Athlete";
   const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
+
+  useEffect(() => {
+    const shouldOpenBonus = new URLSearchParams(location.search).get("bonus") === "1";
+    if (!shouldOpenBonus) return;
+
+    if (!profile?.objective) {
+      void navigate("/onboarding", { replace: true });
+      return;
+    }
+
+    setShowSessionPicker(true);
+    void navigate("/dashboard", { replace: true });
+  }, [location.search, navigate, profile?.objective]);
 
   function handleGenerateSession() {
     if (!profile?.objective) {
-      navigate("/onboarding");
+      void navigate("/onboarding");
       return;
     }
     setShowSessionPicker(true);
@@ -97,9 +96,9 @@ export default function Dashboard() {
       const session = await generateDailySession(profileForSession, lastFeedback);
       const uid = crypto.randomUUID();
       dispatch({ type: "ADD_SESSION", session: { ...session, uid, date: todayDate } });
-      navigate(`/session?uid=${uid}`);
+      void navigate(`/session?uid=${uid}`);
     } catch (err) {
-      setSessionError(err instanceof Error ? err.message : "Erreur lors de la génération.");
+      setSessionError(err instanceof Error ? err.message : "Erreur lors de la generation.");
     } finally {
       setGeneratingSession(false);
     }
@@ -124,13 +123,12 @@ export default function Dashboard() {
           onClose={() => setShowSessionPicker(false)}
           onBuildOwn={() => {
             setShowSessionPicker(false);
-            navigate("/builder");
+            void navigate("/builder");
           }}
         />
       )}
 
       <main className="max-w-2xl mx-auto px-4 pt-20 pb-28 md:pb-24 sm:px-6">
-        {/* Hero card */}
         <div
           className={`relative overflow-hidden rounded-3xl p-6 mt-6 mb-6 ${heroBg}`}
           role="banner"
@@ -149,7 +147,8 @@ export default function Dashboard() {
               <h1
                 className={`text-2xl font-black leading-tight ${objMeta ? "text-gray-900" : "text-white"}`}
               >
-                Bonjour {firstName} {objMeta?.emoji ?? "👋"}
+                Bonjour {firstName}
+                {objMeta?.emoji ? ` ${objMeta.emoji}` : ""}
               </h1>
               {userEmail && (
                 <p className={`text-xs mt-0.5 ${objMeta ? "text-gray-500" : "text-white/50"}`}>
@@ -198,24 +197,35 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Weekly progress card */}
-        {profile?.weeklyFrequency && program !== null && (
+        {program !== null && (
           <WeekProgressCard
-            sessionsThisWeek={sessionsThisWeek}
-            weeklyFreq={weeklyFreq}
-            currentWeekNum={currentWeekNum}
-            currentWeekFocus={currentWeekFocus}
+            currentWeek={currentProgramWeek}
+            completedSessions={completedSessions}
+            totalSessions={totalSessions}
             hasProgram={program !== null}
+            onToggleSession={(sessionId, completed) => {
+              if (!currentProgramWeek) return;
+              dispatch({
+                type: "SET_PROGRAM_SESSION_COMPLETION",
+                weekNumber: currentProgramWeek.week_number,
+                sessionId,
+                completed,
+              });
+            }}
           />
         )}
 
         <div className="space-y-4">
-          {/* Today session */}
           <Section
             icon={<Zap className="w-4 h-4" />}
-            title="Séance du jour"
+            title="Seance bonus"
             color="text-green-600"
             bg="bg-green-50"
+            badge={
+              <span className="rounded-full border border-green-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-green-700">
+                Optionnel
+              </span>
+            }
           >
             <TodayCard
               todaySessions={todaySessions}
@@ -228,7 +238,6 @@ export default function Dashboard() {
             />
           </Section>
 
-          {/* Training program */}
           <ProgramSection
             program={program}
             downloadingPDF={downloadingPDF}

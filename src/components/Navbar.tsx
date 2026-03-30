@@ -215,10 +215,10 @@ export default function Navbar() {
                   Connexion
                 </Link>
                 <Link
-                  to="/onboarding"
+                  to="/sign-up?next=%2Fonboarding"
                   className="text-sm font-bold bg-black text-white px-4 py-1.5 rounded-full hover:bg-gray-800 transition-colors"
                 >
-                  Commencer
+                  Creer un compte
                 </Link>
               </>
             )}

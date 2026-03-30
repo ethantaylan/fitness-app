@@ -64,6 +64,8 @@ export interface Session {
   blocks: SessionBlock[];
   cooldown: WarmupItem[];
   notes?: string;
+  completed?: boolean;
+  completedAt?: string | null;
 }
 
 export interface Week {

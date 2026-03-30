@@ -1,43 +1,57 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getAppRedirectUrl } from "../lib/appUrl";
+import { useAuth } from "../lib/auth";
+import { buildAuthPath, sanitizeNextPath } from "../lib/authRedirect";
 import logoUrl from "../assets/logo.png";
 import BetaBadge from "../components/BetaBadge";
 
-function signInWithGoogle() {
-  supabase.auth
-    .signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: getAppRedirectUrl("/dashboard") },
-    })
-    .catch(console.warn);
-}
-
 export default function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { isLoaded, isSignedIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const nextPath = sanitizeNextPath(searchParams.get("next"));
+  const signInPath = buildAuthPath("/sign-in", nextPath);
+
+  function signInWithGoogle() {
+    supabase.auth
+      .signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: getAppRedirectUrl(nextPath) },
+      })
+      .catch(console.warn);
+  }
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      void navigate(nextPath, { replace: true });
+    }
+  }, [isLoaded, isSignedIn, navigate, nextPath]);
 
   async function handleEmail(e: React.SyntheticEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const { error: err } = await supabase.auth.signUp({
+    const { data, error: err } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: getAppRedirectUrl("/dashboard"),
+        emailRedirectTo: getAppRedirectUrl(nextPath),
       },
     });
     if (err) {
       setError(err.message);
+    } else if (data.session) {
+      void navigate(nextPath, { replace: true });
     } else {
       setSent(true);
-      setTimeout(() => navigate("/sign-in"), 3000);
+      setTimeout(() => navigate(signInPath, { replace: true }), 3000);
     }
     setLoading(false);
   }
@@ -49,9 +63,9 @@ export default function Register() {
           <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">✓</span>
           </div>
-          <h2 className="font-black text-xl mb-2">Vérifie tes emails !</h2>
+          <h2 className="font-black text-xl mb-2">Verifie tes emails !</h2>
           <p className="text-gray-400 text-sm">
-            Un lien de confirmation a été envoyé à <strong>{email}</strong>.
+            Un lien de confirmation a ete envoye a <strong>{email}</strong>.
           </p>
         </div>
       </div>
@@ -61,17 +75,17 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 justify-center mb-8">
           <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-9 h-9 rounded-xl" />
           <span className="font-black text-xl">Vincere</span>
           <BetaBadge compact />
         </Link>
 
-        <h1 className="text-2xl font-black text-center mb-1">Créer un compte</h1>
-        <p className="text-gray-400 text-sm text-center mb-8">Rejoins Vincere gratuitement</p>
+        <h1 className="text-2xl font-black text-center mb-1">Creer un compte</h1>
+        <p className="text-gray-400 text-sm text-center mb-8">
+          Ton compte gratuit te donne acces au programme, au PDF et au suivi.
+        </p>
 
-        {/* Google */}
         <button
           onClick={signInWithGoogle}
           className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-2xl py-3.5 font-semibold text-sm hover:bg-gray-50 active:scale-[0.98] transition-all mb-6"
@@ -114,7 +128,7 @@ export default function Register() {
           />
           <input
             type="password"
-            placeholder="Mot de passe (min. 6 caractères)"
+            placeholder="Mot de passe (min. 6 caracteres)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -127,13 +141,13 @@ export default function Register() {
             disabled={loading}
             className="w-full bg-black text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-60"
           >
-            {loading ? "Création..." : "Créer mon compte"}
+            {loading ? "Creation..." : "Creer mon compte"}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-400 mt-6">
-          Déjà un compte ?{" "}
-          <Link to="/sign-in" className="text-black font-semibold hover:underline">
+          Deja un compte ?{" "}
+          <Link to={signInPath} className="text-black font-semibold hover:underline">
             Se connecter
           </Link>
         </p>
