@@ -236,7 +236,7 @@ export default function Records() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
       <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 sm:px-6">

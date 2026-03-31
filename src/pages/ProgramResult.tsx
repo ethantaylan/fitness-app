@@ -291,7 +291,7 @@ export default function ProgramResult() {
 
   if (!program) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="min-h-screen bg-white">
         <Navbar />
         <div className="mx-auto max-w-2xl px-4 pb-28 pt-20 sm:px-6">
           <div className="mb-6 mt-6">

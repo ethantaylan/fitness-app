@@ -671,7 +671,7 @@ export default function WorkoutBuilder() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#f0f0f0] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Complète ton profil pour construire une séance.</p>
           <button
@@ -689,7 +689,7 @@ export default function WorkoutBuilder() {
   const typeCards = CARDS.filter((c) => c.section === "types");
 
   return (
-    <div className="min-h-screen bg-[#f0f0f0]">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
       {/* Hero header */}

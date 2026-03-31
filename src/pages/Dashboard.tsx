@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Connecte-toi pour acceder a ton suivi.</p>
           <Link to="/sign-in" className="bg-black text-white px-6 py-3 rounded-xl font-bold">
@@ -115,7 +115,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
       {showSessionPicker && profile && (

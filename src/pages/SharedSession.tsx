@@ -26,7 +26,7 @@ export default function SharedSession() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex flex-col items-center justify-center px-4 text-center">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 text-center">
         <div className="w-14 h-14 bg-white border border-gray-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
           <Zap className="w-7 h-7 text-gray-300" />
         </div>
