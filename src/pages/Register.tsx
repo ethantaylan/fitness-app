@@ -81,7 +81,7 @@ export default function Register() {
           <BetaBadge compact />
         </Link>
 
-        <h1 className="text-2xl font-black text-center mb-1">Creer un compte</h1>
+        <h1 className="text-2xl font-black text-center mb-1">Créer un compte</h1>
         <p className="text-gray-400 text-sm text-center mb-8">
           Ton compte gratuit te donne acces au programme, au PDF et au suivi.
         </p>
@@ -141,7 +141,7 @@ export default function Register() {
             disabled={loading}
             className="w-full bg-black text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-60"
           >
-            {loading ? "Creation..." : "Creer mon compte"}
+            {loading ? "Création..." : "Créer mon compte"}
           </button>
         </form>
 

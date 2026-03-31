@@ -6,7 +6,6 @@ import {
   Minus,
   Clock,
   Flame,
-  ChevronLeft,
   ChevronRight,
   Zap,
   Dumbbell,
@@ -23,6 +22,7 @@ import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
 import { generateDailySession, replaceExercise } from "../lib/openai";
 import { FEEDBACK_META } from "../lib/constants";
+import { formatLoadValue } from "../lib/formatLoad";
 import type { DailySession, UserProfile, ObjectiveType } from "../lib/types";
 import SessionPickerSheet from "../components/SessionPickerSheet";
 
@@ -94,7 +94,7 @@ function SessionList({
           <button
             onClick={onGenerate}
             disabled={generating || !profile}
-            className="relative flex flex-col items-start gap-3 bg-black text-white rounded-2xl p-4 hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
+            className="theme-session-generate-card relative flex flex-col items-start gap-3 bg-black text-white rounded-2xl p-4 hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
           >
             <div
               className="absolute inset-0 pointer-events-none"
@@ -103,7 +103,7 @@ function SessionList({
                   "radial-gradient(ellipse 120% 120% at 100% 0%, rgba(99,102,241,0.35) 0%, transparent 60%)",
               }}
             />
-            <div className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+            <div className="theme-session-generate-icon relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
               {generating ? (
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
@@ -114,21 +114,25 @@ function SessionList({
               <p className="font-black text-sm leading-tight">
                 {generating ? "Génération…" : "Générer une séance"}
               </p>
-              <p className="text-[11px] text-white/50 mt-0.5">L'IA adapte à ton profil</p>
+              <p className="theme-session-generate-subtitle text-[11px] text-white/50 mt-0.5">
+                L'IA adapte à ton profil
+              </p>
             </div>
           </button>
 
           {/* Builder */}
           <button
             onClick={onBuildOwn}
-            className="flex flex-col items-start gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:border-gray-300 hover:shadow-sm active:scale-[0.98] transition-all"
+            className="theme-session-builder-card flex flex-col items-start gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:border-gray-300 hover:shadow-sm active:scale-[0.98] transition-all"
           >
-            <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
+            <div className="theme-session-builder-icon w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
               <Hammer className="w-5 h-5 text-gray-700" />
             </div>
             <div>
               <p className="font-black text-sm text-gray-900 leading-tight">Construire ma séance</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Choisis tes zones</p>
+              <p className="theme-session-builder-subtitle text-[11px] text-gray-400 mt-0.5">
+                Choisis tes zones
+              </p>
             </div>
           </button>
         </div>
@@ -308,15 +312,7 @@ function SessionDetail({
     <div className="min-h-screen bg-white">
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-16 sm:px-6">
-        {/* Back */}
-        <div className="mt-6 flex items-center justify-between mb-6">
-          <button
-            onClick={() => navigate("/session")}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-black transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Mes séances
-          </button>
+        <div className="mt-6 mb-6 flex justify-end">
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -421,7 +417,7 @@ function SessionDetail({
                         <div className="flex items-center gap-2 shrink-0">
                           {ex.load_kg && (
                             <div className="bg-black text-white text-xs font-black px-2.5 py-1 rounded-lg max-w-[80px] truncate">
-                              {ex.load_kg}
+                              {formatLoadValue(ex.load_kg, "")}
                             </div>
                           )}
                           {(ex.notes ?? ex.alternative) && (
@@ -598,7 +594,7 @@ function SessionDetail({
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
                     Charge
                   </p>
-                  <p className="text-gray-700">{infoModal.load_kg}</p>
+                  <p className="text-gray-700">{formatLoadValue(infoModal.load_kg, "")}</p>
                 </div>
               )}
               {infoModal.notes && (

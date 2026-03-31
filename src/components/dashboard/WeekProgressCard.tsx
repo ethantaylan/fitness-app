@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import { Check, CheckCircle2, ChevronRight } from "lucide-react";
 import type { Week } from "../../lib/types";
 
 interface Props {
@@ -53,7 +53,7 @@ export default function WeekProgressCard({
       <div className="flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
           <div
-            className="h-full rounded-full bg-black transition-all duration-500"
+            className="theme-progress-fill h-full rounded-full bg-black transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -63,7 +63,7 @@ export default function WeekProgressCard({
       </div>
 
       <p className="mt-2 text-xs text-gray-500">
-        La jauge avance uniquement quand tu coches tes seances faites.
+        La jauge avance uniquement quand tu coches tes séances faites.
       </p>
 
       {goalReached && (
@@ -107,7 +107,13 @@ export default function WeekProgressCard({
                   session.completed ? "bg-white text-emerald-700" : "bg-white text-gray-500"
                 }`}
               >
-                {session.completed ? "Fait" : "Je check"}
+                {session.completed ? (
+                  "Fait"
+                ) : (
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] border border-current align-middle">
+                    <Check className="h-2.5 w-2.5" strokeWidth={2.8} />
+                  </span>
+                )}
               </span>
             </button>
           ))}

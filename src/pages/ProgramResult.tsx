@@ -18,6 +18,7 @@ import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
 import { exportProgramToPDF } from "../lib/pdf";
 import { OBJECTIVE_LABELS } from "../lib/agents";
+import { formatLoadValue } from "../lib/formatLoad";
 import type { Session, Week } from "../lib/types";
 import Navbar from "../components/Navbar";
 
@@ -34,14 +35,7 @@ function ExerciseRow({
     notes?: string;
   };
 }>) {
-  let loadDisplay: string;
-  if (!ex.load_kg) {
-    loadDisplay = "-";
-  } else if (/^\d/.test(ex.load_kg)) {
-    loadDisplay = `${ex.load_kg} kg`;
-  } else {
-    loadDisplay = ex.load_kg;
-  }
+  const loadDisplay = formatLoadValue(ex.load_kg);
 
   return (
     <tr className="border-b border-gray-100 last:border-0">
@@ -52,10 +46,10 @@ function ExerciseRow({
           <div className="mt-0.5 text-xs text-gray-400">Alternative : {ex.alternative}</div>
         )}
       </td>
-      <td className="py-3 text-center text-sm font-mono">{ex.sets}</td>
-      <td className="py-3 text-center text-sm font-mono">{ex.reps}</td>
-      <td className="py-3 text-center text-sm font-semibold">{loadDisplay}</td>
-      <td className="py-3 text-center text-sm text-gray-500">
+      <td className="whitespace-nowrap py-3 text-center text-sm font-mono">{ex.sets}</td>
+      <td className="whitespace-nowrap py-3 text-center text-sm font-mono">{ex.reps}</td>
+      <td className="whitespace-nowrap py-3 text-center text-sm font-semibold">{loadDisplay}</td>
+      <td className="whitespace-nowrap py-3 text-center text-sm text-gray-500">
         {ex.rest_sec ? `${ex.rest_sec}s` : "-"}
       </td>
     </tr>
@@ -82,7 +76,9 @@ function SessionCard({
   return (
     <div
       className={`overflow-hidden rounded-2xl border ${
-        session.completed ? "border-green-200 bg-green-50/50" : "border-gray-200 bg-white"
+        session.completed
+          ? "theme-program-session-completed border-green-200 bg-green-50"
+          : "border-gray-200 bg-white"
       }`}
     >
       <div className="p-4">
@@ -123,8 +119,19 @@ function SessionCard({
                 : "border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
           >
-            <Check className="h-4 w-4" />
-            {session.completed ? "Decocher la seance" : "Je check cette seance"}
+            {session.completed ? (
+              <>
+                <Check className="h-4 w-4" />
+                Décocher la séance
+              </>
+            ) : (
+              <>
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] border border-current">
+                  <Check className="h-2.5 w-2.5" strokeWidth={2.8} />
+                </span>
+                Cocher la séance
+              </>
+            )}
           </button>
 
           <button
@@ -132,7 +139,7 @@ function SessionCard({
             onClick={() => setExpanded((value) => !value)}
             className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
           >
-            {expanded ? "Masquer le detail" : "Voir le detail"}
+            {expanded ? "Masquer le détail" : "Voir le détail"}
             {expanded ? (
               <ChevronUp className="h-4 w-4 text-gray-400" />
             ) : (
@@ -147,7 +154,7 @@ function SessionCard({
           {session.warmup?.length > 0 && (
             <div className="mb-4 mt-3">
               <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                Echauffement
+                Échauffement
               </div>
               <div className="flex flex-wrap gap-2">
                 {session.warmup.map((item) => (
@@ -165,14 +172,14 @@ function SessionCard({
                 {block.block_name}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px]">
+                <table className="min-w-full w-max">
                   <thead>
                     <tr className="border-b border-gray-100 text-xs text-gray-400">
                       <th className="py-2 pr-4 text-left font-semibold">Exercice</th>
-                      <th className="py-2 text-center font-semibold">Series</th>
-                      <th className="py-2 text-center font-semibold">Reps</th>
-                      <th className="py-2 text-center font-semibold">Charge</th>
-                      <th className="py-2 text-center font-semibold">Repos</th>
+                      <th className="whitespace-nowrap py-2 text-center font-semibold">Séries</th>
+                      <th className="whitespace-nowrap py-2 text-center font-semibold">Reps</th>
+                      <th className="whitespace-nowrap py-2 text-center font-semibold">Charge</th>
+                      <th className="whitespace-nowrap py-2 text-center font-semibold">Repos</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -188,7 +195,7 @@ function SessionCard({
           {session.cooldown?.length > 0 && (
             <div className="mt-2">
               <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                Recuperation
+                Récupération
               </div>
               <div className="flex flex-wrap gap-2">
                 {session.cooldown.map((item) => (
@@ -238,13 +245,13 @@ function WeekSection({
             <div className="mt-3">
               <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-gray-500">
                 <span>
-                  {completedCount} / {sessionCount} seances cochees
+                  {completedCount} / {sessionCount} séances cochées
                 </span>
                 <span>{progress}%</span>
               </div>
               <div className="h-2 rounded-full bg-gray-100">
                 <div
-                  className="h-full rounded-full bg-black transition-all"
+                  className="theme-progress-fill h-full rounded-full bg-black transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -288,7 +295,7 @@ export default function ProgramResult() {
         <Navbar />
         <div className="mx-auto max-w-2xl px-4 pb-28 pt-20 sm:px-6">
           <div className="mb-6 mt-6">
-            <p className="mb-1 text-xs uppercase tracking-wider text-gray-400">Entrainement</p>
+            <p className="mb-1 text-xs uppercase tracking-wider text-gray-400">Entraînement</p>
             <h1 className="text-2xl font-black">Mon programme</h1>
           </div>
 
@@ -298,14 +305,14 @@ export default function ProgramResult() {
             </div>
             <h2 className="mb-2 text-lg font-black">Aucun programme actif</h2>
             <p className="max-w-xs text-sm leading-relaxed text-gray-400">
-              Reponds a quelques questions, ton plan sur mesure est pret en 2 minutes.
+              Réponds à quelques questions, ton plan sur mesure est prêt en 2 minutes.
             </p>
             <button
               type="button"
               onClick={() => void navigate("/onboarding")}
               className="mt-6 rounded-2xl bg-black px-6 py-3 text-sm font-bold text-white transition-transform active:scale-95"
             >
-              Creer mon programme
+              Créer mon programme
             </button>
           </div>
         </div>
@@ -343,7 +350,7 @@ export default function ProgramResult() {
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
             <span className="text-sm font-semibold text-green-600">
-              Programme genere avec succes
+              Programme généré avec succès
             </span>
           </div>
           <h1 className="mb-2 text-3xl font-black sm:text-4xl">Ton programme Vincere</h1>
@@ -357,10 +364,10 @@ export default function ProgramResult() {
               label: "Discipline",
               value: user_profile?.objective ? OBJECTIVE_LABELS[user_profile.objective] : "-",
             },
-            { icon: Clock, label: "Duree", value: `${program_overview.duration_weeks} semaines` },
+            { icon: Clock, label: "Durée", value: `${program_overview.duration_weeks} semaines` },
             {
               icon: Flame,
-              label: "Frequence",
+              label: "Fréquence",
               value: `${program_overview.training_days_per_week} x / semaine`,
             },
             { icon: Clock, label: "Niveau", value: user_profile?.level ?? "-" },
@@ -385,7 +392,7 @@ export default function ProgramResult() {
             ) : (
               <Download className="h-4 w-4" />
             )}
-            {downloading ? "Generation PDF..." : "Telecharger PDF"}
+            {downloading ? "Génération PDF..." : "Télécharger PDF"}
           </button>
 
           {!isSignedIn && (
@@ -395,7 +402,7 @@ export default function ProgramResult() {
               className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition-colors hover:bg-gray-50"
             >
               <UserPlus className="h-4 w-4" />
-              Creer un compte pour le suivi
+              Créer un compte pour le suivi
             </button>
           )}
 
@@ -445,7 +452,7 @@ export default function ProgramResult() {
         {profileDetails.length > 0 && (
           <div className="mb-8 rounded-2xl bg-gray-50 p-5">
             <h2 className="mb-3 text-sm font-black uppercase tracking-widest text-gray-400">
-              Profil analyse
+              Profil analysé
             </h2>
             <div className="rounded-xl border border-gray-200 bg-white px-4">
               {profileDetails.map((item, index) => (
@@ -495,14 +502,14 @@ export default function ProgramResult() {
               <div className="text-center">
                 <Apple className="mx-auto mb-1 h-5 w-5 text-red-500" />
                 <div className="text-xl font-black">
-                  {nutrition_recommendations.protein_target_g}g
+                  {nutrition_recommendations.protein_target_g} g
                 </div>
-                <div className="text-xs text-gray-400">proteines/jour</div>
+                <div className="text-xs text-gray-400">protéines/jour</div>
               </div>
               <div className="text-center">
                 <Droplets className="mx-auto mb-1 h-5 w-5 text-blue-500" />
                 <div className="text-xl font-black">
-                  {nutrition_recommendations.water_intake_l}L
+                  {nutrition_recommendations.water_intake_l} L
                 </div>
                 <div className="text-xs text-gray-400">eau/jour</div>
               </div>
@@ -522,7 +529,7 @@ export default function ProgramResult() {
 
         <div className="rounded-xl bg-gray-50 p-4 text-xs text-gray-400">
           {program.legal_disclaimer ??
-            "Ces recommandations sont a titre informatif uniquement et ne remplacent pas l'avis d'un professionnel de sante ou d'un coach certifie."}
+            "Ces recommandations sont à titre informatif uniquement et ne remplacent pas l'avis d'un professionnel de santé ou d'un coach certifié."}
         </div>
 
         <div className="mt-8 text-center">
@@ -532,7 +539,7 @@ export default function ProgramResult() {
             className="mx-auto flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-black"
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Generer un nouveau programme
+            Générer un nouveau programme
           </button>
         </div>
       </div>

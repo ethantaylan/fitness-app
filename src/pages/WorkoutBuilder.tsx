@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Zap, Minus, Plus, Trash2, Bot } from "lucide-react";
+import { Zap, Minus, Plus, Trash2, Bot } from "lucide-react";
 import { useApp } from "../lib/store";
 import { generateCustomSession } from "../lib/openai";
 import type { UserProfile } from "../lib/types";
+import Navbar from "../components/Navbar";
 
 // ── Card definitions ──────────────────────────────────────────────────────────
 
@@ -689,6 +690,8 @@ export default function WorkoutBuilder() {
 
   return (
     <div className="min-h-screen bg-[#f0f0f0]">
+      <Navbar />
+
       {/* Hero header */}
       <div
         className="relative overflow-hidden bg-black text-white px-5 pb-8"
@@ -701,14 +704,6 @@ export default function WorkoutBuilder() {
               "radial-gradient(ellipse 80% 120% at 90% 40%, rgba(99,102,241,0.25) 0%, transparent 60%), radial-gradient(ellipse 60% 80% at 10% 80%, rgba(236,72,153,0.15) 0%, transparent 55%)",
           }}
         />
-
-        <button
-          onClick={() => navigate(-1)}
-          className="relative flex items-center gap-1.5 text-white/50 hover:text-white mb-7 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Retour</span>
-        </button>
 
         <div className="relative">
           <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-black mb-2">

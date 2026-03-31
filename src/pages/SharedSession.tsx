@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Clock, Flame, Zap, ChevronLeft } from "lucide-react";
+import { formatLoadValue } from "../lib/formatLoad";
 import type { DailySession } from "../lib/types";
 
 function intensityClasses(intensity: string) {
@@ -113,7 +114,7 @@ export default function SharedSession() {
                       </div>
                       {ex.load_kg && (
                         <div className="shrink-0 bg-black text-white text-xs font-black px-2.5 py-1 rounded-lg">
-                          {ex.load_kg}
+                          {formatLoadValue(ex.load_kg, "")}
                         </div>
                       )}
                     </div>

@@ -2,6 +2,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { OBJECTIVE_LABELS } from "./agents";
 import { LEVEL_META } from "./constants";
+import { formatLoadValue } from "./formatLoad";
 import type { Program, Session, SessionBlock, UserProfile, WarmupItem, Week } from "./types";
 
 const PAGE_WIDTH_PX = 794;
@@ -14,11 +15,6 @@ function escapeHtml(value: string | number | null | undefined): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function formatLoad(loadKg?: string): string {
-  if (!loadKg) return "-";
-  return /^\d/.test(loadKg) ? `${loadKg} kg` : loadKg;
 }
 
 function formatWarmupItems(items: WarmupItem[]) {
@@ -42,7 +38,7 @@ function renderBlock(block: SessionBlock) {
         <thead>
           <tr>
             <th>Exercice</th>
-            <th>Series</th>
+            <th>Séries</th>
             <th>Reps</th>
             <th>Charge</th>
             <th>Repos</th>
@@ -56,11 +52,11 @@ function renderBlock(block: SessionBlock) {
                   <td>
                     <span class="exercise-name">${escapeHtml(exercise.name)}</span>
                     ${exercise.notes ? `<span class="exercise-detail">${escapeHtml(exercise.notes)}</span>` : ""}
-                    ${exercise.alternative ? `<span class="exercise-detail">Alternative: ${escapeHtml(exercise.alternative)}</span>` : ""}
+                    ${exercise.alternative ? `<span class="exercise-detail">Alternative : ${escapeHtml(exercise.alternative)}</span>` : ""}
                   </td>
                   <td>${escapeHtml(exercise.sets)}</td>
                   <td>${escapeHtml(exercise.reps)}</td>
-                  <td>${escapeHtml(formatLoad(exercise.load_kg))}</td>
+                  <td>${escapeHtml(formatLoadValue(exercise.load_kg))}</td>
                   <td>${exercise.rest_sec ? `${escapeHtml(exercise.rest_sec)}s` : "-"}</td>
                 </tr>`,
             )
@@ -89,7 +85,7 @@ function renderSession(session: Session) {
         session.warmup?.length > 0
           ? `
             <div class="subsection">
-              <div class="subsection-title">Echauffement</div>
+              <div class="subsection-title">Échauffement</div>
               <div class="tag-list">${formatWarmupItems(session.warmup)}</div>
             </div>
           `
@@ -102,7 +98,7 @@ function renderSession(session: Session) {
         session.cooldown?.length > 0
           ? `
             <div class="subsection">
-              <div class="subsection-title">Recuperation</div>
+              <div class="subsection-title">Récupération</div>
               <div class="tag-list">${formatWarmupItems(session.cooldown)}</div>
             </div>
           `
@@ -139,8 +135,8 @@ function buildCoverPage(program: Program) {
       label: "Discipline",
       value: user_profile?.objective ? OBJECTIVE_LABELS[user_profile.objective] : "-",
     },
-    { label: "Duree", value: `${program_overview.duration_weeks} semaines` },
-    { label: "Frequence", value: `${program_overview.training_days_per_week} x / semaine` },
+    { label: "Durée", value: `${program_overview.duration_weeks} semaines` },
+    { label: "Fréquence", value: `${program_overview.training_days_per_week} x / semaine` },
     {
       label: "Niveau",
       value: user_profile?.level ? LEVEL_META[user_profile.level].label : "-",
@@ -151,8 +147,8 @@ function buildCoverPage(program: Program) {
     <div class="page-root">
       <div class="page-header">
         <div class="eyebrow">Vincere</div>
-        <h1 class="page-title">Programme d'entrainement personnalise</h1>
-        <p class="page-subtitle">Genere le ${escapeHtml(new Date().toLocaleDateString("fr-FR"))}</p>
+        <h1 class="page-title">Programme d'entraînement personnalisé</h1>
+        <p class="page-subtitle">Généré le ${escapeHtml(new Date().toLocaleDateString("fr-FR"))}</p>
       </div>
 
       <div class="hero-card">
@@ -174,15 +170,15 @@ function buildProfilePage(profile?: Partial<UserProfile>) {
     },
     profile.level && { label: "Niveau", value: LEVEL_META[profile.level].label },
     profile.gender && { label: "Genre", value: profile.gender },
-    profile.age && { label: "Age", value: `${profile.age} ans` },
+    profile.age && { label: "Âge", value: `${profile.age} ans` },
     profile.height && { label: "Taille", value: `${profile.height} cm` },
     profile.weight && { label: "Poids", value: `${profile.weight} kg` },
     profile.sessionDuration?.[0] && {
-      label: "Seance cible",
+      label: "Séance cible",
       value: `${profile.sessionDuration[0]} min`,
     },
     profile.weeklyFrequency && {
-      label: "Frequence cible",
+      label: "Fréquence cible",
       value: `${profile.weeklyFrequency} / semaine`,
     },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
@@ -190,13 +186,13 @@ function buildProfilePage(profile?: Partial<UserProfile>) {
   const extraBlocks = [
     profile.availability?.length
       ? {
-          title: "Disponibilites",
+          title: "Disponibilités",
           body: escapeHtml(profile.availability.join(" · ")),
         }
       : null,
     profile.equipment?.length
       ? {
-          title: "Materiel",
+          title: "Matériel",
           body: profile.equipment
             .map((item) => `<span class="tag">${escapeHtml(item)}</span>`)
             .join(""),
@@ -221,8 +217,8 @@ function buildProfilePage(profile?: Partial<UserProfile>) {
     <div class="page-root">
       <div class="page-header">
         <div class="eyebrow">Profil</div>
-        <h1 class="page-title">Profil analyse</h1>
-        <p class="page-subtitle">Toutes les donnees qui servent a structurer le programme.</p>
+        <h1 class="page-title">Profil analysé</h1>
+        <p class="page-subtitle">Toutes les données qui servent à structurer le programme.</p>
       </div>
 
       <div class="panel">
@@ -263,7 +259,7 @@ function buildWeekPage(week: Week) {
       <div class="page-header">
         <div class="eyebrow">Semaine ${escapeHtml(week.week_number)}</div>
         <h1 class="page-title">${escapeHtml(week.focus || `Bloc ${week.week_number}`)}</h1>
-        <p class="page-subtitle">${sessionCount} seance${sessionCount > 1 ? "s" : ""} prevue${sessionCount > 1 ? "s" : ""}</p>
+        <p class="page-subtitle">${sessionCount} séance${sessionCount > 1 ? "s" : ""} prévue${sessionCount > 1 ? "s" : ""}</p>
       </div>
 
       <div class="stack">
@@ -277,7 +273,7 @@ function buildGuidancePage(program: Program) {
   const { nutrition_recommendations, general_advice, legal_disclaimer } = program;
   const disclaimerText =
     legal_disclaimer ??
-    "Ces recommandations sont informatives uniquement et ne remplacent pas l'avis d'un professionnel de sante ou d'un coach certifie.";
+    "Ces recommandations sont informatives uniquement et ne remplacent pas l'avis d'un professionnel de santé ou d'un coach certifié.";
 
   if (!nutrition_recommendations && !general_advice && !disclaimerText) {
     return "";
@@ -290,7 +286,7 @@ function buildGuidancePage(program: Program) {
           value: `${nutrition_recommendations.daily_calories_estimate} kcal / jour`,
         },
         {
-          label: "Proteines",
+          label: "Protéines",
           value: `${nutrition_recommendations.protein_target_g} g / jour`,
         },
         {

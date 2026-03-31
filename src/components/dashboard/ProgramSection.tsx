@@ -29,7 +29,7 @@ export default function ProgramSection({ program, downloadingPDF, onDownloadPDF 
           <div className="flex-1 min-w-0">
             <p className="font-black text-gray-900 text-sm mb-0.5">Aucun programme actif</p>
             <p className="text-xs text-gray-400 leading-snug">
-              Réponds à quelques questions — ton plan sur mesure est prêt en 2 minutes.
+              Réponds à quelques questions, ton plan sur mesure est prêt en 2 minutes.
             </p>
           </div>
         </div>
@@ -57,7 +57,7 @@ export default function ProgramSection({ program, downloadingPDF, onDownloadPDF 
       <div className="grid grid-cols-3 divide-x divide-gray-50 border-b border-gray-50">
         {[
           { value: program.program_overview.duration_weeks, label: "semaines" },
-          { value: program.program_overview.training_days_per_week, label: "seances / sem" },
+          { value: program.program_overview.training_days_per_week, label: "séances / sem" },
           { value: program.weeks?.length ?? 0, label: "semaines planif." },
         ].map(({ value, label }) => (
           <div key={label} className="py-4 text-center">
@@ -76,7 +76,7 @@ export default function ProgramSection({ program, downloadingPDF, onDownloadPDF 
         <button
           onClick={onDownloadPDF}
           disabled={downloadingPDF}
-          aria-label="Telecharger le programme en PDF"
+          aria-label="Télécharger le programme en PDF"
           className="flex items-center gap-1.5 border-2 border-gray-100 rounded-xl py-2.5 px-4 text-sm font-bold text-gray-600 hover:border-gray-300 transition-all disabled:opacity-50"
         >
           <Download className="w-3.5 h-3.5" aria-hidden="true" />

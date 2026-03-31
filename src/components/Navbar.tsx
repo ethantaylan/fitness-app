@@ -190,6 +190,14 @@ export default function Navbar() {
                     Profil
                   </Link>
                   <div className="w-px h-4 bg-gray-200 mx-1" />
+                  <Link
+                    to="/session"
+                    aria-label="Mes séances"
+                    title="Mes séances"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                  </Link>
                   <button
                     aria-label="Contact"
                     onClick={openContact}
@@ -218,7 +226,7 @@ export default function Navbar() {
                   to="/sign-up?next=%2Fonboarding"
                   className="text-sm font-bold bg-black text-white px-4 py-1.5 rounded-full hover:bg-gray-800 transition-colors"
                 >
-                  Creer un compte
+                  Créer un compte
                 </Link>
               </>
             )}

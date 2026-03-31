@@ -57,17 +57,17 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
         {/* Quick-start: selon profil */}
         <button
           onClick={() => onConfirm(profile.objective, duration)}
-          className="w-full flex items-center gap-3 bg-black text-white rounded-2xl px-4 py-3.5 mb-3 hover:bg-gray-900 active:scale-[0.99] transition-all"
+          className="theme-session-picker-primary w-full flex items-center gap-3 bg-black text-white rounded-2xl px-4 py-3.5 mb-3 hover:bg-gray-900 active:scale-[0.99] transition-all"
         >
           <div
-            className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center shrink-0"
+            className="theme-session-picker-primary-icon w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center shrink-0"
             aria-hidden="true"
           >
             <Target className="w-4 h-4" />
           </div>
           <div className="text-left">
             <div className="font-black text-sm">Selon mon profil</div>
-            <div className="text-xs text-white/60">
+            <div className="theme-session-picker-primary-subtitle text-xs text-white/60">
               {OBJECTIVE_LABELS[profile.objective]} · {profile.level}
             </div>
           </div>
@@ -142,7 +142,7 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
         {pendingObjective && (
           <button
             onClick={() => onConfirm(pendingObjective, duration)}
-            className="w-full mt-3 bg-black text-white font-black text-sm py-3.5 rounded-2xl hover:bg-gray-900 active:scale-[0.99] transition-all"
+            className="theme-session-picker-primary w-full mt-3 bg-black text-white font-black text-sm py-3.5 rounded-2xl hover:bg-gray-900 active:scale-[0.99] transition-all"
           >
             Générer · {OBJECTIVE_LABELS[pendingObjective]}
           </button>

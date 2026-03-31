@@ -57,8 +57,8 @@ export default function BottomNav() {
   const quickActions: QuickAction[] = [
     {
       key: "bonus-session",
-      label: "Seance bonus",
-      description: "Ajoute une seance en plus de ton programme si tu as plus de temps.",
+      label: "Séance bonus",
+      description: "Ajoute une séance en plus de ton programme si tu as plus de temps.",
       icon: CalendarDays,
       action: () => {
         void navigate("/dashboard?bonus=1");
@@ -66,8 +66,8 @@ export default function BottomNav() {
     },
     {
       key: "builder",
-      label: "Seance sur mesure",
-      description: "Construis une seance personnalisee selon tes envies du jour.",
+      label: "Séance sur mesure",
+      description: "Construis une séance personnalisée selon tes envies du jour.",
       icon: Dumbbell,
       action: () => {
         void navigate("/builder");
@@ -76,7 +76,7 @@ export default function BottomNav() {
     {
       key: "coach",
       label: "Coach IA",
-      description: "Pose une question, demande un conseil ou debloque-toi rapidement.",
+      description: "Pose une question, demande un conseil ou débloque-toi rapidement.",
       icon: Sparkles,
       action: () => {
         globalThis.dispatchEvent(new Event("open-Vincere-chat"));
@@ -114,7 +114,7 @@ export default function BottomNav() {
                 </p>
                 <h2 className="mt-1 text-xl font-black text-gray-900">Tu veux faire quoi ?</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Tout ce qui n’a pas besoin d’un onglet permanent est centralise ici.
+                  Tout ce qui n’a pas besoin d’un onglet permanent est centralisé ici.
                 </p>
               </div>
 

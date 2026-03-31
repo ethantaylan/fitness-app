@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Save,
-  ChevronLeft,
   User,
   Dumbbell,
   Check,
@@ -178,6 +177,7 @@ export default function Settings() {
 
   const objMeta = form.objective ? OBJECTIVE_META[form.objective as ObjectiveType] : null;
   const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
+  const heroChipClass = objMeta ? "theme-hero-chip" : "bg-white/10 text-white";
   const customEquipment = getCustomEquipment(form.equipment);
   const canAddCustomEquipment =
     normalizeEquipmentLabel(customEquipmentDraft) !== "" &&
@@ -188,14 +188,6 @@ export default function Settings() {
       <Navbar />
 
       <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 md:pb-24 sm:px-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-black mt-6 mb-5 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Retour
-        </button>
-
         {/* ── Hero profile card ── */}
         <div className={`relative overflow-hidden rounded-3xl p-6 mb-6 ${heroBg}`}>
           <div className="relative flex items-start justify-between">
@@ -244,7 +236,7 @@ export default function Settings() {
                 .map(({ Icon, label }) => (
                   <div
                     key={label}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${objMeta ? "bg-white/70 text-gray-700" : "bg-white/10 text-white"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
                   >
                     <Icon className="w-3 h-3" />
                     <span className="capitalize">{label}</span>

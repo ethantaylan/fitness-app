@@ -61,6 +61,10 @@ export default function Dashboard() {
   const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
   const firstName = userFirstName ?? "Athlete";
   const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
+  const heroChipClass = objMeta ? "theme-hero-chip" : "bg-white/10 text-white";
+  const heroActionClass = objMeta
+    ? "theme-hero-chip-action"
+    : "bg-white/15 text-white hover:bg-white/25";
 
   useEffect(() => {
     const shouldOpenBonus = new URLSearchParams(location.search).get("bonus") === "1";
@@ -159,11 +163,7 @@ export default function Dashboard() {
             <Link
               to="/settings"
               aria-label="Modifier mon profil"
-              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
-                objMeta
-                  ? "bg-white/70 text-gray-700 hover:bg-white"
-                  : "bg-white/15 text-white hover:bg-white/25"
-              }`}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${heroActionClass}`}
             >
               Modifier
             </Link>
@@ -172,14 +172,14 @@ export default function Dashboard() {
           {profile?.objective && (
             <div className="relative mt-4 flex flex-wrap gap-2" aria-label="Profil sportif">
               <span
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${objMeta ? "bg-white/70 text-gray-700" : "bg-white/10 text-white"}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
               >
                 <Target className="w-3 h-3" aria-hidden="true" />
                 {OBJECTIVE_LABELS[profile.objective]}
               </span>
               {levelMeta && (
                 <span
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${objMeta ? "bg-white/70 text-gray-700" : "bg-white/10 text-white"}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
                 >
                   <span aria-hidden="true">{levelMeta.emoji}</span>
                   {levelMeta.label}
@@ -187,7 +187,7 @@ export default function Dashboard() {
               )}
               {profile.weeklyFrequency && (
                 <span
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${objMeta ? "bg-white/70 text-gray-700" : "bg-white/10 text-white"}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
                 >
                   <Calendar className="w-3 h-3" aria-hidden="true" />
                   {profile.weeklyFrequency}x / sem
@@ -216,9 +216,15 @@ export default function Dashboard() {
         )}
 
         <div className="space-y-4">
+          <ProgramSection
+            program={program}
+            downloadingPDF={downloadingPDF}
+            onDownloadPDF={handleDownloadPDF}
+          />
+
           <Section
             icon={<Zap className="w-4 h-4" />}
-            title="Seance bonus"
+            title="Séance bonus"
             color="text-green-600"
             bg="bg-green-50"
             badge={
@@ -237,12 +243,6 @@ export default function Dashboard() {
               onNavigate={(uid) => navigate(`/session?uid=${uid}`)}
             />
           </Section>
-
-          <ProgramSection
-            program={program}
-            downloadingPDF={downloadingPDF}
-            onDownloadPDF={handleDownloadPDF}
-          />
         </div>
       </main>
     </div>

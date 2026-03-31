@@ -106,13 +106,13 @@ export default function Landing() {
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-gray-500 max-w-xl w-full mx-auto mb-8 px-1 sm:px-0">
             Cree ton compte gratuit, decris tes objectifs et recupere un programme structure avec
-            PDF, suivi et seances dans un seul espace.
+            PDF, suivi et séances dans un seul espace.
           </p>
           <div className="mb-8">
             <p className="inline-flex max-w-2xl items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
               <BetaBadge compact />
-              Un compte gratuit est maintenant requis pour generer, exporter ton PDF et suivre tes
-              seances.
+              Un compte gratuit est maintenant requis pour générer, exporter ton PDF et suivre tes
+              séances.
             </p>
           </div>
 
@@ -122,7 +122,7 @@ export default function Landing() {
               onClick={() => navigate(onboardingSignUpPath)}
               className="hero-cta-btn w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
             >
-              Creer mon compte
+              Créer mon compte
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
