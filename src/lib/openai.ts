@@ -67,7 +67,7 @@ function validateProgramCoverage(program: Program): string | null {
 
   for (let weekNumber = 1; weekNumber <= expectedWeeks; weekNumber++) {
     if (!program.weeks.some((week) => week.week_number === weekNumber)) {
-      return `La semaine ${weekNumber} est absente du programme genere.`;
+      return `La semaine ${weekNumber} est absente du programme généré.`;
     }
   }
 
@@ -238,7 +238,7 @@ Important : génère ${profile.weeklyFrequency} séances par semaine. Assure une
     }
 
     if (attempt === 2) {
-      console.warn("Programme genere avec structure incomplete ou volume insuffisant:", {
+      console.warn("Programme généré avec structure incomplète ou volume insuffisant:", {
         coverageError,
         volumeError,
       });

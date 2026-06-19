@@ -63,9 +63,9 @@ export default function Register() {
           <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">✓</span>
           </div>
-          <h2 className="font-black text-xl mb-2">Verifie tes emails !</h2>
+          <h2 className="font-black text-xl mb-2">Vérifie tes emails !</h2>
           <p className="text-gray-400 text-sm">
-            Un lien de confirmation a ete envoye a <strong>{email}</strong>.
+            Un lien de confirmation a été envoyé à <strong>{email}</strong>.
           </p>
         </div>
       </div>
@@ -83,8 +83,13 @@ export default function Register() {
 
         <h1 className="text-2xl font-black text-center mb-1">Créer un compte</h1>
         <p className="text-gray-400 text-sm text-center mb-8">
-          Ton compte gratuit te donne acces au programme, au PDF et au suivi.
+          Ton compte gratuit te donne accès au programme, au PDF et au suivi.
         </p>
+        <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-center">
+          <p className="text-xs font-bold text-emerald-800">
+            Gratuit, sans carte bancaire. Tes données servent uniquement à personnaliser ton plan.
+          </p>
+        </div>
 
         <button
           onClick={signInWithGoogle}
@@ -128,7 +133,7 @@ export default function Register() {
           />
           <input
             type="password"
-            placeholder="Mot de passe (min. 6 caracteres)"
+            placeholder="Mot de passe (min. 6 caractères)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -146,7 +151,7 @@ export default function Register() {
         </form>
 
         <p className="text-center text-sm text-gray-400 mt-6">
-          Deja un compte ?{" "}
+          Déjà un compte ?{" "}
           <Link to={signInPath} className="text-black font-semibold hover:underline">
             Se connecter
           </Link>

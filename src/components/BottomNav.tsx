@@ -57,8 +57,8 @@ export default function BottomNav() {
   const quickActions: QuickAction[] = [
     {
       key: "bonus-session",
-      label: "Séance bonus",
-      description: "Ajoute une séance en plus de ton programme si tu as plus de temps.",
+      label: "Séance en plus",
+      description: "Ajoute un entraînement supplémentaire quand ton programme principal est fait.",
       icon: CalendarDays,
       action: () => {
         void navigate("/dashboard?bonus=1");

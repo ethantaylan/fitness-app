@@ -200,7 +200,7 @@ export default function Settings() {
               <h1
                 className={`text-2xl font-black leading-tight ${objMeta ? "text-gray-900" : "text-white"}`}
               >
-                {userFirstName ?? "Athlete"}
+                {userFirstName ?? "Athlète"}
               </h1>
               {userEmail && (
                 <div className={`text-xs mt-0.5 ${objMeta ? "text-gray-500" : "text-white/50"}`}>

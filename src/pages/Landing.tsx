@@ -18,6 +18,7 @@ import {
   Wind,
   Footprints,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { buildAuthPath } from "../lib/authRedirect";
 import Navbar from "../components/Navbar";
@@ -75,17 +76,17 @@ export default function Landing() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center pt-32 pb-16 px-4 sm:px-6 overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center pt-24 pb-12 px-4 sm:px-6 overflow-hidden">
         {/* Dot pattern background */}
         <div className="hero-dots absolute inset-0 opacity-40 pointer-events-none" />
         {/* Fade bottom */}
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-linear-to-t from-white to-transparent pointer-events-none" />
 
         {/* Centre content */}
-        <div className="relative w-full max-w-4xl mx-auto text-center">
+        <div className="relative w-full max-w-6xl mx-auto">
           {/* Logo */}
-          <div className="flex flex-col items-center mb-6">
-            <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-16 h-16 mb-2" />
+          <div className="flex flex-col items-center mb-4 text-center">
+            <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-12 h-12 mb-2" />
             <div className="flex items-center gap-2">
               <span className="text-xs font-black tracking-[0.3em] uppercase text-gray-400">
                 Vincere
@@ -95,29 +96,28 @@ export default function Landing() {
           </div>
           {/* H1 */}
           <h1
-            className="font-black tracking-tight mb-8 wrap-break-word"
-            style={{ fontSize: "clamp(2rem, 8vw, 5rem)", lineHeight: 1.05 }}
+            className="font-black tracking-tight mb-5 wrap-break-word text-center"
+            style={{ fontSize: "clamp(2.25rem, 7vw, 4.5rem)", lineHeight: 1.02 }}
           >
-            Ta meilleure version
+            Ton programme fitness
             <br />
-            commence ici.
+            personnalisé en 2 minutes.
           </h1>
 
           {/* Subtitle */}
-          <p className="text-base sm:text-lg text-gray-500 max-w-xl w-full mx-auto mb-8 px-1 sm:px-0">
-            Cree ton compte gratuit, decris tes objectifs et recupere un programme structure avec
-            PDF, suivi et séances dans un seul espace.
+          <p className="text-base sm:text-lg text-gray-500 max-w-2xl w-full mx-auto mb-5 px-1 sm:px-0 text-center">
+            Crée ton compte gratuit, décris tes objectifs et récupère un plan structuré avec PDF,
+            séances détaillées et suivi de progression dans un seul espace.
           </p>
-          <div className="mb-8">
+          <div className="mb-5 text-center">
             <p className="inline-flex max-w-2xl items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
               <BetaBadge compact />
-              Un compte gratuit est maintenant requis pour générer, exporter ton PDF et suivre tes
-              séances.
+              Gratuit, sans carte bancaire. Le compte sert à sauvegarder ton programme et ton suivi.
             </p>
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
             <button
               onClick={() => navigate(onboardingSignUpPath)}
               className="hero-cta-btn w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
@@ -129,16 +129,16 @@ export default function Landing() {
               onClick={() => navigate(signInPath)}
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
             >
-              J'ai deja un compte
+              J'ai déjà un compte
             </button>
           </div>
 
           {/* Trust badges */}
-          <div className="flex items-center justify-center flex-wrap gap-2 mb-14">
+          <div className="flex items-center justify-center flex-wrap gap-2 mb-6">
             {[
               { icon: "⚡", label: "Prêt en 60 secondes" },
               { icon: "🎯", label: "100% personnalisé" },
-              { icon: "🔓", label: "Gratuit" },
+              { icon: "🔓", label: "Sans carte bancaire" },
             ].map(({ icon, label }) => (
               <span
                 key={label}
@@ -148,6 +148,71 @@ export default function Landing() {
                 {label}
               </span>
             ))}
+          </div>
+
+          {/* Program preview */}
+          <div className="mx-auto mb-14 grid max-w-5xl grid-cols-1 overflow-hidden rounded-3xl border border-gray-200 bg-white text-left shadow-sm md:grid-cols-[0.95fr_1.05fr]">
+            <div className="bg-black p-6 text-white sm:p-8">
+              <div className="mb-8 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">
+                    Exemple de résultat
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">
+                    Semaine 1 - Force & endurance
+                  </h2>
+                </div>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
+                  PDF inclus
+                </span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  ["Lun", "Bas du corps", "Squat, fentes, gainage"],
+                  ["Mer", "Cardio contrôlé", "Zone 2 + intervalles courts"],
+                  ["Ven", "Haut du corps", "Développé, tirage, épaules"],
+                ].map(([day, title, detail]) => (
+                  <div
+                    key={day}
+                    className="grid grid-cols-[3rem_1fr] gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-black text-black">
+                      {day}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black">{title}</p>
+                      <p className="mt-0.5 truncate text-xs text-white/50">{detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-6 sm:p-8">
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black">Un plan concret, pas une simple liste.</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                    Vincere structure les semaines, détaille les exercices et garde le suivi
+                    accessible quand tu t'entraînes.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ["6", "semaines"],
+                  ["4x", "par semaine"],
+                  ["PDF", "exportable"],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                    <div className="text-2xl font-black text-gray-900">{value}</div>
+                    <div className="mt-1 text-xs font-semibold text-gray-400">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Sport tags ticker */}

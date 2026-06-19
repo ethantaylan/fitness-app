@@ -30,7 +30,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Connecte-toi pour acceder a ton suivi.</p>
+          <p className="text-gray-500 mb-4">Connecte-toi pour accéder à ton suivi.</p>
           <Link to="/sign-in" className="bg-black text-white px-6 py-3 rounded-xl font-bold">
             Connexion
           </Link>
@@ -59,7 +59,7 @@ export default function Dashboard() {
 
   const objMeta = profile?.objective ? OBJECTIVE_META[profile.objective] : null;
   const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
-  const firstName = userFirstName ?? "Athlete";
+  const firstName = userFirstName ?? "Athlète";
   const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
   const heroChipClass = objMeta ? "theme-hero-chip" : "bg-white/10 text-white";
   const heroActionClass = objMeta
@@ -102,7 +102,7 @@ export default function Dashboard() {
       dispatch({ type: "ADD_SESSION", session: { ...session, uid, date: todayDate } });
       void navigate(`/session?uid=${uid}`);
     } catch (err) {
-      setSessionError(err instanceof Error ? err.message : "Erreur lors de la generation.");
+      setSessionError(err instanceof Error ? err.message : "Erreur lors de la génération.");
     } finally {
       setGeneratingSession(false);
     }
@@ -224,7 +224,7 @@ export default function Dashboard() {
 
           <Section
             icon={<Zap className="w-4 h-4" />}
-            title="Séance bonus"
+            title="Séance en plus"
             color="text-green-600"
             bg="bg-green-50"
             badge={

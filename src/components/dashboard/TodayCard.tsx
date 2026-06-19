@@ -47,7 +47,7 @@ export default function TodayCard({
         </div>
         <p className="font-black text-gray-900 mb-1 text-sm">Configure ton profil</p>
         <p className="text-xs text-gray-400 mb-4">
-          Remplis ton profil pour débloquer les séances bonus à ajouter en plus du programme.
+          Remplis ton profil pour débloquer ton programme principal et les séances supplémentaires.
         </p>
         <Link
           to="/onboarding"
@@ -62,17 +62,17 @@ export default function TodayCard({
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-black text-gray-900">Tu as plus de dispo aujourd'hui ?</p>
+        <p className="text-sm font-black text-gray-900">Une séance en plus aujourd'hui ?</p>
         <p className="mt-1 text-xs leading-relaxed text-gray-600">
-          Cette zone sert à générer une séance bonus en plus de ton programme si tu veux t'entraîner
-          davantage.
+          Ton programme principal reste la priorité. Utilise cette zone uniquement si tu veux
+          ajouter un entraînement supplémentaire adapté à ton état du jour.
         </p>
       </div>
 
       {todaySessions.length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">
-            Séances bonus du jour
+            Séances supplémentaires du jour
           </p>
           <p className="mt-1 text-xs text-gray-500">
             Tu peux revoir ici les séances supplémentaires que tu as déjà ajoutées aujourd'hui.
@@ -86,7 +86,7 @@ export default function TodayCard({
           <button
             key={s.uid}
             type="button"
-            aria-label={`Voir la séance bonus ${s.goal}`}
+            aria-label={`Voir la séance supplémentaire ${s.goal}`}
             className="w-full flex items-center justify-between text-left rounded-2xl border border-gray-200 bg-white p-3 transition-colors hover:bg-gray-50 active:scale-[0.99]"
             onClick={() => onNavigate(s.uid)}
           >
@@ -143,11 +143,11 @@ export default function TodayCard({
                 <Dumbbell className={`w-5 h-5 ${objMeta?.color ?? "text-gray-400"}`} />
               </div>
               <p className="font-black text-gray-900 mb-1 text-sm">
-                Tu veux rajouter une séance en plus ?
+                Tu veux ajouter une séance en plus ?
               </p>
               <p className="text-xs text-gray-400 mb-4">
-                Si tu as une disponibilité supplémentaire, l'IA te prépare une séance bonus adaptée
-                à ton niveau en quelques secondes.
+                Si tu as une disponibilité supplémentaire, l'IA te prépare un entraînement adapté à
+                ton niveau en quelques secondes.
               </p>
             </>
           )}
@@ -165,21 +165,21 @@ export default function TodayCard({
             {generatingSession ? (
               <>
                 <RotateCcw className="w-4 h-4 animate-spin" aria-hidden="true" />
-                Génération de la séance bonus...
+                Génération de la séance...
               </>
             ) : (
               <>
                 <Play className="w-4 h-4" aria-hidden="true" />
                 {todaySessions.length === 0
-                  ? "Générer une séance bonus"
-                  : "Ajouter une autre séance bonus"}
+                  ? "Générer une séance en plus"
+                  : "Ajouter une autre séance"}
               </>
             )}
           </button>
         </div>
       ) : (
         <p className="text-xs text-center text-gray-400 py-1">
-          Maximum {MAX_SESSIONS_PER_DAY} séances bonus par jour atteint
+          Maximum {MAX_SESSIONS_PER_DAY} séances supplémentaires par jour atteint
         </p>
       )}
     </div>

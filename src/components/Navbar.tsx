@@ -132,7 +132,9 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-2">
-            <ThemeToggleButton />
+            <div className="hidden sm:block">
+              <ThemeToggleButton />
+            </div>
             {isSignedIn ? (
               <>
                 {/* Mobile: contact + logout */}

@@ -56,6 +56,49 @@ function ExerciseRow({
   );
 }
 
+function ExerciseMobileCard({
+  ex,
+}: Readonly<{
+  ex: {
+    name: string;
+    sets: number;
+    reps: number | string;
+    load_kg?: string;
+    rest_sec?: number;
+    alternative?: string;
+    notes?: string;
+  };
+}>) {
+  const loadDisplay = formatLoadValue(ex.load_kg);
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="font-black text-gray-900">{ex.name}</div>
+      {(ex.notes || ex.alternative) && (
+        <div className="mt-1 space-y-1 text-xs leading-relaxed text-gray-500">
+          {ex.notes && <p>{ex.notes}</p>}
+          {ex.alternative && <p>Alternative : {ex.alternative}</p>}
+        </div>
+      )}
+      <div className="mt-4 grid grid-cols-4 gap-2">
+        {[
+          ["Séries", ex.sets],
+          ["Reps", ex.reps],
+          ["Charge", loadDisplay],
+          ["Repos", ex.rest_sec ? `${ex.rest_sec}s` : "-"],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-xl bg-gray-50 px-2 py-2 text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+              {label}
+            </div>
+            <div className="mt-1 text-sm font-black text-gray-900">{value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SessionCard({
   session,
   onToggleCompletion,
@@ -171,7 +214,12 @@ function SessionCard({
               <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
                 {block.block_name}
               </div>
-              <div className="overflow-x-auto">
+              <div className="space-y-3 sm:hidden">
+                {block.exercises?.map((exercise) => (
+                  <ExerciseMobileCard key={exercise.name} ex={exercise} />
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="min-w-full w-max">
                   <thead>
                     <tr className="border-b border-gray-100 text-xs text-gray-400">

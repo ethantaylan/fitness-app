@@ -78,7 +78,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       userEmail: user?.email ?? "",
       userFirstName: storedFirstName || fullName.split(/\s+/)[0] || null,
       updateUserDisplayName: async (displayName: string) => {
-        if (!user?.id) throw new Error("Utilisateur non connecte");
+        if (!user?.id) throw new Error("Utilisateur non connecté");
         const updated = await dbUpdateUserDisplayName(supabase, user.id, displayName);
         setStoredFirstName(updated.first_name?.trim() || null);
       },

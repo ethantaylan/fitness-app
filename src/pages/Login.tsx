@@ -118,6 +118,15 @@ export default function Login() {
           </button>
         </form>
 
+        <div className="mt-4 text-center">
+          <Link
+            to="/reset-password"
+            className="text-sm font-semibold text-gray-500 hover:text-black"
+          >
+            Mot de passe oublié ?
+          </Link>
+        </div>
+
         <p className="text-center text-sm text-gray-400 mt-6">
           Pas de compte ?{" "}
           <Link to={signUpPath} className="text-black font-semibold hover:underline">
