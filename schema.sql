@@ -185,6 +185,7 @@ CREATE TABLE IF NOT EXISTS daily_sessions (
   duration_min       SMALLINT      NOT NULL CHECK (duration_min > 0),
   motivation_message TEXT,
   feedback           feedback_type,
+  notes              TEXT CHECK (char_length(notes) <= 2000),
   warmup             JSONB         NOT NULL DEFAULT '[]',
   cooldown           JSONB         NOT NULL DEFAULT '[]',
   created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()

@@ -553,6 +553,7 @@ export async function saveDailySession(
       duration_min: session.duration_min,
       motivation_message: session.motivation_message ?? null,
       feedback: session.feedback ?? null,
+      notes: session.notes ?? null,
       warmup: session.warmup,
       cooldown: session.cooldown,
     })
@@ -628,6 +629,7 @@ export async function getDailySessions(
       duration_min: row.duration_min as number,
       motivation_message: (row.motivation_message as string) ?? "",
       feedback: row.feedback as DailySession["feedback"],
+      notes: (row.notes as string | null) ?? undefined,
       warmup: (row.warmup as WarmupItem[]) ?? [],
       cooldown: (row.cooldown as WarmupItem[]) ?? [],
       blocks: ((row.daily_session_blocks as Record<string, unknown>[]) ?? [])
@@ -653,6 +655,22 @@ export async function updateSessionFeedback(
     .eq("id", sessionUid);
 
   if (error) throw new Error(`[db/updateSessionFeedback] ${error.message}`);
+}
+
+/** Ajoute, modifie ou efface la note personnelle associée à une séance. */
+export async function updateSessionNotes(
+  client: SupabaseClient,
+  internalUserId: string,
+  sessionUid: string,
+  notes: string | null,
+): Promise<void> {
+  const { error } = await client
+    .from("daily_sessions")
+    .update({ notes })
+    .eq("user_id", internalUserId)
+    .eq("id", sessionUid);
+
+  if (error) throw new Error(`[db/updateSessionNotes] ${error.message}`);
 }
 
 /**
