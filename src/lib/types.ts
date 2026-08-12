@@ -106,6 +106,8 @@ export interface DailySession {
   cooldown: WarmupItem[];
   motivation_message: string;
   feedback?: "good" | "normal" | "hard";
+  /** Ressenti libre saisi par l'utilisateur après la séance. */
+  notes?: string;
 }
 
 export type RecordCategory = "force" | "cardio" | "corps" | "autre";

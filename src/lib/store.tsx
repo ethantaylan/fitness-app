@@ -21,6 +21,7 @@ import {
   getDailySessions,
   saveDailySession as dbSaveSession,
   updateSessionFeedback as dbUpdateFeedback,
+  updateSessionNotes as dbUpdateSessionNotes,
   deleteDailySession as dbDeleteSession,
   getOnboardingProgress,
   saveOnboardingStep,
@@ -52,6 +53,7 @@ type Action =
   | { type: "ADD_SESSION"; session: DailySession }
   | { type: "DELETE_SESSION"; uid: string }
   | { type: "UPDATE_SESSION_FEEDBACK"; uid: string; feedback: "good" | "normal" | "hard" }
+  | { type: "UPDATE_SESSION_NOTES"; uid: string; notes?: string }
   | {
       type: "REPLACE_EXERCISE";
       sessionUid: string;
@@ -120,6 +122,13 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         sessions: state.sessions.map((s) =>
           s.uid === action.uid ? { ...s, feedback: action.feedback } : s,
+        ),
+      };
+    case "UPDATE_SESSION_NOTES":
+      return {
+        ...state,
+        sessions: state.sessions.map((s) =>
+          s.uid === action.uid ? { ...s, notes: action.notes } : s,
         ),
       };
     case "REPLACE_EXERCISE":
@@ -250,6 +259,10 @@ export function AppProvider({
 
       case "UPDATE_SESSION_FEEDBACK":
         dbUpdateFeedback(supabase, iuid, action.uid, action.feedback).catch(console.warn);
+        break;
+
+      case "UPDATE_SESSION_NOTES":
+        dbUpdateSessionNotes(supabase, iuid, action.uid, action.notes ?? null).catch(console.warn);
         break;
 
       case "ADD_RECORD":

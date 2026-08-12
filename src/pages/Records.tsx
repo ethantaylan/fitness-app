@@ -3,6 +3,7 @@ import { Plus, X, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
 import type { PersonalRecord, RecordCategory } from "../lib/types";
+import SessionNotes from "../components/tracking/SessionNotes";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,7 @@ export default function Records() {
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(BLANK_FORM);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeTab, setActiveTab] = useState<"records" | "notes">("records");
 
   // ── Derived data ─────────────────────────────────────────────────────────────
 
@@ -243,9 +245,9 @@ export default function Records() {
         {/* Header */}
         <div className="mt-6 mb-6 flex items-end justify-between">
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Performance</p>
-            <h1 className="text-2xl font-black">🏆 Mes Records</h1>
-            {sortedExercises.length > 0 && (
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Mon suivi</p>
+            <h1 className="text-2xl font-black">Progression</h1>
+            {activeTab === "records" && sortedExercises.length > 0 && (
               <p className="text-sm text-gray-400 mt-1">
                 {sortedExercises.length} exercice{sortedExercises.length > 1 ? "s" : ""} suivi
                 {sortedExercises.length > 1 ? "s" : ""}
@@ -254,152 +256,187 @@ export default function Records() {
           </div>
         </div>
 
-        {/* Empty state */}
-        {sortedExercises.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-4xl mb-5 shadow-sm">
-              🏆
-            </div>
-            <h2 className="text-lg font-black mb-2">Aucun record encore</h2>
-            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
-              Ajoute ta première perf — développé couché, tractions, 5km... chaque PR compte.
-            </p>
-            <button
-              onClick={() => openAdd()}
-              className="mt-6 bg-black text-white font-bold px-6 py-3 rounded-2xl text-sm active:scale-95 transition-transform"
-            >
-              + Ajouter un record
-            </button>
-          </div>
-        )}
+        <div className="mb-6 grid grid-cols-2 rounded-2xl bg-gray-100 p-1" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "records"}
+            onClick={() => setActiveTab("records")}
+            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "records" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
+          >
+            🏆 Records
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "notes"}
+            onClick={() => setActiveTab("notes")}
+            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "notes" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
+          >
+            📝 Notes
+          </button>
+        </div>
 
-        {/* Records list */}
-        <div className="flex flex-col gap-3">
-          {sortedExercises.map((exerciseName) => {
-            const entries = grouped[exerciseName];
-            const best = getBest(entries);
-            const meta = CATEGORY_META[best.category];
-            const isExpanded = expandedExercise === exerciseName;
-            const sortedEntries = [...entries].sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-            );
+        {activeTab === "notes" ? (
+          <SessionNotes />
+        ) : (
+          <>
+            {/* Empty state */}
+            {sortedExercises.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-4xl mb-5 shadow-sm">
+                  🏆
+                </div>
+                <h2 className="text-lg font-black mb-2">Aucun record encore</h2>
+                <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+                  Ajoute ta première perf — développé couché, tractions, 5km... chaque PR compte.
+                </p>
+                <button
+                  onClick={() => openAdd()}
+                  className="mt-6 bg-black text-white font-bold px-6 py-3 rounded-2xl text-sm active:scale-95 transition-transform"
+                >
+                  + Ajouter un record
+                </button>
+              </div>
+            )}
 
-            return (
-              <div
-                key={exerciseName}
-                className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm"
-              >
-                {/* Main row */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span
-                          className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${meta.lightBg} ${meta.text} rounded-full px-2 py-0.5`}
+            {/* Records list */}
+            <div className="flex flex-col gap-3">
+              {sortedExercises.map((exerciseName) => {
+                const entries = grouped[exerciseName];
+                const best = getBest(entries);
+                const meta = CATEGORY_META[best.category];
+                const isExpanded = expandedExercise === exerciseName;
+                const sortedEntries = [...entries].sort(
+                  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+                );
+
+                return (
+                  <div
+                    key={exerciseName}
+                    className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm"
+                  >
+                    {/* Main row */}
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${meta.lightBg} ${meta.text} rounded-full px-2 py-0.5`}
+                            >
+                              {meta.emoji} {meta.label}
+                            </span>
+                            {entries.length > 1 && (
+                              <span className="text-[10px] text-gray-400">
+                                {entries.length} entrées
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-black text-base text-gray-900 leading-tight">
+                            {exerciseName}
+                          </h3>
+                          <p className="text-xs text-gray-400 mt-0.5">{formatDate(best.date)}</p>
+                        </div>
+
+                        {/* Best value */}
+                        <div className="shrink-0 text-right">
+                          <div className={`text-lg font-black leading-none ${meta.text}`}>
+                            {formatRecord(best)}
+                          </div>
+                          {best.notes && (
+                            <p className="text-[11px] text-gray-400 mt-1 max-w-30 truncate">
+                              {best.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                        <button
+                          onClick={() => openAdd(exerciseName, best.category)}
+                          className="text-xs font-semibold text-gray-400 hover:text-black transition-colors"
                         >
-                          {meta.emoji} {meta.label}
-                        </span>
+                          + Nouvelle entrée
+                        </button>
                         {entries.length > 1 && (
-                          <span className="text-[10px] text-gray-400">
-                            {entries.length} entrées
-                          </span>
+                          <button
+                            onClick={() => toggleExpand(exerciseName)}
+                            className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors"
+                          >
+                            Historique
+                            {isExpanded ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </button>
                         )}
                       </div>
-                      <h3 className="font-black text-base text-gray-900 leading-tight">
-                        {exerciseName}
-                      </h3>
-                      <p className="text-xs text-gray-400 mt-0.5">{formatDate(best.date)}</p>
                     </div>
 
-                    {/* Best value */}
-                    <div className="shrink-0 text-right">
-                      <div className={`text-lg font-black leading-none ${meta.text}`}>
-                        {formatRecord(best)}
+                    {/* History */}
+                    {isExpanded && (
+                      <div className={`${meta.lightBg} ${meta.border} border-t px-4 py-3`}>
+                        <div className="flex flex-col gap-2.5">
+                          {sortedEntries.map((entry) => {
+                            const isBestEntry = entry.id === best.id;
+                            return (
+                              <div
+                                key={entry.id}
+                                className="flex items-center justify-between gap-2"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {isBestEntry && (
+                                    <span className="text-[10px] font-black text-amber-600 bg-amber-100 rounded-full px-1.5 py-0.5 shrink-0">
+                                      PR
+                                    </span>
+                                  )}
+                                  <span className="text-sm font-semibold text-gray-800 truncate">
+                                    {formatRecord(entry)}
+                                  </span>
+                                  {entry.notes && (
+                                    <span className="text-xs text-gray-400 truncate hidden sm:inline">
+                                      — {entry.notes}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(`${entry.date}T12:00:00`).toLocaleDateString(
+                                      "fr-FR",
+                                      {
+                                        day: "numeric",
+                                        month: "short",
+                                      },
+                                    )}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      dispatch({ type: "DELETE_RECORD", id: entry.id })
+                                    }
+                                    className="text-gray-300 hover:text-red-400 transition-colors"
+                                    aria-label="Supprimer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      {best.notes && (
-                        <p className="text-[11px] text-gray-400 mt-1 max-w-30 truncate">
-                          {best.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                    <button
-                      onClick={() => openAdd(exerciseName, best.category)}
-                      className="text-xs font-semibold text-gray-400 hover:text-black transition-colors"
-                    >
-                      + Nouvelle entrée
-                    </button>
-                    {entries.length > 1 && (
-                      <button
-                        onClick={() => toggleExpand(exerciseName)}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors"
-                      >
-                        Historique
-                        {isExpanded ? (
-                          <ChevronUp className="w-3 h-3" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3" />
-                        )}
-                      </button>
                     )}
                   </div>
-                </div>
-
-                {/* History */}
-                {isExpanded && (
-                  <div className={`${meta.lightBg} ${meta.border} border-t px-4 py-3`}>
-                    <div className="flex flex-col gap-2.5">
-                      {sortedEntries.map((entry) => {
-                        const isBestEntry = entry.id === best.id;
-                        return (
-                          <div key={entry.id} className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              {isBestEntry && (
-                                <span className="text-[10px] font-black text-amber-600 bg-amber-100 rounded-full px-1.5 py-0.5 shrink-0">
-                                  PR
-                                </span>
-                              )}
-                              <span className="text-sm font-semibold text-gray-800 truncate">
-                                {formatRecord(entry)}
-                              </span>
-                              {entry.notes && (
-                                <span className="text-xs text-gray-400 truncate hidden sm:inline">
-                                  — {entry.notes}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-xs text-gray-400">
-                                {new Date(`${entry.date}T12:00:00`).toLocaleDateString("fr-FR", {
-                                  day: "numeric",
-                                  month: "short",
-                                })}
-                              </span>
-                              <button
-                                onClick={() => dispatch({ type: "DELETE_RECORD", id: entry.id })}
-                                className="text-gray-300 hover:text-red-400 transition-colors"
-                                aria-label="Supprimer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* FAB */}
-      {sortedExercises.length > 0 && (
+      {activeTab === "records" && sortedExercises.length > 0 && (
         <button
           onClick={() => openAdd()}
           className="fixed bottom-24 right-4 w-14 h-14 bg-black text-white rounded-2xl shadow-lg flex items-center justify-center hover:bg-gray-900 active:scale-95 transition-all z-40 md:bottom-8"
