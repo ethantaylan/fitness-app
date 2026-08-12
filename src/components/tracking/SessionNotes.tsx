@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Check, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../../lib/store";
 import type { DailySession } from "../../lib/types";
 
@@ -11,6 +12,7 @@ function sessionTitle(session: DailySession) {
 
 export default function SessionNotes() {
   const { state, dispatch } = useApp();
+  const navigate = useNavigate();
   const [editingUid, setEditingUid] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -49,6 +51,13 @@ export default function SessionNotes() {
           Tes séances apparaîtront ici pour que tu puisses noter ton ressenti, tes charges ou ce que
           tu souhaites ajuster la prochaine fois.
         </p>
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="mt-6 rounded-2xl bg-black px-6 py-3 text-sm font-bold text-white transition-transform active:scale-95"
+        >
+          + Ajouter une note
+        </button>
       </div>
     );
   }
