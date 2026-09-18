@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { useApp } from "../lib/store";
 import { generateProgram } from "../lib/openai";
-import { normalizeProgramWeeks } from "../lib/program";
 import type { UserProfile } from "../lib/types";
 
 const MESSAGES = [
@@ -48,7 +47,7 @@ export default function Generating() {
           return;
         }
         const program = await generateProgram(state.profile as UserProfile);
-        dispatch({ type: "SET_PROGRAM", program: normalizeProgramWeeks(program) });
+        dispatch({ type: "SET_PROGRAM", program });
         clearInterval(interval);
         void navigate("/result");
       } catch (err) {
@@ -70,14 +69,6 @@ export default function Generating() {
           </div>
           <h1 className="text-2xl font-black mb-4">Oups, une erreur s'est produite</h1>
           <p className="text-gray-400 text-sm mb-2">{error}</p>
-          {error.includes("VITE_OPENAI_API_KEY") && (
-            <p className="text-sm text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-4 mt-4 text-left">
-              💡 <strong>Pour développeurs :</strong> Crée un fichier{" "}
-              <code className="font-mono">.env</code> à la racine du projet avec :
-              <br />
-              <code className="font-mono mt-2 block">VITE_OPENAI_API_KEY=sk-...</code>
-            </p>
-          )}
           <button
             onClick={() => navigate("/onboarding")}
             className="mt-6 border border-white text-white font-bold px-6 py-3 rounded-xl hover:bg-white hover:text-black transition-colors"

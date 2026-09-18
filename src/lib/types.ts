@@ -110,6 +110,8 @@ export interface DailySession {
   notes?: string;
 }
 
+export type GeneratedDailySession = Omit<DailySession, "uid">;
+
 export type RecordCategory = "force" | "cardio" | "corps" | "autre";
 
 export interface PersonalRecord {

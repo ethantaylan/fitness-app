@@ -27,7 +27,7 @@ Vite+ (vp)                       - Toolchain (build, dev, lint, test)
 Tailwind CSS v4 + DaisyUI v5     - Styling
 React Router v6                  - Navigation
 Supabase                         - Auth + PostgreSQL
-OpenAI API (GPT-4o)              - Generation IA
+OpenAI API via Supabase Edge     - Generation IA securisee
 jsPDF / html2canvas              - Export PDF
 Netlify                          - Hebergement + SPA redirects
 ```
@@ -62,7 +62,6 @@ Renseigne `.env.local` :
 ```env
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
-VITE_OPENAI_API_KEY=sk-...
 VITE_APP_URL=http://localhost:5173
 ```
 
@@ -151,10 +150,18 @@ Landing -> Register/Login -> Onboarding -> Dashboard
 | ------------------------ | ------ |
 | `VITE_SUPABASE_URL`      | Oui    |
 | `VITE_SUPABASE_ANON_KEY` | Oui    |
-| `VITE_OPENAI_API_KEY`    | Oui    |
 | `VITE_APP_URL`           | Non    |
 
 Pour les redirects d'auth Supabase en local, ajoute aussi `http://localhost:5173/dashboard` et `http://localhost:5173/reset-password` dans `Authentication > URL Configuration > Redirect URLs`. Sinon Supabase peut retomber sur la `Site URL` de production.
+
+La cle OpenAI reste exclusivement dans les secrets Supabase et ne doit jamais utiliser un prefixe `VITE_` :
+
+```bash
+vp exec supabase secrets set OPENAI_API_KEY=sk-...
+vp exec supabase functions deploy ai-coach
+```
+
+Le modele principal peut etre remplace avec le secret optionnel `OPENAI_MODEL`. Le support utilise `OPENAI_SUPPORT_MODEL` lorsqu'il est defini.
 
 ---
 
