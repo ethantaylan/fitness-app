@@ -10,7 +10,6 @@ import {
   Zap,
   Dumbbell,
   CalendarDays,
-  Hammer,
   RefreshCw,
   Share2,
   Check,
@@ -22,11 +21,10 @@ import {
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
-import { generateDailySession, replaceExercise } from "../lib/openai";
+import { replaceExercise } from "../lib/openai";
 import { FEEDBACK_META } from "../lib/constants";
 import { formatLoadValue } from "../lib/formatLoad";
-import type { DailySession, UserProfile, ObjectiveType } from "../lib/types";
-import SessionPickerSheet from "../components/SessionPickerSheet";
+import type { DailySession, UserProfile } from "../lib/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -42,17 +40,11 @@ function intensityClasses(intensity: string) {
 function SessionList({
   sessions,
   profile,
-  generating,
-  generateError,
-  onGenerate,
-  onBuildOwn,
+  onCreate,
 }: Readonly<{
   sessions: DailySession[];
   profile: UserProfile | null;
-  generating: boolean;
-  generateError: string;
-  onGenerate: () => void;
-  onBuildOwn: () => void;
+  onCreate: () => void;
 }>) {
   const navigate = useNavigate();
   const { state, dispatch } = useApp();
@@ -132,62 +124,19 @@ function SessionList({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-7">
-          {/* Générer IA */}
-          <button
-            onClick={onGenerate}
-            disabled={generating || !profile}
-            className="theme-session-generate-card relative flex flex-col items-start gap-3 bg-black text-white rounded-2xl p-4 hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
-          >
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  "radial-gradient(ellipse 120% 120% at 100% 0%, rgba(99,102,241,0.35) 0%, transparent 60%)",
-              }}
-            />
-            <div className="theme-session-generate-icon relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-              {generating ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Zap className="w-5 h-5 text-white" />
-              )}
-            </div>
-            <div className="relative">
-              <p className="font-black text-sm leading-tight">
-                {generating ? "Création…" : "Laisser Vincere choisir"}
-              </p>
-              <p className="theme-session-generate-subtitle text-[11px] text-white/50 mt-0.5">
-                Selon ton profil et ta durée
-              </p>
-            </div>
-          </button>
-
-          {/* Builder */}
-          <button
-            onClick={onBuildOwn}
-            className="theme-session-builder-card flex flex-col items-start gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:border-gray-300 hover:shadow-sm active:scale-[0.98] transition-all"
-          >
-            <div className="theme-session-builder-icon w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
-              <Hammer className="w-5 h-5 text-gray-700" />
-            </div>
-            <div>
-              <p className="font-black text-sm text-gray-900 leading-tight">
-                Choisir mes exercices
-              </p>
-              <p className="theme-session-builder-subtitle text-[11px] text-gray-400 mt-0.5">
-                Compose à partir des zones
-              </p>
-            </div>
-          </button>
-        </div>
-
-        {/* Error */}
-        {generateError && (
-          <div className="mb-4 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-            <p className="text-xs text-red-600 font-medium">{generateError}</p>
-          </div>
-        )}
+        <button
+          onClick={onCreate}
+          disabled={!profile}
+          className="theme-session-generate-card mb-7 flex w-full items-center justify-between rounded-2xl bg-black px-5 py-4 text-left text-white transition-all hover:bg-gray-900 active:scale-[0.99] disabled:opacity-50"
+        >
+          <span>
+            <span className="block text-sm font-black">Créer ma séance libre</span>
+            <span className="theme-session-generate-subtitle mt-1 block text-xs text-white/60">
+              Compose toi-même ou laisse Vincere l’adapter à ton programme
+            </span>
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0" />
+        </button>
 
         {/* ── Session list ── */}
         {sessions.length === 0 ? (
@@ -672,23 +621,12 @@ function SessionDetail({
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function DailySession() {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const uid = searchParams.get("uid");
 
-  const [showPicker, setShowPicker] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState("");
-
-  const todayDate = new Date().toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   const profile = state.profile as UserProfile | null;
-  const lastFeedback = state.sessions.find((s) => s.feedback)?.feedback;
 
   // ── Detail view ──
   if (uid) {
@@ -698,66 +636,17 @@ export default function DailySession() {
         <SessionList
           sessions={state.sessions}
           profile={profile}
-          generating={generating}
-          generateError={generateError}
-          onGenerate={() => setShowPicker(true)}
-          onBuildOwn={() => navigate("/builder")}
+          onCreate={() => navigate("/builder")}
         />
       );
     return <SessionDetail session={session} profile={profile} />;
   }
 
-  // ── Generation handler ──
-  async function handleConfirm(objective: ObjectiveType, duration: number) {
-    setShowPicker(false);
-    setGenerating(true);
-    setGenerateError("");
-    try {
-      const profileForSession: UserProfile = {
-        ...(profile as UserProfile),
-        objective,
-        sessionDuration: [duration],
-      };
-      const session = await generateDailySession(profileForSession, lastFeedback);
-      const newUid = crypto.randomUUID();
-      dispatch({ type: "ADD_SESSION", session: { ...session, uid: newUid, date: todayDate } });
-      void navigate(`/session?uid=${newUid}`);
-    } catch (err) {
-      setGenerateError(err instanceof Error ? err.message : "Erreur lors de la génération.");
-    } finally {
-      setGenerating(false);
-    }
-  }
-
   return (
-    <>
-      {showPicker && profile && (
-        <SessionPickerSheet
-          profile={profile}
-          onConfirm={(obj, dur) => {
-            void handleConfirm(obj, dur);
-          }}
-          onClose={() => setShowPicker(false)}
-          onBuildOwn={() => {
-            setShowPicker(false);
-            void navigate("/builder");
-          }}
-        />
-      )}
-      <SessionList
-        sessions={state.sessions}
-        profile={profile}
-        generating={generating}
-        generateError={generateError}
-        onGenerate={() => {
-          if (!profile?.objective) {
-            void navigate("/onboarding");
-            return;
-          }
-          setShowPicker(true);
-        }}
-        onBuildOwn={() => navigate("/builder")}
-      />
-    </>
+    <SessionList
+      sessions={state.sessions}
+      profile={profile}
+      onCreate={() => (profile?.objective ? navigate("/builder") : navigate("/onboarding"))}
+    />
   );
 }

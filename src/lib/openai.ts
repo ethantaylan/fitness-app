@@ -45,16 +45,64 @@ function countSessionExercises(session: { blocks: { exercises: unknown[] }[] }):
 }
 
 /** Validate that every session in the program meets the minimum exercise count */
-function validateProgramVolume(program: Program): string | null {
+function minExercisesForObjective(
+  durationMin: number,
+  objective: UserProfile["objective"],
+): number {
+  if (objective === "running") {
+    if (durationMin <= 35) return 2;
+    if (durationMin <= 65) return 3;
+    return 4;
+  }
+  if (objective === "yoga") return durationMin <= 45 ? 3 : 4;
+  return minExercisesForDuration(durationMin);
+}
+
+function validateProgramVolume(
+  program: Program,
+  objective: UserProfile["objective"],
+): string | null {
   for (const week of program.weeks) {
     for (const session of week.sessions) {
       const total = countSessionExercises(session);
-      const required = minExercisesForDuration(session.duration_min);
+      const required = minExercisesForObjective(session.duration_min, objective);
       if (total < required) {
         return `Semaine ${week.week_number}, ${session.day} (${session.type}, ${session.duration_min} min) : seulement ${total} exercices générés, minimum requis ${required}.`;
       }
     }
   }
+  return null;
+}
+
+const RUNNING_FORBIDDEN_PATTERN =
+  /développé|bench press|chest press|dips?|push[- ]?ups?|pompes?|pector|\bpecs?\b|biceps|triceps|curl|upper body|push day|pull day|tirage poulie|élévations latérales|développé militaire/i;
+
+export function validateObjectiveCoherence(
+  program: Program,
+  objective: UserProfile["objective"],
+): string | null {
+  if (objective !== "running") return null;
+
+  for (const week of program.weeks) {
+    for (const session of week.sessions) {
+      const sessionLabel = `${session.type} ${session.notes ?? ""}`;
+      if (RUNNING_FORBIDDEN_PATTERN.test(sessionLabel)) {
+        return `Semaine ${week.week_number}, ${session.day} : type ou note incompatible avec le running (${session.type}).`;
+      }
+      for (const block of session.blocks) {
+        if (RUNNING_FORBIDDEN_PATTERN.test(block.block_name)) {
+          return `Semaine ${week.week_number}, ${session.day} : bloc incompatible avec le running (${block.block_name}).`;
+        }
+        for (const exercise of block.exercises) {
+          const exerciseText = `${exercise.name} ${exercise.alternative ?? ""} ${exercise.notes ?? ""}`;
+          if (RUNNING_FORBIDDEN_PATTERN.test(exerciseText)) {
+            return `Semaine ${week.week_number}, ${session.day} : exercice incompatible avec le running (${exercise.name}).`;
+          }
+        }
+      }
+    }
+  }
+
   return null;
 }
 
@@ -85,18 +133,23 @@ Minimums d'exercices par séance selon la durée :
 - 66–80 min → minimum 8 exercices au total
 - > 80 min  → minimum 10 exercices au total
 
-Règles par type de séance (OBLIGATOIRES) :
-- Push (pectoraux / épaules / triceps) : minimum 5 exercices — ex: développé couché, développé incliné, écarté haltères, développé militaire, élévations latérales, dips, extensions triceps
-- Pull (dos / biceps) : minimum 5 exercices — ex: tractions, rowing barre, rowing haltères, tirage poulie haute, curl biceps, curl concentré, face pull
-- Legs (quadriceps / ischio / mollets) : minimum 5 exercices — ex: squat, presse, fente, leg curl, leg extension, mollets debout, hip thrust
-- Full Body : minimum 8 exercices répartis en au minimum 2 blocs
-- Cardio / HIIT : minimum 5 stations / exercices
-- Upper Body : minimum 6 exercices
-- Lower Body : minimum 5 exercices
-
 Chaque bloc doit contenir MINIMUM 3 exercices — JAMAIS 1 ou 2 seuls.
 La valeur duration_min doit être calculée en fonction du contenu réel (sets × tempo + repos + échauffement + récupération), PAS inventée arbitrairement.
 `;
+
+function buildProgramVolumeRules(objective: UserProfile["objective"]): string {
+  if (objective === "running") {
+    return `RÈGLES DE VOLUME RUNNING :
+- Une séance est structurée autour d'un objectif de course, pas autour d'un nombre d'exercices de musculation.
+- 30 min : 2 à 3 éléments utiles ; 45 à 60 min : 3 à 5 ; plus de 60 min : 4 à 6 maximum.
+- Les éléments peuvent être : échauffement dynamique, éducatifs de course, bloc principal (allure, intervalles, côtes ou sortie), renforcement spécifique jambes/tronc, récupération.
+- Une sortie longue peut avoir un seul bloc principal détaillé. N'ajoute jamais du haut du corps pour remplir la durée.`;
+  }
+  if (objective === "yoga") {
+    return `RÈGLES DE VOLUME YOGA : structure chaque séance en 3 à 6 séquences cohérentes de postures, respiration ou mobilité. N'ajoute aucun exercice de musculation pour remplir la durée.`;
+  }
+  return VOLUME_RULES;
+}
 
 const SPORT_COHERENCE_RULES = `
 COHÉRENCE SPORTIVE — RÈGLE ABSOLUE :
@@ -195,6 +248,7 @@ function buildTargetPaceInstruction(profile: UserProfile): string {
 
 export async function generateProgram(profile: UserProfile): Promise<Program> {
   const client = getClient();
+  let previousValidationError = "";
 
   const buildMessages = () => [
     { role: "system" as const, content: getAgentSystemPrompt(profile.objective) },
@@ -208,7 +262,11 @@ ${buildDurationInstruction(profile)}
 
 ${buildTargetPaceInstruction(profile)}
 
-${VOLUME_RULES}
+${SPORT_COHERENCE_RULES}
+
+${buildProgramVolumeRules(profile.objective)}
+
+${previousValidationError ? `CORRECTION OBLIGATOIRE APRÈS UNE RÉPONSE INVALIDE : ${previousValidationError}` : ""}
 
 Retourne UNIQUEMENT un JSON valide respectant exactement ce schéma (sans markdown) :
 ${PROGRAM_JSON_SCHEMA}
@@ -231,18 +289,24 @@ Important : génère ${profile.weeklyFrequency} séances par semaine. Assure une
     const parsed = JSON.parse(content) as Program;
     const coverageError = validateProgramCoverage(parsed);
     const normalizedProgram = normalizeProgramWeeks(parsed);
-    const volumeError = validateProgramVolume(normalizedProgram);
+    const volumeError = validateProgramVolume(normalizedProgram, profile.objective);
+    const coherenceError = validateObjectiveCoherence(normalizedProgram, profile.objective);
 
-    if (!coverageError && !volumeError) {
+    if (!coverageError && !volumeError && !coherenceError) {
       return { ...normalizedProgram, user_profile: profile };
     }
+
+    previousValidationError = [coverageError, volumeError, coherenceError]
+      .filter(Boolean)
+      .join(" ");
 
     if (attempt === 2) {
       console.warn("Programme généré avec structure incomplète ou volume insuffisant:", {
         coverageError,
         volumeError,
+        coherenceError,
       });
-      return { ...normalizedProgram, user_profile: profile };
+      throw new Error(`Programme incohérent après 3 tentatives : ${previousValidationError}`);
     }
   }
 
@@ -252,6 +316,7 @@ Important : génère ${profile.weeklyFrequency} séances par semaine. Assure une
 export async function generateDailySession(
   profile: UserProfile,
   previousFeedback?: "good" | "normal" | "hard",
+  programContext?: string,
 ): Promise<DailySession> {
   const client = getClient();
   const today = new Date().toLocaleDateString("fr-FR", {
@@ -276,10 +341,11 @@ export async function generateDailySession(
 
 ${buildProfileDescription(profile)}
 ${feedbackContext}
+${programContext ? `\nCONTEXTE DU PROGRAMME ACTIF :\n${programContext}\nLa séance libre doit compléter le programme sans répéter inutilement la prochaine séance ni surcharger les groupes déjà travaillés.` : ""}
 
 ${SPORT_COHERENCE_RULES}
 
-${VOLUME_RULES}
+${buildProgramVolumeRules(profile.objective)}
 
 La durée cible est ${profile.sessionDuration[0]} min — génère en conséquence le bon nombre d'exercices selon le barème ci-dessus.
 

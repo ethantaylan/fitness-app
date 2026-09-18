@@ -3,13 +3,11 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Calendar, Zap, Target } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
-import { generateDailySession } from "../lib/openai";
 import { exportProgramToPDF } from "../lib/pdf";
 import { OBJECTIVE_META, LEVEL_META } from "../lib/constants";
 import { OBJECTIVE_LABELS } from "../lib/agents";
-import type { UserProfile, ObjectiveType } from "../lib/types";
+import type { UserProfile } from "../lib/types";
 import Navbar from "../components/Navbar";
-import SessionPickerSheet from "../components/SessionPickerSheet";
 import Section from "../components/ui/Section";
 import TodayCard from "../components/dashboard/TodayCard";
 import ProgramSection from "../components/dashboard/ProgramSection";
@@ -21,10 +19,7 @@ export default function Dashboard() {
   const location = useLocation();
   const { isSignedIn, userFirstName } = useAuth();
 
-  const [generatingSession, setGeneratingSession] = useState(false);
-  const [sessionError, setSessionError] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
-  const [showSessionPicker, setShowSessionPicker] = useState(false);
 
   if (!isSignedIn) {
     return (
@@ -55,7 +50,6 @@ export default function Dashboard() {
     month: "long",
   });
   const todaySessions = sessions.filter((s) => s.date === todayDate);
-  const lastFeedback = sessions.find((s) => s.feedback)?.feedback;
 
   const objMeta = profile?.objective ? OBJECTIVE_META[profile.objective] : null;
   const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
@@ -75,8 +69,7 @@ export default function Dashboard() {
       return;
     }
 
-    setShowSessionPicker(true);
-    void navigate("/dashboard", { replace: true });
+    void navigate("/builder", { replace: true });
   }, [location.search, navigate, profile?.objective]);
 
   function handleGenerateSession() {
@@ -84,28 +77,7 @@ export default function Dashboard() {
       void navigate("/onboarding");
       return;
     }
-    setShowSessionPicker(true);
-  }
-
-  async function handleConfirmSessionType(objective: ObjectiveType, duration: number) {
-    setShowSessionPicker(false);
-    setGeneratingSession(true);
-    setSessionError("");
-    try {
-      const profileForSession: UserProfile = {
-        ...(profile as UserProfile),
-        objective,
-        sessionDuration: [duration],
-      };
-      const session = await generateDailySession(profileForSession, lastFeedback);
-      const uid = crypto.randomUUID();
-      dispatch({ type: "ADD_SESSION", session: { ...session, uid, date: todayDate } });
-      void navigate(`/session?uid=${uid}`);
-    } catch (err) {
-      setSessionError(err instanceof Error ? err.message : "Erreur lors de la génération.");
-    } finally {
-      setGeneratingSession(false);
-    }
+    void navigate("/builder");
   }
 
   function handleDownloadPDF() {
@@ -117,20 +89,6 @@ export default function Dashboard() {
   return (
     <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
-
-      {showSessionPicker && profile && (
-        <SessionPickerSheet
-          profile={profile as UserProfile}
-          onConfirm={(obj, dur) => {
-            void handleConfirmSessionType(obj, dur);
-          }}
-          onClose={() => setShowSessionPicker(false)}
-          onBuildOwn={() => {
-            setShowSessionPicker(false);
-            void navigate("/builder");
-          }}
-        />
-      )}
 
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
         <div
@@ -237,8 +195,8 @@ export default function Dashboard() {
               todaySessions={todaySessions}
               profile={profile as UserProfile | null}
               objMeta={objMeta}
-              generatingSession={generatingSession}
-              sessionError={sessionError}
+              generatingSession={false}
+              sessionError=""
               onGenerate={handleGenerateSession}
               onNavigate={(uid) => navigate(`/session?uid=${uid}`)}
             />

@@ -7,6 +7,8 @@ import type { Program, Session, SessionBlock, UserProfile, WarmupItem, Week } fr
 
 const PAGE_WIDTH_PX = 794;
 const PAGE_HEIGHT_PX = 1123;
+const PDF_RENDER_SCALE = 1.35;
+const PDF_JPEG_QUALITY = 0.78;
 
 function escapeHtml(value: string | number | null | undefined): string {
   return String(value ?? "")
@@ -568,7 +570,7 @@ export async function exportProgramToPDF(program: Program): Promise<void> {
 
     for (const pageElement of pageElements) {
       const canvas = await html2canvas(pageElement, {
-        scale: 2,
+        scale: PDF_RENDER_SCALE,
         useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,
@@ -576,22 +578,38 @@ export async function exportProgramToPDF(program: Program): Promise<void> {
         windowHeight: Math.max(PAGE_HEIGHT_PX, pageElement.scrollHeight),
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let yOffset = 0;
-      let isFirstSliceForSection = true;
+      const sourcePageHeight = Math.max(1, Math.floor((canvas.width * pageHeight) / pageWidth));
 
-      while (yOffset < imgHeight - 0.1) {
-        if (!isFirstPdfPage || !isFirstSliceForSection) {
+      for (let sourceY = 0; sourceY < canvas.height; sourceY += sourcePageHeight) {
+        if (!isFirstPdfPage) {
           pdf.addPage();
         }
 
-        pdf.addImage(imgData, "PNG", 0, -yOffset, imgWidth, imgHeight);
+        const sliceHeight = Math.min(sourcePageHeight, canvas.height - sourceY);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sourcePageHeight;
+        const context = sliceCanvas.getContext("2d");
+        if (!context) throw new Error("Impossible de préparer la page PDF");
 
-        yOffset += pageHeight;
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        context.drawImage(
+          canvas,
+          0,
+          sourceY,
+          canvas.width,
+          sliceHeight,
+          0,
+          0,
+          sliceCanvas.width,
+          sliceHeight,
+        );
+
+        const imgData = sliceCanvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
+        pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight, undefined, "FAST");
+
         isFirstPdfPage = false;
-        isFirstSliceForSection = false;
       }
     }
 

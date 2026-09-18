@@ -1,8 +1,33 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Minus, Plus, Trash2, Bot, MousePointerClick } from "lucide-react";
+import {
+  Accessibility,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Bot,
+  BookOpen,
+  CircleCheck,
+  Dumbbell,
+  Footprints,
+  Gauge,
+  HeartPulse,
+  Lightbulb,
+  Minus,
+  MousePointerClick,
+  PersonStanding,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Shield,
+  Trash2,
+  TriangleAlert,
+  WandSparkles,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { useApp } from "../lib/store";
-import { generateCustomSession } from "../lib/openai";
+import { generateCustomSession, generateDailySession } from "../lib/openai";
+import { DURATION_OPTIONS } from "../lib/constants";
 import type { UserProfile } from "../lib/types";
 import Navbar from "../components/Navbar";
 
@@ -18,7 +43,8 @@ interface CardColors {
 interface CardDef {
   id: string;
   label: string;
-  emoji: string;
+  icon: LucideIcon;
+  markers?: { x: number; y: number }[];
   section: "muscles" | "types";
   minutesPerItem: number;
   colors: CardColors;
@@ -33,7 +59,8 @@ const CARDS: CardDef[] = [
   {
     id: "abdos",
     label: "Abdos",
-    emoji: "💪",
+    icon: PersonStanding,
+    markers: [{ x: 50, y: 50 }],
     section: "muscles",
     minutesPerItem: 7,
     colors: {
@@ -46,7 +73,11 @@ const CARDS: CardDef[] = [
   {
     id: "pectoraux",
     label: "Pecs",
-    emoji: "🏋️",
+    icon: PersonStanding,
+    markers: [
+      { x: 43, y: 38 },
+      { x: 57, y: 38 },
+    ],
     section: "muscles",
     minutesPerItem: 9,
     colors: {
@@ -59,7 +90,8 @@ const CARDS: CardDef[] = [
   {
     id: "dos",
     label: "Dos",
-    emoji: "🦾",
+    icon: PersonStanding,
+    markers: [{ x: 50, y: 41 }],
     section: "muscles",
     minutesPerItem: 9,
     colors: {
@@ -72,7 +104,11 @@ const CARDS: CardDef[] = [
   {
     id: "epaules",
     label: "Épaules",
-    emoji: "⭐",
+    icon: PersonStanding,
+    markers: [
+      { x: 32, y: 31 },
+      { x: 68, y: 31 },
+    ],
     section: "muscles",
     minutesPerItem: 8,
     colors: {
@@ -85,7 +121,11 @@ const CARDS: CardDef[] = [
   {
     id: "biceps",
     label: "Biceps",
-    emoji: "🦾",
+    icon: PersonStanding,
+    markers: [
+      { x: 27, y: 43 },
+      { x: 73, y: 43 },
+    ],
     section: "muscles",
     minutesPerItem: 7,
     colors: {
@@ -98,7 +138,11 @@ const CARDS: CardDef[] = [
   {
     id: "triceps",
     label: "Triceps",
-    emoji: "💥",
+    icon: PersonStanding,
+    markers: [
+      { x: 24, y: 50 },
+      { x: 76, y: 50 },
+    ],
     section: "muscles",
     minutesPerItem: 7,
     colors: {
@@ -111,7 +155,11 @@ const CARDS: CardDef[] = [
   {
     id: "jambes",
     label: "Jambes",
-    emoji: "🦵",
+    icon: PersonStanding,
+    markers: [
+      { x: 43, y: 70 },
+      { x: 57, y: 70 },
+    ],
     section: "muscles",
     minutesPerItem: 10,
     colors: {
@@ -124,7 +172,11 @@ const CARDS: CardDef[] = [
   {
     id: "fessiers",
     label: "Fessiers",
-    emoji: "🍑",
+    icon: PersonStanding,
+    markers: [
+      { x: 43, y: 58 },
+      { x: 57, y: 58 },
+    ],
     section: "muscles",
     minutesPerItem: 8,
     colors: {
@@ -137,7 +189,11 @@ const CARDS: CardDef[] = [
   {
     id: "mollets",
     label: "Mollets",
-    emoji: "🦶",
+    icon: PersonStanding,
+    markers: [
+      { x: 43, y: 83 },
+      { x: 57, y: 83 },
+    ],
     section: "muscles",
     minutesPerItem: 5,
     colors: {
@@ -150,7 +206,8 @@ const CARDS: CardDef[] = [
   {
     id: "lombaires",
     label: "Lombaires",
-    emoji: "🔴",
+    icon: PersonStanding,
+    markers: [{ x: 50, y: 53 }],
     section: "muscles",
     minutesPerItem: 6,
     colors: {
@@ -164,7 +221,7 @@ const CARDS: CardDef[] = [
   {
     id: "cardio",
     label: "Cardio",
-    emoji: "❤️",
+    icon: HeartPulse,
     section: "types",
     minutesPerItem: 10,
     colors: {
@@ -177,7 +234,7 @@ const CARDS: CardDef[] = [
   {
     id: "hiit",
     label: "HIIT",
-    emoji: "⚡",
+    icon: Gauge,
     section: "types",
     minutesPerItem: 10,
     colors: {
@@ -190,7 +247,7 @@ const CARDS: CardDef[] = [
   {
     id: "gainage",
     label: "Gainage",
-    emoji: "🧱",
+    icon: Shield,
     section: "types",
     minutesPerItem: 8,
     colors: {
@@ -203,7 +260,7 @@ const CARDS: CardDef[] = [
   {
     id: "plyo",
     label: "Plyométrie",
-    emoji: "🦘",
+    icon: ArrowUpFromLine,
     section: "types",
     minutesPerItem: 8,
     colors: {
@@ -216,7 +273,7 @@ const CARDS: CardDef[] = [
   {
     id: "etirements",
     label: "Étirements",
-    emoji: "🧘",
+    icon: Accessibility,
     section: "types",
     minutesPerItem: 6,
     colors: {
@@ -229,7 +286,7 @@ const CARDS: CardDef[] = [
   {
     id: "mobilite",
     label: "Mobilité",
-    emoji: "🔄",
+    icon: RotateCcw,
     section: "types",
     minutesPerItem: 6,
     colors: {
@@ -248,7 +305,6 @@ const WARMUP_COOLDOWN_MIN = 10;
 
 interface Advisory {
   level: "warning" | "tip" | "good";
-  icon: string;
   message: string;
 }
 
@@ -260,7 +316,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("triceps") > 2)
     advisories.push({
       level: "warning",
-      icon: "⚠️",
       message: `${get("triceps")} exercices de triceps — 2 en isolation max, les pecs et épaules les sollicitent déjà.`,
     });
 
@@ -268,7 +323,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("biceps") > 2)
     advisories.push({
       level: "warning",
-      icon: "⚠️",
       message: `${get("biceps")} exercices de biceps — le dos les sollicite déjà, 1-2 en addition suffisent.`,
     });
 
@@ -276,7 +330,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("dos") > 0 && get("jambes") > 0)
     advisories.push({
       level: "warning",
-      icon: "⚠️",
       message:
         "Dos + jambes = deux gros groupes polyarticulaires. Mieux vaut les séparer en deux séances distinctes.",
     });
@@ -298,7 +351,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (muscleCount >= 5)
     advisories.push({
       level: "warning",
-      icon: "⚠️",
       message: `${muscleCount} groupes en une séance → intensité diluée. Concentre-toi sur 3-4 max pour vraiment progresser.`,
     });
 
@@ -306,7 +358,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("pectoraux") >= 2 && get("dos") === 0)
     advisories.push({
       level: "tip",
-      icon: "💡",
       message:
         "Pecs sans dos → déséquilibre postural sur le long terme. Quelques exercices de dos équilibrent les épaules.",
     });
@@ -315,7 +366,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("cardio") > 0 && (get("jambes") > 0 || get("pectoraux") > 0 || get("dos") > 0))
     advisories.push({
       level: "tip",
-      icon: "💡",
       message:
         "Force + cardio dans la même séance : fais toujours le cardio EN DERNIER pour ne pas impacter tes perfs.",
     });
@@ -324,7 +374,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("hiit") > 0 && get("jambes") >= 2)
     advisories.push({
       level: "tip",
-      icon: "💡",
       message:
         "HIIT + jambes lourdes : tes quadriceps vont souffrir. Réduis le volume jambes ou place le HIIT en finisher.",
     });
@@ -333,7 +382,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("pectoraux") > 0 && get("epaules") > 0 && get("triceps") > 0)
     advisories.push({
       level: "good",
-      icon: "✅",
       message: "Push Day parfait — Pecs + Épaules + Triceps partagent les synergies, combo idéal.",
     });
 
@@ -341,7 +389,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("dos") > 0 && get("biceps") > 0 && get("pectoraux") === 0 && get("jambes") === 0)
     advisories.push({
       level: "good",
-      icon: "✅",
       message: "Pull Day classique — Dos + Biceps, les tirages recrutent naturellement les biceps.",
     });
 
@@ -349,7 +396,6 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
   if (get("jambes") > 0 && get("fessiers") > 0 && get("dos") === 0 && get("pectoraux") === 0)
     advisories.push({
       level: "good",
-      icon: "✅",
       message:
         "Lower Body complet — Jambes + Fessiers, la plupart des exercices composés couvrent les deux.",
     });
@@ -364,14 +410,34 @@ function computeAdvisories(cart: Record<string, number>): Advisory[] {
 
 // ── Preset suggestions ────────────────────────────────────────────────────────
 
-const PRESETS: { label: string; emoji: string; cart: Record<string, number> }[] = [
-  { label: "Full Body", emoji: "💥", cart: { pectoraux: 1, dos: 1, jambes: 1, abdos: 1 } },
-  { label: "Push Day", emoji: "🏋️", cart: { pectoraux: 2, epaules: 1, triceps: 1 } },
-  { label: "Pull Day", emoji: "🦾", cart: { dos: 2, biceps: 1, epaules: 1 } },
-  { label: "Jambes", emoji: "🦵", cart: { jambes: 2, fessiers: 1, mollets: 1 } },
-  { label: "Cardio + Abs", emoji: "❤️", cart: { cardio: 1, hiit: 1, abdos: 2 } },
-  { label: "Récupération", emoji: "🧘", cart: { etirements: 2, mobilite: 1 } },
+const PRESETS: { label: string; icon: LucideIcon; cart: Record<string, number> }[] = [
+  { label: "Full Body", icon: Dumbbell, cart: { pectoraux: 1, dos: 1, jambes: 1, abdos: 1 } },
+  { label: "Push Day", icon: ArrowUpFromLine, cart: { pectoraux: 2, epaules: 1, triceps: 1 } },
+  { label: "Pull Day", icon: ArrowDownToLine, cart: { dos: 2, biceps: 1, epaules: 1 } },
+  { label: "Jambes", icon: Footprints, cart: { jambes: 2, fessiers: 1, mollets: 1 } },
+  { label: "Cardio + Abs", icon: HeartPulse, cart: { cardio: 1, hiit: 1, abdos: 2 } },
+  { label: "Récupération", icon: RefreshCw, cart: { etirements: 2, mobilite: 1 } },
 ];
+
+function CardIcon({ card, compact = false }: Readonly<{ card: CardDef; compact?: boolean }>) {
+  const Icon = card.icon;
+  const size = compact ? "h-4 w-4" : "h-8 w-8";
+
+  if (!card.markers) return <Icon className={size} strokeWidth={1.8} aria-hidden="true" />;
+
+  return (
+    <span className={`relative inline-flex ${compact ? "h-5 w-5" : "h-9 w-9"}`} aria-hidden="true">
+      <Icon className="h-full w-full" strokeWidth={1.45} />
+      {card.markers.map((marker) => (
+        <span
+          key={`${marker.x}-${marker.y}`}
+          className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-white/80"
+          style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+        />
+      ))}
+    </span>
+  );
+}
 
 // ── WorkoutCard ───────────────────────────────────────────────────────────────
 
@@ -400,7 +466,9 @@ function WorkoutCard({
           {count}
         </span>
       )}
-      <span className="text-2xl leading-none">{card.emoji}</span>
+      <span className={isActive ? card.colors.text : "text-gray-500"}>
+        <CardIcon card={card} />
+      </span>
       <span
         className={`text-[11px] font-bold text-center leading-tight ${
           isActive ? card.colors.text : "text-gray-700"
@@ -444,7 +512,13 @@ function AdvisoryPanel({
                   : "bg-blue-50 text-blue-800 border border-blue-200"
             }`}
           >
-            <span className="text-sm leading-none mt-0.5 shrink-0">{a.icon}</span>
+            {a.level === "warning" ? (
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : a.level === "good" ? (
+              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
             <span>{a.message}</span>
           </div>
         ))}
@@ -527,7 +601,9 @@ function CartPanel({
                 key={entry.id}
                 className={`flex items-center gap-1.5 ${entry.colors.activeBg} border ${entry.colors.activeBorder} px-3 py-1.5 rounded-full`}
               >
-                <span className="text-sm leading-none">{entry.emoji}</span>
+                <span className={entry.colors.text}>
+                  <CardIcon card={entry} compact />
+                </span>
                 <span className={`text-xs font-bold ${entry.colors.text}`}>{entry.label}</span>
                 <div className="flex items-center gap-0.5 ml-1">
                   <button
@@ -603,6 +679,7 @@ export default function WorkoutBuilder() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const [aiDuration, setAiDuration] = useState(profile?.sessionDuration?.[0] ?? 45);
 
   const totalItems = useMemo(() => Object.values(cart).reduce((sum, n) => sum + n, 0), [cart]);
 
@@ -623,6 +700,12 @@ export default function WorkoutBuilder() {
   );
 
   const advisories = useMemo(() => computeAdvisories(cart), [cart]);
+  const activeWeek =
+    state.program?.weeks.find((week) => week.sessions.some((session) => !session.completed)) ??
+    null;
+  const nextProgramSession = activeWeek?.sessions.find((session) => !session.completed) ?? null;
+  const completedProgramSessions =
+    activeWeek?.sessions.filter((session) => session.completed) ?? [];
 
   function addToCart(id: string) {
     setCart((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
@@ -670,6 +753,31 @@ export default function WorkoutBuilder() {
     }
   }
 
+  async function handleVincereGenerate() {
+    if (!profile) return;
+    setGenerating(true);
+    setError("");
+    try {
+      const programContext = state.program
+        ? [
+            `Semaine actuelle : ${activeWeek?.week_number ?? "non déterminée"}.`,
+            `Séances déjà réalisées cette semaine : ${completedProgramSessions.map((session) => `${session.day} ${session.type}`).join(", ") || "aucune"}.`,
+            `Prochaine séance planifiée : ${nextProgramSession ? `${nextProgramSession.day} ${nextProgramSession.type}` : "aucune"}.`,
+          ].join("\n")
+        : undefined;
+      const profileForSession: UserProfile = { ...profile, sessionDuration: [aiDuration] };
+      const lastFeedback = state.sessions.find((session) => session.feedback)?.feedback;
+      const session = await generateDailySession(profileForSession, lastFeedback, programContext);
+      const uid = crypto.randomUUID();
+      dispatch({ type: "ADD_SESSION", session: { ...session, uid, date: todayDate } });
+      void navigate(`/session?uid=${uid}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la génération.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   if (!profile) {
     return (
       <div className="theme-app-page flex min-h-screen items-center justify-center bg-white px-4">
@@ -700,15 +808,16 @@ export default function WorkoutBuilder() {
       >
         <div className="relative mx-auto max-w-4xl">
           <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-black mb-2">
-            Séance libre · choix manuel
+            Création de séance libre
           </p>
           <h1 className="mb-2 text-3xl font-black leading-tight">
-            Choisis les exercices de ta
+            Compose ta prochaine
             <br />
             séance libre
           </h1>
           <p className="text-white/50 text-sm leading-relaxed">
-            Sélectionne les zones et types d’effort. Vincere composera ensuite l’entraînement.
+            Laisse Vincere s’adapter à ton programme ou sélectionne précisément ce que tu veux
+            travailler.
           </p>
         </div>
       </div>
@@ -717,22 +826,109 @@ export default function WorkoutBuilder() {
         className="mx-auto max-w-4xl px-4 sm:px-6"
         style={{ paddingBottom: totalItems > 0 ? "22rem" : "7rem" }}
       >
+        <section className="theme-vincere-builder mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+              <WandSparkles className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-gray-900">Laisser Vincere composer</p>
+              <p className="mt-1 text-xs leading-relaxed text-gray-600">
+                {state.program
+                  ? `Vincere tient compte de ta semaine${nextProgramSession ? ` et évite de répéter ta prochaine séance ${nextProgramSession.type}` : ""}.`
+                  : "Vincere utilise ton objectif, ton niveau, ton matériel et tes derniers retours."}
+              </p>
+              {state.program && activeWeek && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-white/70 px-3 py-2 text-xs text-emerald-800">
+                  <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="font-semibold">
+                    Programme actif · semaine {activeWeek.week_number} ·{" "}
+                    {completedProgramSessions.length}/{activeWeek.sessions.length} séances réalisées
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <fieldset className="mt-4">
+            <legend className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+              Durée souhaitée
+            </legend>
+            <div className="grid grid-cols-4 gap-2">
+              {DURATION_OPTIONS.map((duration) => (
+                <button
+                  key={duration}
+                  type="button"
+                  onClick={() => setAiDuration(duration)}
+                  aria-pressed={aiDuration === duration}
+                  data-active={aiDuration === duration}
+                  className={`theme-duration-option rounded-xl py-2 text-xs font-bold transition-colors ${
+                    aiDuration === duration
+                      ? "bg-black text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {duration} min
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <button
+            type="button"
+            onClick={() => void handleVincereGenerate()}
+            disabled={generating}
+            className="theme-vincere-cta mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white transition-all hover:bg-gray-900 active:scale-[0.99] disabled:opacity-50"
+          >
+            {generating ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Vincere compose ta séance…
+              </>
+            ) : (
+              <>
+                <WandSparkles className="h-4 w-4" aria-hidden="true" />
+                Composer avec Vincere
+              </>
+            )}
+          </button>
+          {error && totalItems === 0 && (
+            <p
+              role="alert"
+              className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600"
+            >
+              {error}
+            </p>
+          )}
+        </section>
+
+        <div className="mt-7 flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-200" />
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">
+            Ou composer moi-même
+          </h2>
+          <div className="h-px flex-1 bg-gray-200" />
+        </div>
+
         {/* Quick presets */}
         <div className="pt-5 pb-1">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">
             Suggestions rapides
           </p>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                onClick={() => setCart(preset.cart)}
-                className="theme-builder-preset flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-gray-100 bg-white px-4 py-2.5 text-xs font-bold shadow-sm transition-all hover:border-gray-300 hover:shadow-sm active:scale-95"
-              >
-                <span className="text-base leading-none">{preset.emoji}</span>
-                {preset.label}
-              </button>
-            ))}
+            {PRESETS.map((preset) => {
+              const PresetIcon = preset.icon;
+              return (
+                <button
+                  key={preset.label}
+                  onClick={() => setCart(preset.cart)}
+                  className="theme-builder-preset flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-gray-100 bg-white px-4 py-2.5 text-xs font-bold shadow-sm transition-all hover:border-gray-300 hover:shadow-sm active:scale-95"
+                >
+                  <PresetIcon className="h-4 w-4" aria-hidden="true" />
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
