@@ -80,6 +80,7 @@ export interface RemoteAppState {
 function dbRowToProfile(row: Record<string, unknown>): UserProfile {
   return {
     objective: row.objective as UserProfile["objective"],
+    goalDetail: typeof row.goal_detail === "string" ? row.goal_detail : undefined,
     gender: row.gender as UserProfile["gender"],
     age: row.age as number,
     height: row.height_cm as number,
@@ -102,6 +103,7 @@ function profileToDbRow(userId: string, p: UserProfile) {
   return {
     user_id: userId,
     objective: p.objective,
+    goal_detail: p.goalDetail ?? null,
     gender: p.gender,
     age: p.age,
     height_cm: p.height,

@@ -137,6 +137,7 @@ function buildCoverPage(program: Program) {
       label: "Discipline",
       value: user_profile?.objective ? OBJECTIVE_LABELS[user_profile.objective] : "-",
     },
+    { label: "Objectif", value: user_profile?.goalDetail ?? "-" },
     { label: "Durée", value: `${program_overview.duration_weeks} semaines` },
     { label: "Fréquence", value: `${program_overview.training_days_per_week} x / semaine` },
     {
@@ -170,6 +171,7 @@ function buildProfilePage(profile?: Partial<UserProfile>) {
       label: "Objectif",
       value: OBJECTIVE_LABELS[profile.objective] ?? profile.objective,
     },
+    profile.goalDetail && { label: "Objectif précis", value: profile.goalDetail },
     profile.level && { label: "Niveau", value: LEVEL_META[profile.level].label },
     profile.gender && { label: "Genre", value: profile.gender },
     profile.age && { label: "Âge", value: `${profile.age} ans` },

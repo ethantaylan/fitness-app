@@ -10,6 +10,7 @@ import {
   Dumbbell,
   Clock,
   Flame,
+  Target,
   Apple,
   Droplets,
   Trash2,
@@ -412,6 +413,7 @@ export default function ProgramResult() {
               label: "Discipline",
               value: user_profile?.objective ? OBJECTIVE_LABELS[user_profile.objective] : "-",
             },
+            { icon: Target, label: "Objectif", value: user_profile?.goalDetail ?? "-" },
             { icon: Clock, label: "Durée", value: `${program_overview.duration_weeks} semaines` },
             {
               icon: Flame,

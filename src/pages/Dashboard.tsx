@@ -133,6 +133,14 @@ export default function Dashboard() {
                 <Target className="w-3 h-3" aria-hidden="true" />
                 {OBJECTIVE_LABELS[profile.objective]}
               </span>
+              {profile.goalDetail && (
+                <span
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
+                >
+                  <Target className="w-3 h-3" aria-hidden="true" />
+                  {profile.goalDetail}
+                </span>
+              )}
               {levelMeta && (
                 <span
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}

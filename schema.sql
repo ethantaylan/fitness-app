@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   id                     UUID                NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id                UUID                NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   objective              objective_type      NOT NULL,
+  goal_detail            TEXT                CHECK (goal_detail IS NULL OR char_length(goal_detail) <= 500),
   gender                 gender_type         NOT NULL,
   level                  level_type          NOT NULL,
   age                    SMALLINT            NOT NULL CHECK (age BETWEEN 10 AND 120),
@@ -736,7 +737,7 @@ GRANT SELECT ON v_daily_session_full  TO authenticated;
 GRANT SELECT ON v_program_full        TO authenticated;
 
 GRANT EXECUTE ON FUNCTION upsert_user(UUID, TEXT, TEXT)                                                                                                                          TO authenticated;
-GRANT EXECUTE ON FUNCTION upsert_user_profile(UUID, objective_type, gender_type, SMALLINT, SMALLINT, NUMERIC, level_type, SMALLINT, SMALLINT[], TEXT[], TEXT[], TEXT[], availability_type[], TEXT, TEXT, NUMERIC, DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION upsert_user_profile(UUID, objective_type, gender_type, SMALLINT, SMALLINT, NUMERIC, level_type, SMALLINT, SMALLINT[], TEXT[], TEXT[], TEXT[], availability_type[], TEXT, TEXT, NUMERIC, DATE, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION activate_program(UUID)                                                                                                                             TO authenticated;
 GRANT EXECUTE ON FUNCTION set_session_feedback(UUID, DATE, feedback_type)                                                                                                    TO authenticated;
 GRANT EXECUTE ON FUNCTION sessions_this_week(UUID)                                                                                                                           TO authenticated;
@@ -792,25 +793,27 @@ CREATE OR REPLACE FUNCTION upsert_user_profile(
   p_injuries             TEXT    DEFAULT NULL,
   p_nutrition            TEXT    DEFAULT NULL,
   p_target_weight_kg     NUMERIC DEFAULT NULL,
-  p_target_date          DATE    DEFAULT NULL
+  p_target_date          DATE    DEFAULT NULL,
+  p_goal_detail          TEXT    DEFAULT NULL
 )
 RETURNS user_profiles LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   result user_profiles;
 BEGIN
   INSERT INTO user_profiles (
-    user_id, objective, gender, age, height_cm, weight_kg, level,
+    user_id, objective, goal_detail, gender, age, height_cm, weight_kg, level,
     weekly_frequency, session_duration, equipment, liked_exercises,
     disliked_exercises, availability, injuries, nutrition_restrictions,
     target_weight_kg, target_date
   ) VALUES (
-    p_user_id, p_objective, p_gender, p_age, p_height_cm, p_weight_kg,
+    p_user_id, p_objective, p_goal_detail, p_gender, p_age, p_height_cm, p_weight_kg,
     p_level, p_weekly_frequency, p_session_duration, p_equipment,
     p_liked_exercises, p_disliked_exercises, p_availability,
     p_injuries, p_nutrition, p_target_weight_kg, p_target_date
   )
   ON CONFLICT (user_id) DO UPDATE SET
     objective              = EXCLUDED.objective,
+    goal_detail            = EXCLUDED.goal_detail,
     gender                 = EXCLUDED.gender,
     age                    = EXCLUDED.age,
     height_cm              = EXCLUDED.height_cm,

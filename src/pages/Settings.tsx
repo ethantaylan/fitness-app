@@ -27,7 +27,7 @@ import { useTheme, type ThemeMode } from "../lib/theme";
 import { getAppRedirectUrl } from "../lib/appUrl";
 import type { ObjectiveType, LevelType, GenderType, AvailabilityType } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
-import { OBJECTIVE_META, EQUIPMENT_OPTIONS } from "../lib/constants";
+import { GOAL_DETAIL_PRESETS, OBJECTIVE_META, EQUIPMENT_OPTIONS } from "../lib/constants";
 import {
   addEquipmentLabel,
   getCustomEquipment,
@@ -106,6 +106,7 @@ export default function Settings() {
 
   const [form, setForm] = useState({
     objective: profile?.objective ?? "",
+    goalDetail: profile?.goalDetail ?? "",
     gender: profile?.gender ?? "",
     age: profile?.age?.toString() ?? "",
     height: profile?.height?.toString() ?? "",
@@ -158,6 +159,7 @@ export default function Settings() {
       type: "SET_PROFILE_PARTIAL",
       data: {
         objective: form.objective as ObjectiveType,
+        goalDetail: form.goalDetail.trim() || undefined,
         gender: form.gender as GenderType,
         age: form.age ? Number.parseInt(form.age) : undefined,
         height: form.height ? Number.parseInt(form.height) : undefined,
@@ -176,6 +178,9 @@ export default function Settings() {
   }
 
   const objMeta = form.objective ? OBJECTIVE_META[form.objective as ObjectiveType] : null;
+  const goalDetailPresets = form.objective
+    ? GOAL_DETAIL_PRESETS[form.objective as ObjectiveType]
+    : [];
   const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
   const heroChipClass = objMeta ? "theme-hero-chip" : "bg-white/10 text-white";
   const customEquipment = getCustomEquipment(form.equipment);
@@ -224,6 +229,7 @@ export default function Settings() {
                     Icon: Target,
                     label: OBJECTIVE_LABELS[form.objective as ObjectiveType],
                   },
+                  form.goalDetail && { Icon: CheckCircle, label: form.goalDetail },
                   form.level && { Icon: Zap, label: form.level },
                   form.weeklyFrequency && {
                     Icon: Calendar,
@@ -289,7 +295,7 @@ export default function Settings() {
                   return (
                     <button
                       key={id}
-                      onClick={() => update({ objective: id })}
+                      onClick={() => update({ objective: id, goalDetail: "" })}
                       className={`relative flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 text-left transition-all active:scale-[0.97] ${
                         active
                           ? `${meta.border} ${meta.bg}`
@@ -313,6 +319,46 @@ export default function Settings() {
                   );
                 })}
               </div>
+
+              {form.objective && (
+                <div className="mt-5 border-t border-gray-100 pt-4">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Objectif précis
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {goalDetailPresets.map(({ label, sub }) => {
+                      const active = form.goalDetail === label;
+                      return (
+                        <button
+                          key={label}
+                          onClick={() => update({ goalDetail: label })}
+                          className={`rounded-xl border-2 p-3 text-left transition-all active:scale-[0.97] ${
+                            active
+                              ? "border-black bg-black text-white"
+                              : "border-gray-100 bg-gray-50 hover:border-gray-300"
+                          }`}
+                        >
+                          <span className="block text-xs font-black leading-tight">{label}</span>
+                          <span
+                            className={`mt-1 block text-[10px] leading-tight ${
+                              active ? "text-white/60" : "text-gray-400"
+                            }`}
+                          >
+                            {sub}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <textarea
+                    value={form.goalDetail}
+                    onChange={(e) => update({ goalDetail: e.target.value.slice(0, 300) })}
+                    placeholder="Ou formule ta cible exacte : 5 km en 25 min, grand écart, HYROX duo..."
+                    rows={2}
+                    className="mt-3 w-full resize-none rounded-xl border-2 border-gray-100 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-black focus:bg-white transition-all"
+                  />
+                </div>
+              )}
             </Section>
 
             {/* Infos physiques */}

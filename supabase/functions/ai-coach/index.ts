@@ -249,6 +249,8 @@ function isUserProfile(value: unknown): value is UserProfile {
     Number.isInteger(profile.weeklyFrequency) &&
     profile.weeklyFrequency >= 1 &&
     profile.weeklyFrequency <= 7 &&
+    (profile.goalDetail === undefined ||
+      (typeof profile.goalDetail === "string" && profile.goalDetail.length <= 500)) &&
     Array.isArray(profile.sessionDuration) &&
     profile.sessionDuration.length > 0 &&
     profile.sessionDuration.length <= 4 &&
@@ -381,6 +383,7 @@ function sanitizeProfile(profile: UserProfile): UserProfile {
     dislikedExercises: cleanList(profile.dislikedExercises),
     injuries: profile.injuries.slice(0, 800),
     nutritionRestrictions: profile.nutritionRestrictions.slice(0, 800),
+    goalDetail: profile.goalDetail?.slice(0, 500),
     availability: profile.availability.slice(0, 4),
   };
 }
@@ -389,6 +392,7 @@ function profileData(profile: UserProfile): string {
   return `<profile_data>${JSON.stringify({
     ...sanitizeProfile(profile),
     objective_label: OBJECTIVE_LABELS[profile.objective],
+    goal_detail: profile.goalDetail ?? null,
   })}</profile_data>`;
 }
 

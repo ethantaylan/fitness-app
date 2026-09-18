@@ -11,7 +11,7 @@ import type {
   UserProfile,
 } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
-import { EQUIPMENT_LABELS } from "../lib/constants";
+import { EQUIPMENT_LABELS, GOAL_DETAIL_PRESETS, isWeightObjective } from "../lib/constants";
 import {
   addEquipmentLabel,
   getCustomEquipment,
@@ -34,7 +34,7 @@ const STEP_LABELS = [
   "Exercices à éviter",
   "Timing",
   "Contraintes",
-  "Objectif chiffré",
+  "Échéance",
   "Démarrer",
 ];
 
@@ -68,6 +68,128 @@ const COMMON_EXERCISES = [
   "Abdos",
 ];
 
+const OBJECTIVE_EXERCISES: Partial<Record<ObjectiveType, string[]>> = {
+  "perte-poids": [
+    "Circuit full body",
+    "Marche inclinée",
+    "Intervalles vélo",
+    "Kettlebell swing",
+    "Fentes",
+    "Squat goblet",
+    "Gainage",
+    "Rameur",
+    "Burpees adaptés",
+    "Step-up",
+  ],
+  "prise-masse": [
+    "Squat",
+    "Développé couché",
+    "Soulevé de terre",
+    "Rowing barre",
+    "Tractions",
+    "Développé militaire",
+    "Hip thrust",
+    "Leg press",
+    "Curl biceps",
+    "Extensions triceps",
+  ],
+  entretien: [
+    "Full body",
+    "Zone 2",
+    "Mobilité hanches",
+    "Gainage",
+    "Pompes",
+    "Squat goblet",
+    "Rameur",
+    "Fentes",
+    "Étirements actifs",
+    "Marche rapide",
+  ],
+  competition: [
+    "PPG",
+    "Pliométrie",
+    "Sprint",
+    "Force maximale",
+    "Travail technique",
+    "Tapering",
+    "Mobilité",
+    "Gainage",
+    "Conditionnement",
+    "Récupération active",
+  ],
+  hyrox: [
+    "SkiErg",
+    "Sled Push",
+    "Sled Pull",
+    "Burpee Broad Jump",
+    "Rowing",
+    "Farmer's Carry",
+    "Sandbag Lunges",
+    "Wall Balls",
+    "Course 1 km",
+    "Transitions",
+  ],
+  crossfit: [
+    "AMRAP",
+    "EMOM",
+    "Thruster",
+    "Clean",
+    "Snatch",
+    "Toes-to-bar",
+    "Pull-ups",
+    "Double unders",
+    "Wall ball",
+    "Burpees",
+  ],
+  running: [
+    "Course en zone 2",
+    "Fractionné court",
+    "Tempo run",
+    "Côtes",
+    "Sortie longue",
+    "Éducatifs de foulée",
+    "Footing récupération",
+    "Gainage coureur",
+    "Renforcement mollets",
+    "Mobilité hanches",
+  ],
+  yoga: [
+    "Vinyasa flow",
+    "Yin yoga",
+    "Mobilité hanches",
+    "Ouverture épaules",
+    "Ischios",
+    "Grand écart progressif",
+    "Respiration",
+    "Équilibre",
+    "Pont",
+    "Récupération",
+  ],
+  "remise-en-forme": [
+    "Marche active",
+    "Renforcement doux",
+    "Squat assisté",
+    "Pompes inclinées",
+    "Gainage",
+    "Mobilité dos",
+    "Step-up",
+    "Vélo doux",
+    "Étirements actifs",
+    "Circuit débutant",
+  ],
+};
+
+const ALL_PRESET_EXERCISES = Array.from(
+  new Set([
+    ...COMMON_EXERCISES,
+    ...Object.values(OBJECTIVE_EXERCISES).flatMap((items) => items ?? []),
+  ]),
+);
+
+function getExerciseOptions(objective: ObjectiveType | ""): string[] {
+  return objective ? (OBJECTIVE_EXERCISES[objective] ?? COMMON_EXERCISES) : COMMON_EXERCISES;
+}
+
 function normalizeExerciseLabel(value: string): string {
   const trimmed = value.trim().replace(/\s+/g, " ");
   if (!trimmed) return "";
@@ -94,7 +216,7 @@ function removeExerciseLabel(list: string[], candidate: string): string[] {
 
 function isPresetExercise(label: string): boolean {
   const normalized = normalizeExerciseLabel(label).toLocaleLowerCase();
-  return COMMON_EXERCISES.some((item) => item.toLocaleLowerCase() === normalized);
+  return ALL_PRESET_EXERCISES.some((item) => item.toLocaleLowerCase() === normalized);
 }
 
 function getCustomExercises(list: string[]): string[] {
@@ -103,6 +225,8 @@ function getCustomExercises(list: string[]): string[] {
 
 interface FormState {
   objective: ObjectiveType | "";
+  goalDetail: string;
+  customGoalDetail: string;
   gender: GenderType | "";
   level: LevelType | "";
   age: string;
@@ -123,6 +247,8 @@ interface FormState {
 
 const defaultForm: FormState = {
   objective: "",
+  goalDetail: "",
+  customGoalDetail: "",
   gender: "",
   level: "",
   age: "",
@@ -235,6 +361,10 @@ function formatWeight(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
 }
 
+function resolveGoalDetail(form: Pick<FormState, "goalDetail" | "customGoalDetail">): string {
+  return form.customGoalDetail.trim() || form.goalDetail.trim();
+}
+
 type TimelineAssessment = {
   tone: "neutral" | "good" | "warn" | "error";
   title: string;
@@ -245,6 +375,15 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
   const months = Number.parseInt(form.targetDurationMonths, 10);
   const safeMonths = Number.isNaN(months) ? DEFAULT_TARGET_MONTHS : months;
   const dateValue = form.targetDate || addMonthsToToday(safeMonths);
+  const goalDetail = resolveGoalDetail(form);
+
+  if (!isWeightObjective(form.objective)) {
+    return {
+      tone: "neutral",
+      title: `${formatDurationMonths(safeMonths)} sélectionnés`,
+      message: `On périodise ${goalDetail || "ton objectif"} jusqu'au ${formatDateLabel(dateValue)} avec une progression adaptée à ton niveau.`,
+    };
+  }
 
   if (!form.targetWeight) {
     return {
@@ -415,6 +554,16 @@ export default function Onboarding() {
     setForm((f) => ({ ...f, ...data }));
   }
 
+  function selectObjective(objective: ObjectiveType) {
+    setForm((f) => ({
+      ...f,
+      objective,
+      goalDetail: "",
+      customGoalDetail: "",
+      targetWeight: isWeightObjective(objective) ? f.targetWeight : "",
+    }));
+  }
+
   function toggleList(
     field: "equipment" | "likedExercises" | "dislikedExercises" | "sessionDuration",
     val: string,
@@ -513,7 +662,7 @@ export default function Onboarding() {
   }
 
   function canProceed(): boolean {
-    if (step === 0) return form.objective !== "";
+    if (step === 0) return form.objective !== "" && resolveGoalDetail(form) !== "";
     if (step === 1) return form.gender !== "";
     if (step === 2) return form.level !== "";
     if (step === 3) return form.age !== "" && form.height !== "" && form.weight !== "";
@@ -529,6 +678,7 @@ export default function Onboarding() {
       type: "SET_PROFILE_PARTIAL",
       data: {
         objective: form.objective as ObjectiveType,
+        goalDetail: resolveGoalDetail(form),
         gender: form.gender as GenderType,
         level: form.level as LevelType,
         age: Number.parseInt(form.age),
@@ -542,7 +692,10 @@ export default function Onboarding() {
         injuries: form.injuries,
         nutritionRestrictions: form.nutritionRestrictions,
         availability: form.availability,
-        targetWeight: form.targetWeight ? Number.parseFloat(form.targetWeight) : undefined,
+        targetWeight:
+          isWeightObjective(form.objective) && form.targetWeight
+            ? Number.parseFloat(form.targetWeight)
+            : undefined,
         targetDate: form.targetDate || undefined,
       } as Partial<UserProfile>,
     });
@@ -573,6 +726,10 @@ export default function Onboarding() {
     warn: "border-amber-200 bg-amber-50 text-amber-900",
     error: "border-red-200 bg-red-50 text-red-900",
   } as const;
+  const selectedGoalDetail = resolveGoalDetail(form);
+  const goalDetailPresets = form.objective ? GOAL_DETAIL_PRESETS[form.objective] : [];
+  const exerciseOptions = getExerciseOptions(form.objective);
+  const hasWeightTarget = isWeightObjective(form.objective);
 
   return (
     <div
@@ -631,7 +788,7 @@ export default function Onboarding() {
                 {OBJECTIVES.map(({ id, emoji }) => (
                   <button
                     key={id}
-                    onClick={() => update({ objective: id })}
+                    onClick={() => selectObjective(id)}
                     className={`flex flex-col items-start p-4 border-2 rounded-2xl text-left transition-all duration-150 active:scale-[0.96] ${
                       form.objective === id
                         ? "border-black bg-black text-white"
@@ -648,6 +805,51 @@ export default function Onboarding() {
                   </button>
                 ))}
               </div>
+
+              {form.objective && (
+                <div className="mt-7 border-t border-gray-100 pt-6">
+                  <h2 className="text-lg font-black mb-1">Quel résultat tu veux vraiment ?</h2>
+                  <p className="text-gray-500 text-sm mb-4">
+                    Choisis une cible concrète pour que le coach calibre le programme.
+                  </p>
+
+                  <div className="space-y-2.5">
+                    {goalDetailPresets.map(({ label, sub }) => (
+                      <ChoiceCard
+                        key={label}
+                        label={label}
+                        sub={sub}
+                        selected={form.goalDetail === label && form.customGoalDetail.trim() === ""}
+                        onClick={() => update({ goalDetail: label, customGoalDetail: "" })}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                    <label
+                      htmlFor="custom-goal-detail"
+                      className="block text-sm font-bold text-gray-900"
+                    >
+                      Objectif perso
+                    </label>
+                    <textarea
+                      id="custom-goal-detail"
+                      value={form.customGoalDetail}
+                      onChange={(e) =>
+                        update({ customGoalDetail: e.target.value.slice(0, 300), goalDetail: "" })
+                      }
+                      placeholder="Ex : finir mon premier 10 km sans marcher, réussir le grand écart latéral, préparer un HYROX en duo..."
+                      rows={3}
+                      className="mt-3 w-full resize-none rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
+                    />
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      {selectedGoalDetail
+                        ? `Sélection actuelle : ${selectedGoalDetail}`
+                        : "Choisis une proposition ou formule ta cible."}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -913,7 +1115,7 @@ export default function Onboarding() {
               <div className="space-y-5">
                 <div>
                   <div className="flex flex-wrap gap-2">
-                    {COMMON_EXERCISES.map((ex) => (
+                    {exerciseOptions.map((ex) => (
                       <ChipToggle
                         key={ex}
                         label={ex}
@@ -1011,7 +1213,7 @@ export default function Onboarding() {
                     Exercices à <span className="text-red-500">éviter</span> ❌
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {COMMON_EXERCISES.map((ex) => (
+                    {exerciseOptions.map((ex) => (
                       <ChipToggle
                         key={ex}
                         label={ex}
@@ -1033,7 +1235,7 @@ export default function Onboarding() {
                 L'IA les écartera autant que possible dans tes séances.
               </p>
               <div className="flex flex-wrap gap-2">
-                {COMMON_EXERCISES.map((ex) => (
+                {exerciseOptions.map((ex) => (
                   <ChipToggle
                     key={ex}
                     label={ex}
@@ -1216,10 +1418,13 @@ export default function Onboarding() {
           {/* Step 11 — Objectifs chiffrés */}
           {step === 11 && (
             <div>
-              <h1 className="text-2xl font-black mb-1">En combien de temps ?</h1>
+              <h1 className="text-2xl font-black mb-1">
+                {hasWeightTarget ? "En combien de temps ?" : "Ton échéance"}
+              </h1>
               <p className="text-gray-500 text-sm mb-6">
-                Définis ton délai avec le curseur. On vérifie aussi si le rythme reste crédible par
-                rapport à ton objectif.
+                {hasWeightTarget
+                  ? "Définis ton délai avec le curseur. On vérifie aussi si le rythme reste crédible par rapport à ton objectif."
+                  : "Choisis l'horizon du programme. Le coach périodisera la progression autour de ta cible précise."}
               </p>
               <div className="space-y-4">
                 <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
@@ -1275,16 +1480,29 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <BigNumberInput
-                  inputId="target-weight"
-                  label="Poids cible (optionnel)"
-                  unit="kg"
-                  placeholder="80"
-                  value={form.targetWeight}
-                  min={30}
-                  max={300}
-                  onChange={(v) => update({ targetWeight: v })}
-                />
+                {hasWeightTarget ? (
+                  <BigNumberInput
+                    inputId="target-weight"
+                    label="Poids cible (optionnel)"
+                    unit="kg"
+                    placeholder="80"
+                    value={form.targetWeight}
+                    min={30}
+                    max={300}
+                    onChange={(v) => update({ targetWeight: v })}
+                  />
+                ) : (
+                  <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      Objectif précis
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-gray-900">{selectedGoalDetail}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                      Le programme utilisera cette cible pour choisir les blocs, les intensités et
+                      les tests de progression.
+                    </p>
+                  </div>
+                )}
 
                 <div
                   className={`rounded-3xl border p-4 ${targetTimelineToneClasses[targetTimelineAssessment.tone]}`}

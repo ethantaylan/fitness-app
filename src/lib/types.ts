@@ -15,6 +15,7 @@ export type AvailabilityType = "matin" | "midi" | "soir" | "indifférent";
 
 export interface UserProfile {
   objective: ObjectiveType;
+  goalDetail?: string;
   gender: GenderType;
   age: number;
   height: number; // cm
