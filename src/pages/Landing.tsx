@@ -1,722 +1,435 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import logoUrl from "../assets/logo.png";
+import { useNavigate } from "react-router-dom";
 import {
+  Activity,
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Download,
+  Dumbbell,
+  Footprints,
+  HeartPulse,
+  ShieldCheck,
+  Sparkles,
   Target,
   TrendingUp,
-  Users,
-  Zap,
-  ChevronRight,
-  ChevronDown,
-  Dumbbell,
-  Timer,
-  Calendar,
-  Download,
-  Heart,
-  Flame,
-  Activity,
   Wind,
-  Footprints,
-  Sparkles,
-  ShieldCheck,
+  Zap,
 } from "lucide-react";
-import { buildAuthPath } from "../lib/authRedirect";
+import logoUrl from "../assets/logo.png";
 import Navbar from "../components/Navbar";
-import BetaBadge from "../components/BetaBadge";
+import { buildAuthPath } from "../lib/authRedirect";
 
-const TICKER_SPORTS = [
-  { label: "Musculation", Icon: Dumbbell, bg: "bg-violet-50", color: "text-violet-500" },
-  { label: "Running", Icon: Footprints, bg: "bg-blue-50", color: "text-blue-500" },
-  { label: "CrossFit", Icon: Activity, bg: "bg-green-50", color: "text-green-500" },
-  { label: "Hyrox", Icon: Timer, bg: "bg-orange-50", color: "text-orange-500" },
-  { label: "Yoga", Icon: Wind, bg: "bg-teal-50", color: "text-teal-500" },
-  { label: "Perte de poids", Icon: Flame, bg: "bg-red-50", color: "text-red-500" },
-  { label: "Compétition", Icon: Zap, bg: "bg-yellow-50", color: "text-yellow-500" },
-  { label: "Remise en forme", Icon: Heart, bg: "bg-pink-50", color: "text-pink-500" },
+const SPORTS = [
+  { label: "Musculation", Icon: Dumbbell, tone: "bg-violet-50 text-violet-600" },
+  { label: "Running", Icon: Footprints, tone: "bg-sky-50 text-sky-600" },
+  { label: "CrossFit", Icon: Activity, tone: "bg-emerald-50 text-emerald-600" },
+  { label: "Hyrox", Icon: Zap, tone: "bg-orange-50 text-orange-600" },
+  { label: "Yoga", Icon: Wind, tone: "bg-teal-50 text-teal-600" },
+  { label: "Remise en forme", Icon: HeartPulse, tone: "bg-rose-50 text-rose-600" },
 ];
 
-/* duplicate for seamless loop */
-const TICKER_ITEMS = [...TICKER_SPORTS, ...TICKER_SPORTS];
+const FAQ = [
+  {
+    question: "Comment mon programme est-il créé ?",
+    answer:
+      "Tu renseignes ton objectif, ton niveau, ton rythme et ton matériel. Vincere transforme ces informations en un plan progressif avec des séances directement utilisables.",
+  },
+  {
+    question: "Est-ce adapté à mon matériel ?",
+    answer:
+      "Oui. Salle complète, quelques haltères ou poids du corps : les exercices sont sélectionnés selon ce que tu as réellement à disposition.",
+  },
+  {
+    question: "Puis-je récupérer mon programme en PDF ?",
+    answer:
+      "Oui. Le programme complet peut être exporté pour être consulté sur ton téléphone, imprimé ou partagé.",
+  },
+  {
+    question: "Est-ce vraiment gratuit ?",
+    answer:
+      "La création du compte et la génération du premier programme ne demandent aucune carte bancaire. Les fonctionnalités Premium restent optionnelles.",
+  },
+];
 
 export default function Landing() {
   const navigate = useNavigate();
-  const [faqOpen, setFaqOpen] = useState<number | null>(null);
-  const onboardingSignUpPath = buildAuthPath("/sign-up", "/onboarding");
+  const [faqOpen, setFaqOpen] = useState<number | null>(0);
+  const signUpPath = buildAuthPath("/sign-up", "/onboarding");
   const signInPath = buildAuthPath("/sign-in", "/dashboard");
 
-  const FAQ = [
-    {
-      q: "Comment est généré mon programme ?",
-      a: "Tu décris tes objectifs, ton niveau et tes contraintes. Notre moteur génère un programme structuré avec séances, charges, tempo et périodes de récupération — prêt en moins de 2 minutes.",
-    },
-    {
-      q: "Est-ce que le programme s'adapte à mon matériel ?",
-      a: "Oui. Tu précises si tu t'entraînes en salle, à domicile ou en extérieur. Le programme est adapté en conséquence : barres, haltères, poids du corps, kettlebell…",
-    },
-    {
-      q: "Puis-je télécharger mon programme en PDF ?",
-      a: "Oui, chaque programme généré peut être exporté en PDF en un clic. Tu peux l'emmener en salle, l'imprimer ou le partager.",
-    },
-    {
-      q: "Quels sports sont supportés ?",
-      a: "Vincere couvre 9 disciplines : musculation, running, CrossFit, Hyrox, yoga, perte de poids, remise en forme, compétition et entretien physique général.",
-    },
-    {
-      q: "Le plan gratuit est-il vraiment illimité ?",
-      a: "Oui. La génération de programmes et l’export PDF sont gratuits pour toujours. Le plan Premium ajoute le suivi de progression, les ajustements adaptatifs et les recommandations nutrition.",
-    },
-    {
-      q: "Mes données sont-elles protégées ?",
-      a: "Tes données ne sont jamais revendues ni partagées. Elles servent uniquement à personnaliser ton programme et améliorer nos modèles.",
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-public-page min-h-screen overflow-x-hidden bg-white text-gray-950">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center pt-24 pb-12 px-4 sm:px-6 overflow-hidden">
-        {/* Dot pattern background */}
-        <div className="hero-dots absolute inset-0 opacity-40 pointer-events-none" />
-        {/* Fade bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-40 bg-linear-to-t from-white to-transparent pointer-events-none" />
+      <main>
+        <section className="relative overflow-hidden border-b border-gray-100 px-4 pb-16 pt-28 sm:px-6 sm:pb-24 sm:pt-36">
+          <div className="hero-dots absolute inset-0 opacity-35" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 h-44 bg-linear-to-t from-white to-transparent" />
 
-        {/* Centre content */}
-        <div className="relative w-full max-w-6xl mx-auto">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-4 text-center">
-            <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-12 h-12 mb-2" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black tracking-[0.3em] uppercase text-gray-400">
-                Vincere
-              </span>
-              <BetaBadge compact />
-            </div>
-          </div>
-          {/* H1 */}
-          <h1
-            className="font-black tracking-tight mb-5 wrap-break-word text-center"
-            style={{ fontSize: "clamp(2.25rem, 7vw, 4.5rem)", lineHeight: 1.02 }}
-          >
-            Ton programme fitness
-            <br />
-            personnalisé en 2 minutes.
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-base sm:text-lg text-gray-500 max-w-2xl w-full mx-auto mb-5 px-1 sm:px-0 text-center">
-            Crée ton compte gratuit, décris tes objectifs et récupère un plan structuré avec PDF,
-            séances détaillées et suivi de progression dans un seul espace.
-          </p>
-          <div className="mb-5 text-center">
-            <p className="inline-flex max-w-2xl items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
-              <BetaBadge compact />
-              Gratuit, sans carte bancaire. Le compte sert à sauvegarder ton programme et ton suivi.
-            </p>
-          </div>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
-            <button
-              onClick={() => navigate(onboardingSignUpPath)}
-              className="hero-cta-btn w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white font-bold px-7 py-3.5 rounded-full text-base hover:bg-gray-900 transition-colors"
-            >
-              Créer mon compte
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => navigate(signInPath)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-200 font-semibold px-7 py-3.5 rounded-full text-base hover:bg-gray-50 transition-colors text-gray-700"
-            >
-              J'ai déjà un compte
-            </button>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex items-center justify-center flex-wrap gap-2 mb-6">
-            {[
-              { icon: "⚡", label: "Prêt en 60 secondes" },
-              { icon: "🎯", label: "100% personnalisé" },
-              { icon: "🔓", label: "Sans carte bancaire" },
-            ].map(({ icon, label }) => (
-              <span
-                key={label}
-                className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full px-3 py-1.5"
-              >
-                <span>{icon}</span>
-                {label}
-              </span>
-            ))}
-          </div>
-
-          {/* Program preview */}
-          <div className="mx-auto mb-14 grid max-w-5xl grid-cols-1 overflow-hidden rounded-3xl border border-gray-200 bg-white text-left shadow-sm md:grid-cols-[0.95fr_1.05fr]">
-            <div className="bg-black p-6 text-white sm:p-8">
-              <div className="mb-8 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">
-                    Exemple de résultat
-                  </p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">
-                    Semaine 1 - Force & endurance
-                  </h2>
-                </div>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
-                  PDF inclus
-                </span>
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_0.9fr] lg:gap-16">
+            <div className="max-w-2xl">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm backdrop-blur">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                Programme personnalisé en moins de 2 minutes
               </div>
-              <div className="space-y-3">
-                {[
-                  ["Lun", "Bas du corps", "Squat, fentes, gainage"],
-                  ["Mer", "Cardio contrôlé", "Zone 2 + intervalles courts"],
-                  ["Ven", "Haut du corps", "Développé, tirage, épaules"],
-                ].map(([day, title, detail]) => (
-                  <div
-                    key={day}
-                    className="grid grid-cols-[3rem_1fr] gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-black text-black">
-                      {day}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black">{title}</p>
-                      <p className="mt-0.5 truncate text-xs text-white/50">{detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="p-6 sm:p-8">
-              <div className="mb-6 flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
-                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black">Un plan concret, pas une simple liste.</h2>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                    Vincere structure les semaines, détaille les exercices et garde le suivi
-                    accessible quand tu t'entraînes.
-                  </p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ["6", "semaines"],
-                  ["4x", "par semaine"],
-                  ["PDF", "exportable"],
-                ].map(([value, label]) => (
-                  <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                    <div className="text-2xl font-black text-gray-900">{value}</div>
-                    <div className="mt-1 text-xs font-semibold text-gray-400">{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          {/* Sport tags ticker */}
-          <div className="overflow-hidden mb-14">
-            <div className="hero-ticker-track">
-              {TICKER_ITEMS.map(({ label, Icon, bg, color }, i) => (
-                <div
-                  key={`${label}-${i}`}
-                  className="inline-flex items-center gap-2.5 bg-white border border-gray-100 rounded-xl px-3 py-2 mx-2 whitespace-nowrap select-none"
+              <h1 className="text-4xl font-black leading-[1.04] sm:text-5xl lg:text-6xl">
+                Un programme qui s’adapte à ta vraie vie.
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-gray-600 sm:text-lg">
+                Ton objectif, ton niveau, ton matériel et ton emploi du temps deviennent un plan
+                clair, progressif et prêt à suivre dès aujourd’hui.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => navigate(signUpPath)}
+                  className="hero-cta-btn inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-6 text-sm font-bold text-white transition-all hover:bg-gray-800 active:scale-[0.98]"
                 >
-                  <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${bg}`}
-                  >
-                    <Icon className={`w-3.5 h-3.5 ${color}`} />
+                  Créer mon programme
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <a
+                  href="#apercu"
+                  className="theme-public-secondary inline-flex min-h-12 items-center justify-center rounded-xl border border-gray-200 bg-white px-6 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  Voir un exemple
+                </a>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-gray-500">
+                {["Compte gratuit", "Sans carte bancaire", "Export PDF inclus"].map((item) => (
+                  <span key={item} className="inline-flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div id="apercu" className="relative scroll-mt-24">
+              <div className="theme-public-glow absolute -inset-4 rounded-[28px] bg-emerald-100/50 blur-2xl" />
+              <div className="theme-public-preview relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-200/70">
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <img src={logoUrl} alt="" className="theme-logo-adaptive h-8 w-8" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-900">Ton programme</p>
+                      <p className="text-[11px] text-gray-400">Objectif : forme et endurance</p>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-700">{label}</span>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                    Semaine 1
+                  </span>
+                </div>
+
+                <div className="p-5">
+                  <div className="mb-5 grid grid-cols-3 gap-2">
+                    {[
+                      ["4", "séances"],
+                      ["45 min", "par séance"],
+                      ["6 sem.", "de programme"],
+                    ].map(([value, label]) => (
+                      <div key={label} className="rounded-xl bg-gray-50 p-3">
+                        <p className="text-base font-black">{value}</p>
+                        <p className="mt-0.5 text-[10px] font-medium text-gray-400">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">
+                    Prochaines séances
+                  </p>
+                  <div className="space-y-2.5">
+                    {[
+                      ["Lun", "Force bas du corps", "Squat, fentes, gainage"],
+                      ["Mer", "Cardio contrôlé", "Zone 2 et intervalles"],
+                      ["Sam", "Haut du corps", "Poussée, tirage, épaules"],
+                    ].map(([day, title, detail], index) => (
+                      <div
+                        key={day}
+                        className={`flex items-center gap-3 rounded-xl border p-3 ${
+                          index === 0 ? "border-gray-900 bg-gray-950 text-white" : "border-gray-100"
+                        }`}
+                      >
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-black ${
+                            index === 0
+                              ? "theme-keep-light bg-white text-black"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {day}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold">{title}</p>
+                          <p className="mt-0.5 truncate text-[11px] text-gray-400">{detail}</p>
+                        </div>
+                        {index === 0 && <ArrowRight className="h-4 w-4 shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-gray-100 px-4 py-10 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <p className="mb-5 text-center text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+              Un plan pour ton sport, pas un modèle générique
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {SPORTS.map(({ label, Icon, tone }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white p-3"
+                >
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-xs font-bold text-gray-700">{label}</span>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Stats */}
-      <section className="min-h-screen flex items-center justify-center py-20 px-4 sm:px-6 bg-black text-white">
-        <div className="max-w-6xl mx-auto w-full grid lg:grid-cols-3 gap-16 items-center">
-          {/* Gauche */}
-          <div>
-            <p className="text-sm text-gray-500 uppercase tracking-wide mb-4">En chiffres</p>
-            <h2 className="text-3xl sm:text-4xl font-black leading-tight mb-6">
-              Une plateforme taillée pour la performance.
-            </h2>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Vincere réunit des spécialistes de chaque discipline pour t'offrir un programme de
-              niveau coach, généré en quelques secondes.
-            </p>
+        <section
+          id="fonctionnement"
+          className="scroll-mt-20 bg-gray-50 px-4 py-20 sm:px-6 sm:py-28"
+        >
+          <div className="mx-auto max-w-6xl">
+            <div className="max-w-xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                Simple et précis
+              </p>
+              <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">
+                De ton profil à ta première séance, sans friction.
+              </h2>
+            </div>
+
+            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 md:grid-cols-3">
+              {[
+                {
+                  step: "01",
+                  Icon: Target,
+                  title: "Décris ton objectif",
+                  text: "Quelques questions utiles sur ton niveau, tes disponibilités et tes contraintes.",
+                },
+                {
+                  step: "02",
+                  Icon: Sparkles,
+                  title: "Reçois ton plan",
+                  text: "Vincere structure tes semaines, tes séances et ta progression en quelques instants.",
+                },
+                {
+                  step: "03",
+                  Icon: TrendingUp,
+                  title: "Entraîne-toi clairement",
+                  text: "Chaque séance t’indique quoi faire, dans quel ordre et avec quel niveau d’effort.",
+                },
+              ].map(({ step, Icon, title, text }) => (
+                <article key={step} className="bg-white p-6 sm:p-8">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-gray-300">{step}</span>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-950 text-white">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <h3 className="mt-8 text-lg font-black">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-500">{text}</p>
+                </article>
+              ))}
+            </div>
           </div>
+        </section>
 
-          {/* Centre — grille stats */}
-          <div className="grid grid-cols-2 gap-px bg-gray-800 border border-gray-800 rounded-2xl overflow-hidden">
-            {[
-              { value: "9", label: "Disciplines sportives", sub: "Du yoga au Hyrox" },
-              { value: "8", label: "Coachs spécialisés", sub: "Un expert par sport" },
-              { value: "∞", label: "Programmes possibles", sub: "Jamais le même deux fois" },
-              { value: "~2min", label: "Pour ton programme", sub: "Prêt à l'emploi" },
-            ].map(({ value, label, sub }) => (
-              <div key={label} className="bg-black px-6 py-8">
-                <div className="text-4xl font-black mb-1">{value}</div>
-                <div className="text-sm font-semibold text-white mb-1">{label}</div>
-                <div className="text-xs text-gray-500">{sub}</div>
+        <section id="fonctionnalites" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div className="lg:sticky lg:top-28">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                Ce que tu obtiens
+              </p>
+              <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">
+                Plus qu’une liste d’exercices.
+              </h2>
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-500">
+                Chaque détail sert une seule chose : rendre la prochaine action évidente, même au
+                milieu d’une séance.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  Icon: CalendarDays,
+                  title: "Semaines structurées",
+                  text: "Une charge d’entraînement répartie de façon cohérente.",
+                },
+                {
+                  Icon: Dumbbell,
+                  title: "Séances détaillées",
+                  text: "Exercices, séries, répétitions, tempo et récupération.",
+                },
+                {
+                  Icon: Download,
+                  title: "Export PDF",
+                  text: "Ton programme disponible partout, même hors connexion.",
+                },
+                {
+                  Icon: ShieldCheck,
+                  title: "Contraintes respectées",
+                  text: "Matériel, blessures et préférences pris en compte.",
+                },
+              ].map(({ Icon, title, text }) => (
+                <article key={title} className="rounded-2xl border border-gray-200 p-6">
+                  <Icon className="h-5 w-5 text-emerald-600" />
+                  <h3 className="mt-6 text-base font-black">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-500">{text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="tarifs"
+          className="scroll-mt-20 bg-gray-950 px-4 py-20 text-white sm:px-6 sm:py-24"
+        >
+          <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.8fr]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-400">
+                Commence gratuitement
+              </p>
+              <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight sm:text-4xl">
+                Ton premier programme, sans engagement.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-gray-400">
+                Crée ton compte, complète ton profil et découvre le résultat avant de décider si tu
+                veux aller plus loin.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-300">
+                {["Génération personnalisée", "Programme multi-semaines", "Export PDF"].map(
+                  (item) => (
+                    <span key={item} className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-emerald-400" />
+                      {item}
+                    </span>
+                  ),
+                )}
               </div>
-            ))}
-          </div>
+            </div>
 
-          {/* Droite */}
-          <div className="space-y-6">
-            {[
-              {
-                emoji: "🏋️",
-                title: "Musculation & force",
-                desc: "Charges progressives, périodisation et récupération optimisée.",
-              },
-              {
-                emoji: "🏃",
-                title: "Cardio & endurance",
-                desc: "Plans structurés pour le running, le vélo et le triathlon.",
-              },
-              {
-                emoji: "⚡",
-                title: "Compétition Hyrox",
-                desc: "Protocoles spécifiques pour performer le jour J.",
-              },
-            ].map(({ emoji, title, desc }) => (
-              <div key={title} className="flex items-start gap-4">
-                <span className="text-2xl mt-0.5">{emoji}</span>
+            <div className="rounded-2xl border border-white/15 bg-white/5 p-6 sm:p-8">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-bold text-sm mb-0.5">{title}</p>
-                  <p className="text-xs text-gray-400 leading-relaxed">{desc}</p>
+                  <p className="text-sm font-bold text-gray-300">Découverte</p>
+                  <p className="mt-2 text-4xl font-black">0 €</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="min-h-screen flex items-center justify-center py-20 px-4 sm:px-6 bg-gray-50">
-        <div className="max-w-6xl mx-auto w-full">
-          {/* Header */}
-          <div className="mb-16">
-            <p className="text-sm text-gray-400 uppercase tracking-wide mb-3">Ce que tu reçois</p>
-            <h2 className="text-3xl sm:text-4xl font-black max-w-lg leading-tight">
-              Concrètement, voici ce que Vincere génère pour toi.
-            </h2>
-          </div>
-
-          {/* Bento grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Card large — Programme PDF */}
-            <div className="lg:col-span-2 bg-black text-white rounded-3xl p-8 flex flex-col justify-between min-h-56">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                  <Download className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-xs font-bold bg-white/10 px-3 py-1 rounded-full">
-                  Inclus gratuitement
+                <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-300">
+                  Sans carte
                 </span>
               </div>
-              <div className="mt-8">
-                <h3 className="text-xl font-black mb-2">Programme complet en PDF</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">
-                  Ton plan structuré semaine par semaine, avec chaque exercice détaillé — charges,
-                  séries, reps, tempo et récupération. Prêt à imprimer ou à consulter sur ton
-                  téléphone.
-                </p>
-              </div>
-            </div>
-
-            {/* Card — 9 disciplines */}
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 flex flex-col justify-between min-h-56">
-              <div className="w-12 h-12 bg-violet-50 rounded-2xl flex items-center justify-center">
-                <Target className="w-6 h-6 text-violet-500" />
-              </div>
-              <div className="mt-8">
-                <h3 className="text-lg font-black mb-2">9 disciplines sportives</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
-                  Musculation, Hyrox, running, CrossFit, yoga… chaque sport a son programme dédié.
-                </p>
-              </div>
-            </div>
-
-            {/* Card — Progression */}
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 flex flex-col justify-between min-h-56">
-              <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-green-500" />
-              </div>
-              <div className="mt-8">
-                <h3 className="text-lg font-black mb-2">Progression séance après séance</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
-                  Charges, volume et récupération calibrés pour progresser sans plateau ni blessure.
-                </p>
-              </div>
-            </div>
-
-            {/* Card — Expert */}
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 flex flex-col justify-between min-h-56">
-              <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center">
-                <Zap className="w-6 h-6 text-orange-500" />
-              </div>
-              <div className="mt-8">
-                <h3 className="text-lg font-black mb-2">Expert de ta discipline</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
-                  Chaque sport a son coach dédié, conçu avec les meilleures pratiques du domaine.
-                </p>
-              </div>
-            </div>
-
-            {/* Card — 30s */}
-            <div className="bg-black text-white rounded-3xl p-8 flex flex-col justify-between min-h-56">
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                <Timer className="w-6 h-6 text-white" />
-              </div>
-              <div className="mt-8">
-                <p className="text-5xl font-black mb-2">~2 min</p>
-                <p className="text-sm text-gray-400 leading-relaxed">
-                  Temps moyen pour recevoir un programme complet, personnalisé.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="min-h-screen flex items-center justify-center py-24 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-sm text-gray-400 uppercase tracking-wide mb-3">Fonctionnement</p>
-          <h2 className="text-3xl sm:text-4xl font-black mb-16 max-w-lg leading-tight">
-            De zéro à ton programme en moins de deux minutes.
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-x-16 gap-y-14">
-            {[
-              {
-                n: 1,
-                Icon: Users,
-                title: "Décris ton profil",
-                desc: "Objectif, niveau, matériel disponible, fréquence d'entraînement. Un formulaire guidé de deux minutes pour que le programme te corresponde vraiment.",
-              },
-              {
-                n: 2,
-                Icon: Zap,
-                title: "Génération instantanée",
-                desc: "Notre moteur analyse ton profil et génère un programme structuré avec séances, exercices, charges et périodes de récupération — en moins de 2 minutes.",
-              },
-              {
-                n: 3,
-                Icon: TrendingUp,
-                title: "Consultation et ajustements",
-                desc: "Tu visualises ton programme complet : semaines, séances, progressions. Tu peux ajuster certains paramètres avant de finaliser.",
-              },
-              {
-                n: 4,
-                Icon: Download,
-                title: "Export PDF prêt à l'emploi",
-                desc: "Télécharge ton programme en PDF structuré et lisible. Emmène-le en salle, imprime-le ou garde-le sur ton téléphone.",
-              },
-              {
-                n: 5,
-                Icon: Dumbbell,
-                title: "Entraîne-toi",
-                desc: "Suis tes séances séquentiellement. Chaque exercice est détaillé : sets, reps, charge, tempo et temps de repos.",
-              },
-              {
-                n: 6,
-                Icon: Target,
-                title: "Progresse et itère",
-                desc: "Tu évolues, ton programme aussi. Regénère un programme mis à jour dès que tu changes d'objectif ou de niveau.",
-              },
-            ].map(({ n, Icon, title, desc }) => (
-              <div key={n}>
-                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mb-4">
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex items-baseline gap-3 mb-2">
-                  <span className="text-sm text-gray-400 font-semibold">{n}</span>
-                  <h3 className="text-xl font-black">{title}</h3>
-                </div>
-                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Sports grid */}
-      <section className="min-h-screen flex items-center justify-center py-20 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto w-full">
-          <h2 className="text-3xl sm:text-4xl font-black text-center mb-4">
-            Tous les sports. Un seul endroit.
-          </h2>
-          <p className="text-gray-500 text-center mb-12">
-            Du débutant au compétiteur — chaque discipline a son programme dédié.
-          </p>
-          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
-            {[
-              { emoji: "🏋️", label: "Muscu" },
-              { emoji: "🔥", label: "Perte poids" },
-              { emoji: "⚡", label: "HYROX" },
-              { emoji: "🏃", label: "Running" },
-              { emoji: "🤸", label: "CrossFit" },
-              { emoji: "🧘", label: "Yoga" },
-              { emoji: "🏆", label: "Compétition" },
-              { emoji: "💪", label: "Entretien" },
-              { emoji: "🌱", label: "Remise en forme" },
-            ].map(({ emoji, label }) => (
-              <div
-                key={label}
-                className="border border-gray-200 rounded-xl p-3 text-center hover:border-black hover:bg-black hover:text-white transition-all cursor-pointer group"
-                onClick={() => navigate(onboardingSignUpPath)}
-              >
-                <div className="text-2xl mb-1">{emoji}</div>
-                <div className="text-xs font-semibold leading-tight">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Subscription CTA */}
-      <section className="min-h-screen flex items-center justify-center py-20 px-4 sm:px-6 bg-black text-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-black mb-4">
-            Commence aujourd'hui.
-            <br />
-            <span className="text-gray-400">Pas demain.</span>
-          </h2>
-          <p className="text-gray-400 mb-8 text-lg">
-            Le meilleur programme, c'est celui que tu suis. On s'assure qu'il soit taillé pour tes
-            objectifs, ton niveau, et ton quotidien.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <div className="border border-gray-700 rounded-2xl p-6 min-w-64">
-              <div className="text-2xl font-black">Gratuit</div>
-              <div className="text-sm text-gray-400 mb-4">Pour toujours</div>
-              <ul className="text-sm space-y-2 text-left mb-6">
-                {[
-                  "Génération programme PDF",
-                  "Tous types de programmes",
-                  "Export téléchargeable",
-                ].map((f) => (
-                  <li key={f} className="flex items-center gap-2">
-                    <span className="text-green-400">✓</span> {f}
-                  </li>
-                ))}
-              </ul>
               <button
-                onClick={() => navigate(onboardingSignUpPath)}
-                className="w-full border border-white text-white font-bold py-2 rounded-xl hover:bg-white hover:text-black transition-colors"
+                onClick={() => navigate(signUpPath)}
+                className="mt-8 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-black transition-colors hover:bg-gray-100"
               >
-                Commencer
+                Commencer maintenant
+                <ArrowRight className="h-4 w-4" />
               </button>
-            </div>
-            <div className="border-2 border-white rounded-2xl p-6 min-w-64 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-black text-xs font-black px-3 py-1 rounded-full">
-                RECOMMANDÉ
-              </div>
-              <div className="text-2xl font-black">
-                9,99€ <span className="text-base font-normal text-gray-400">/mois</span>
-              </div>
-              <div className="text-sm text-gray-400 mb-4">Abonnement Premium</div>
-              <ul className="text-sm space-y-2 text-left mb-6">
-                {[
-                  "Tout le plan Gratuit",
-                  "Séances quotidiennes adaptatives",
-                  "Suivi de progression",
-                  "Ajustement selon feedback",
-                  "Recommandations nutrition",
-                ].map((f) => (
-                  <li key={f} className="flex items-center gap-2">
-                    <span className="text-green-400">✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => navigate(onboardingSignUpPath)}
-                className="w-full bg-white text-black font-bold py-2 rounded-xl hover:bg-gray-100 transition-colors"
-              >
-                Créer un compte
-              </button>
+              <p className="mt-3 text-center text-[11px] text-gray-500">
+                Création du compte en moins d’une minute
+              </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* FAQ */}
-      <section className="min-h-screen flex items-center justify-center py-20 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto w-full">
-          <p className="text-sm text-gray-400 mb-8 tracking-wide uppercase">FAQ</p>
-          <div>
-            {FAQ.map(({ q, a }, i) => (
-              <div key={q} className="border-t border-gray-200 last:border-b">
-                <button
-                  className="w-full flex items-center justify-between py-6 text-left group"
-                  onClick={() => setFaqOpen(faqOpen === i ? null : i)}
-                >
-                  <span className="text-2xl sm:text-3xl font-bold text-black pr-8 leading-tight">
-                    {q}
-                  </span>
-                  <ChevronDown
-                    className={`shrink-0 w-5 h-5 transition-transform duration-300 ${
-                      faqOpen === i ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ${
-                    faqOpen === i ? "max-h-40 pb-6" : "max-h-0"
-                  }`}
-                >
-                  <p className="text-gray-500 text-base leading-relaxed">{a}</p>
-                </div>
-              </div>
-            ))}
+        <section id="faq" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">
+          <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[0.55fr_1fr]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                Questions fréquentes
+              </p>
+              <h2 className="mt-3 text-3xl font-black">Avant de commencer.</h2>
+            </div>
+            <div>
+              {FAQ.map(({ question, answer }, index) => {
+                const open = faqOpen === index;
+                return (
+                  <div key={question} className="border-t border-gray-200 last:border-b">
+                    <button
+                      type="button"
+                      onClick={() => setFaqOpen(open ? null : index)}
+                      aria-expanded={open}
+                      className="flex w-full items-center justify-between gap-6 py-5 text-left"
+                    >
+                      <span className="text-base font-bold sm:text-lg">{question}</span>
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                    <div
+                      className={`grid transition-all duration-300 ${
+                        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                      }`}
+                    >
+                      <div className="overflow-hidden">
+                        <p className="max-w-2xl pb-5 text-sm leading-relaxed text-gray-500">
+                          {answer}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          {/* Assistant CTA */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-5 bg-gray-50 border border-gray-200 rounded-2xl px-6 py-5">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 shrink-0 bg-black rounded-xl flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="font-bold text-gray-900 text-base leading-tight">
-                  Tu ne trouves pas ta réponse&nbsp;?
-                </p>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  Notre assistant IA répond à toutes tes questions en temps réel.
-                </p>
-              </div>
+        </section>
+
+        <section className="px-4 pb-20 sm:px-6">
+          <div className="theme-public-final-cta mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-2xl bg-emerald-50 p-6 sm:flex-row sm:items-center sm:p-8">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-800">
+                Prêt en quelques minutes
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-gray-950">
+                Ta prochaine séance peut être la bonne.
+              </h2>
             </div>
             <button
-              onClick={() => globalThis.dispatchEvent(new Event("open-Vincere-chat"))}
-              className="shrink-0 flex items-center gap-2 bg-black text-white text-sm font-bold px-5 py-3 rounded-full hover:bg-gray-800 active:scale-95 transition-all"
+              onClick={() => navigate(signUpPath)}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-6 text-sm font-bold text-white sm:w-auto"
             >
-              <Sparkles className="w-4 h-4" />
-              Demander à l'assistant
+              Créer mon programme
+              <ArrowRight className="h-4 w-4" />
             </button>
-          </div>{" "}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-black text-white px-4 sm:px-6 pt-16 pb-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Top row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-gray-800">
-            {/* Brand */}
-            <div className="col-span-2 lg:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <img
-                  src={logoUrl}
-                  alt="Vincere"
-                  className="w-8 h-8 rounded-lg"
-                  style={{ filter: "invert(1)" }}
-                />
-                <span className="font-black text-lg">Vincere</span>
-              </div>
-              <p className="text-sm text-gray-400 leading-relaxed mb-6">
-                Génère ton programme d'entraînement sur mesure en moins de 2 minutes. Structuré,
-                progressif, prêt à l'emploi.
-              </p>
-              <button
-                onClick={() => navigate(onboardingSignUpPath)}
-                className="text-sm font-bold bg-white text-black px-5 py-2.5 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                Créer mon programme →
-              </button>
-            </div>
-
-            {/* Disciplines */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-4">
-                Disciplines
-              </p>
-              <ul className="space-y-2.5 text-sm text-gray-400">
-                {[
-                  "Musculation",
-                  "Running",
-                  "CrossFit",
-                  "Hyrox",
-                  "Perte de poids",
-                  "Yoga",
-                  "Remise en forme",
-                ].map((d) => (
-                  <li key={d}>
-                    <button
-                      onClick={() => navigate(onboardingSignUpPath)}
-                      className="hover:text-white transition-colors"
-                    >
-                      {d}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Produit */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-4">
-                Produit
-              </p>
-              <ul className="space-y-2.5 text-sm text-gray-400">
-                {[
-                  { label: "Générer un programme", path: onboardingSignUpPath },
-                  { label: "Connexion", path: "/sign-in" },
-                  { label: "Créer un compte", path: "/sign-up" },
-                  { label: "Mon dashboard", path: "/dashboard" },
-                ].map(({ label, path }) => (
-                  <li key={label}>
-                    <button
-                      onClick={() => navigate(path)}
-                      className="hover:text-white transition-colors"
-                    >
-                      {label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Infos */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-4">
-                Informations
-              </p>
-              <ul className="space-y-2.5 text-sm text-gray-400">
-                <li>
-                  <button
-                    onClick={() => globalThis.dispatchEvent(new Event("open-contact"))}
-                    className="hover:text-white transition-colors"
-                  >
-                    Contact
-                  </button>
-                </li>
-              </ul>
-              <div className="mt-8 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Timer className="w-3.5 h-3.5 shrink-0" />
-                  Programme généré en ~2 minutes
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  Séances structurées semaine par semaine
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Download className="w-3.5 h-3.5 shrink-0" />
-                  Export PDF inclus
-                </div>
-              </div>
-            </div>
           </div>
+        </section>
+      </main>
 
-          {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-xs text-gray-600">
-            <p>© 2026 Vincere. Les recommandations sont fournies à titre informatif uniquement.</p>
+      <footer className="border-t border-gray-100 px-4 py-8 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive h-7 w-7" />
+            <span className="text-sm font-black">Vincere</span>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-gray-500">
+            <button onClick={() => navigate(signInPath)} className="hover:text-black">
+              Connexion
+            </button>
+            <button
+              onClick={() => globalThis.dispatchEvent(new Event("open-contact"))}
+              className="hover:text-black"
+            >
+              Contact
+            </button>
+            <span>© 2026 Vincere</span>
           </div>
         </div>
       </footer>

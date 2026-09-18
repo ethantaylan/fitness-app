@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, X, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, X, Trash2, ChevronDown, ChevronUp, Trophy, NotebookPen } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
 import type { PersonalRecord, RecordCategory } from "../lib/types";
@@ -238,10 +238,10 @@ export default function Records() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
 
-      <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 pb-28 pt-20 sm:px-6">
         {/* Header */}
         <div className="mt-6 mb-6 flex items-end justify-between">
           <div>
@@ -261,19 +261,23 @@ export default function Records() {
             type="button"
             role="tab"
             aria-selected={activeTab === "records"}
+            data-active={activeTab === "records"}
             onClick={() => setActiveTab("records")}
-            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "records" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
+            className={`theme-segment-tab flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "records" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
           >
-            🏆 Records
+            <Trophy className="h-4 w-4" />
+            Records
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "notes"}
+            data-active={activeTab === "notes"}
             onClick={() => setActiveTab("notes")}
-            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "notes" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
+            className={`theme-segment-tab flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "notes" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
           >
-            📝 Notes
+            <NotebookPen className="h-4 w-4" />
+            Notes
           </button>
         </div>
 
@@ -284,8 +288,8 @@ export default function Records() {
             {/* Empty state */}
             {sortedExercises.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-4xl mb-5 shadow-sm">
-                  🏆
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-gray-200 bg-white">
+                  <Trophy className="h-7 w-7 text-gray-300" />
                 </div>
                 <h2 className="text-lg font-black mb-2">Aucun record encore</h2>
                 <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
@@ -450,14 +454,21 @@ export default function Records() {
       {showAdd && (
         <>
           <div className="fixed inset-0 bg-black/40 z-60 backdrop-blur-sm" onClick={closeAdd} />
-          <div className="fixed bottom-0 inset-x-0 z-60 bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] overflow-y-auto">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="record-dialog-title"
+            className="theme-record-sheet fixed inset-x-0 bottom-0 z-60 max-h-[92dvh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl md:bottom-1/2 md:left-1/2 md:right-auto md:w-[min(34rem,calc(100vw-3rem))] md:-translate-x-1/2 md:translate-y-1/2 md:rounded-2xl"
+          >
             <div className="p-5 pb-8">
               {/* Handle */}
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 
               {/* Sheet header */}
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-black">Nouveau record</h2>
+                <h2 id="record-dialog-title" className="text-lg font-black">
+                  Nouveau record
+                </h2>
                 <button
                   onClick={closeAdd}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"

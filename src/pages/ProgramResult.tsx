@@ -339,9 +339,9 @@ export default function ProgramResult() {
 
   if (!program) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="theme-app-page min-h-screen bg-white">
         <Navbar />
-        <div className="mx-auto max-w-2xl px-4 pb-28 pt-20 sm:px-6">
+        <div className="mx-auto max-w-4xl px-4 pb-28 pt-20 sm:px-6">
           <div className="mb-6 mt-6">
             <p className="mb-1 text-xs uppercase tracking-wider text-gray-400">Entraînement</p>
             <h1 className="text-2xl font-black">Mon programme</h1>
@@ -390,10 +390,10 @@ export default function ProgramResult() {
   ].filter(Boolean) as { k: string; v: string }[];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
 
-      <div className="mx-auto max-w-3xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
+      <div className="mx-auto max-w-5xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
         <div className="mb-8 mt-8">
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />

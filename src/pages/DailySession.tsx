@@ -17,6 +17,8 @@ import {
   Info,
   X,
   Trash2,
+  BookOpen,
+  ArrowRight,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
@@ -53,7 +55,7 @@ function SessionList({
   onBuildOwn: () => void;
 }>) {
   const navigate = useNavigate();
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   function handleDeleteClick(uid: string) {
@@ -71,24 +73,65 @@ function SessionList({
     acc[s.date].push(s);
     return acc;
   }, {});
+  const nextProgramSession =
+    state.program?.weeks
+      .flatMap((week) =>
+        week.sessions.map((session) => ({ ...session, weekNumber: week.week_number })),
+      )
+      .find((session) => !session.completed) ?? null;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
-      <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 pb-28 pt-20 sm:px-6">
         {/* Header */}
         <div className="mt-6 mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Mes séances</p>
-          <h1 className="text-2xl font-black">Séances</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Mon activité</p>
+          <h1 className="text-2xl font-black">Entraînements</h1>
           {sessions.length > 0 && (
             <p className="text-sm text-gray-400 mt-1">
-              {sessions.length} séance{sessions.length > 1 ? "s" : ""} générée
-              {sessions.length > 1 ? "s" : ""}
+              {sessions.length} séance{sessions.length > 1 ? "s" : ""} libre
+              {sessions.length > 1 ? "s" : ""} dans l’historique
             </p>
           )}
         </div>
 
-        {/* ── Action cards ── */}
+        {nextProgramSession && (
+          <section className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                  Prochaine séance du programme
+                </p>
+                <h2 className="mt-1 text-sm font-black text-gray-900">
+                  {nextProgramSession.day} · {nextProgramSession.type}
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Semaine {nextProgramSession.weekNumber} de ton plan
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void navigate("/result")}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white"
+                aria-label="Voir la prochaine séance dans le programme"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </section>
+        )}
+
+        <div className="mb-3">
+          <h2 className="text-sm font-black text-gray-900">Créer une séance libre</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            Pour un entraînement ponctuel qui ne remplace pas ton programme.
+          </p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3 mb-7">
           {/* Générer IA */}
           <button
@@ -112,10 +155,10 @@ function SessionList({
             </div>
             <div className="relative">
               <p className="font-black text-sm leading-tight">
-                {generating ? "Génération…" : "Générer une séance"}
+                {generating ? "Création…" : "Laisser Vincere choisir"}
               </p>
               <p className="theme-session-generate-subtitle text-[11px] text-white/50 mt-0.5">
-                L'IA adapte à ton profil
+                Selon ton profil et ta durée
               </p>
             </div>
           </button>
@@ -129,9 +172,11 @@ function SessionList({
               <Hammer className="w-5 h-5 text-gray-700" />
             </div>
             <div>
-              <p className="font-black text-sm text-gray-900 leading-tight">Construire ma séance</p>
+              <p className="font-black text-sm text-gray-900 leading-tight">
+                Choisir mes exercices
+              </p>
               <p className="theme-session-builder-subtitle text-[11px] text-gray-400 mt-0.5">
-                Choisis tes zones
+                Compose à partir des zones
               </p>
             </div>
           </button>
@@ -150,14 +195,14 @@ function SessionList({
             <div className="w-14 h-14 bg-white border border-gray-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
               <Dumbbell className="w-7 h-7 text-gray-300" />
             </div>
-            <p className="font-bold text-gray-700 mb-1">Aucune séance générée</p>
-            <p className="text-sm text-gray-400">Lance ta première séance ci-dessus.</p>
+            <p className="font-bold text-gray-700 mb-1">Aucune séance libre</p>
+            <p className="text-sm text-gray-400">Tes entraînements ponctuels apparaîtront ici.</p>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-2 mb-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                Historique
+                Historique des séances libres
               </p>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
@@ -309,9 +354,9 @@ function SessionDetail({
   const ic = intensityClasses(session.intensity);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
-      <div className="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-16 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
         <div className="mt-6 mb-6 flex justify-end">
           <div className="flex items-center gap-2">
             <button
@@ -347,7 +392,7 @@ function SessionDetail({
 
         {/* Header */}
         <div className="mb-6">
-          <p className="text-xs text-gray-400 mb-1 uppercase tracking-wider">Séance du jour</p>
+          <p className="text-xs text-gray-400 mb-1 uppercase tracking-wider">Séance libre</p>
           <h1 className="text-2xl sm:text-3xl font-black capitalize">{session.date}</h1>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${ic.badge}`}>

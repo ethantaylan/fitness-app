@@ -22,7 +22,7 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
       className="fixed inset-0 z-60 flex items-end sm:items-center justify-center"
       role="dialog"
       aria-modal="true"
-      aria-label="Générer une séance"
+      aria-label="Créer une séance libre"
     >
       {/* Backdrop */}
       <div
@@ -32,7 +32,7 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
       />
 
       {/* Sheet */}
-      <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl px-5 pt-5 pb-8 sm:mx-4">
+      <div className="theme-session-picker-sheet relative w-full max-w-lg rounded-t-3xl bg-white px-5 pb-8 pt-5 shadow-2xl sm:mx-4 sm:rounded-3xl">
         {/* Handle (mobile only) */}
         <div
           className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden"
@@ -42,8 +42,10 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-black text-lg">Générer une séance</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Choisis le type de séance</p>
+            <h2 className="font-black text-lg">Créer une séance libre</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Un entraînement ponctuel, en dehors de ton programme
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -66,7 +68,7 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
             <Target className="w-4 h-4" />
           </div>
           <div className="text-left">
-            <div className="font-black text-sm">Selon mon profil</div>
+            <div className="font-black text-sm">Laisser Vincere choisir</div>
             <div className="theme-session-picker-primary-subtitle text-xs text-white/60">
               {OBJECTIVE_LABELS[profile.objective]} · {profile.level}
             </div>
@@ -101,7 +103,7 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
         <div className="flex items-center gap-3 mb-3" aria-hidden="true">
           <div className="flex-1 h-px bg-gray-100" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            ou choisir un sport
+            ou changer l'objectif
           </span>
           <div className="flex-1 h-px bg-gray-100" />
         </div>
@@ -144,7 +146,7 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
             onClick={() => onConfirm(pendingObjective, duration)}
             className="theme-session-picker-primary w-full mt-3 bg-black text-white font-black text-sm py-3.5 rounded-2xl hover:bg-gray-900 active:scale-[0.99] transition-all"
           >
-            Générer · {OBJECTIVE_LABELS[pendingObjective]}
+            Créer pour · {OBJECTIVE_LABELS[pendingObjective]}
           </button>
         )}
 
@@ -167,8 +169,10 @@ export default function SessionPickerSheet({ profile, onConfirm, onClose, onBuil
             <Hammer className="w-4 h-4 text-gray-700" />
           </div>
           <div className="text-left">
-            <div className="font-black text-sm text-gray-900">Construire moi-même</div>
-            <div className="text-xs text-gray-400">Choisis les zones à travailler</div>
+            <div className="font-black text-sm text-gray-900">Choisir mes exercices</div>
+            <div className="text-xs text-gray-400">
+              Compose la séance à partir des zones à travailler
+            </div>
           </div>
           <ChevronRight className="w-4 h-4 ml-auto text-gray-400" aria-hidden="true" />
         </button>

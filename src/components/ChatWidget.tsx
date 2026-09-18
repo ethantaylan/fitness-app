@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { X, Sparkles } from "lucide-react";
 import SupportChat from "./SupportChat";
+import { useAuth } from "../lib/auth";
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [pulse, setPulse] = useState(true);
   const { pathname } = useLocation();
+  const { isSignedIn } = useAuth();
 
   useEffect(() => {
     function handleOpen() {
@@ -22,12 +24,22 @@ export default function ChatWidget() {
     setOpen((v) => !v);
   }
 
-  if (pathname === "/onboarding") return null;
+  if (
+    pathname === "/onboarding" ||
+    pathname === "/builder" ||
+    pathname === "/generating" ||
+    pathname === "/settings"
+  ) {
+    return null;
+  }
 
   return (
     <>
-      {/* ── Floating button — masqué sur mobile (dans BottomNav) ── */}
-      <div className="hidden md:block fixed bottom-6 right-6 z-50">
+      <div
+        className={`fixed bottom-24 right-4 z-50 md:bottom-6 md:right-6 ${
+          isSignedIn ? "block" : "hidden md:block"
+        }`}
+      >
         {/* Main FAB */}
         <button
           onClick={() => toggle()}
@@ -48,7 +60,7 @@ export default function ChatWidget() {
 
       {/* ── Chat panel ── */}
       <div
-        className={`fixed md:bottom-24 bottom-22 right-6 z-50 w-[min(420px,calc(100vw-3rem))] bg-[#0e0e0e] rounded-3xl shadow-2xl border border-white/8 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
+        className={`fixed bottom-40 right-4 z-50 flex w-[min(420px,calc(100vw-2rem))] origin-bottom-right flex-col overflow-hidden rounded-3xl border border-white/8 bg-[#0e0e0e] shadow-2xl transition-all duration-300 md:bottom-24 md:right-6 ${
           open
             ? "opacity-100 scale-100 pointer-events-auto"
             : "opacity-0 scale-95 pointer-events-none"

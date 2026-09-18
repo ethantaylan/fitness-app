@@ -1,7 +1,7 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "../lib/auth";
-import { Mail, X, ArrowRight, LogOut, CalendarDays } from "lucide-react";
+import { Mail, X, ArrowRight, LogOut } from "lucide-react";
 import logoUrl from "../assets/logo.png";
 import { saveContactMessage } from "../lib/db";
 import { supabase } from "../lib/supabase";
@@ -26,6 +26,7 @@ type ContactFormState = {
 export default function Navbar() {
   const { isSignedIn, signOut, user, userEmail, userFirstName } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
   const [contactSubmitting, setContactSubmitting] = useState(false);
@@ -121,16 +122,34 @@ export default function Navbar() {
   return (
     <>
       {/* ── Navbar ── */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+      <nav className="fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-7 h-7 rounded-lg" />
-            <span className="font-black text-sm tracking-tight">Vincere</span>
+            <img src={logoUrl} alt="" className="theme-logo-adaptive h-7 w-7" />
+            <span className="text-sm font-black">Vincere</span>
             <BetaBadge compact />
           </Link>
 
-          {/* Right */}
+          {!isSignedIn && (
+            <div className="hidden items-center gap-1 lg:flex">
+              {[
+                ["Fonctionnement", "#fonctionnement"],
+                ["Fonctionnalités", "#fonctionnalites"],
+                ["Tarifs", "#tarifs"],
+                ["FAQ", "#faq"],
+              ].map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black"
+                >
+                  {label}
+                </a>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <div className="hidden sm:block">
               <ThemeToggleButton />
@@ -138,13 +157,6 @@ export default function Navbar() {
             {isSignedIn ? (
               <>
                 {/* Mobile: contact + logout */}
-                <Link
-                  to="/session"
-                  aria-label="Mes séances"
-                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-                >
-                  <CalendarDays className="w-4 h-4" />
-                </Link>
                 <button
                   aria-label="Contact"
                   onClick={openContact}
@@ -160,48 +172,34 @@ export default function Navbar() {
                   <LogOut className="w-4 h-4" />
                 </button>
                 {/* Desktop: nav complète */}
-                <div className="hidden md:flex items-center gap-2">
-                  <Link
-                    to="/dashboard"
-                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Accueil
-                  </Link>
-                  <Link
-                    to="/result"
-                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Programme
-                  </Link>
-                  <Link
-                    to="/records"
-                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Suivi
-                  </Link>
-                  <Link
-                    to="/session"
-                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Séances
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className="text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Profil
-                  </Link>
+                <div className="hidden items-center gap-1 md:flex">
+                  {[
+                    { label: "Accueil", path: "/dashboard" },
+                    { label: "Programme", path: "/result" },
+                    { label: "Entraînements", path: "/session" },
+                    { label: "Suivi", path: "/records" },
+                    { label: "Profil", path: "/settings" },
+                  ].map(({ label, path }) => {
+                    const active = location.pathname === path;
+                    return (
+                      <Link
+                        key={path}
+                        to={path}
+                        aria-current={active ? "page" : undefined}
+                        className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                          active
+                            ? "bg-gray-100 text-gray-950"
+                            : "text-gray-500 hover:bg-gray-100 hover:text-black"
+                        }`}
+                      >
+                        {label}
+                      </Link>
+                    );
+                  })}
                   <div className="w-px h-4 bg-gray-200 mx-1" />
-                  <Link
-                    to="/session"
-                    aria-label="Mes séances"
-                    title="Mes séances"
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                  </Link>
                   <button
                     aria-label="Contact"
+                    title="Contact"
                     onClick={openContact}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
                   >
@@ -209,6 +207,7 @@ export default function Navbar() {
                   </button>
                   <button
                     aria-label="Se déconnecter"
+                    title="Se déconnecter"
                     onClick={() => void signOut().then(() => navigate("/"))}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   >
@@ -220,15 +219,15 @@ export default function Navbar() {
               <>
                 <Link
                   to="/sign-in"
-                  className="hidden md:inline-flex text-sm font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black sm:inline-flex"
                 >
                   Connexion
                 </Link>
                 <Link
                   to="/sign-up?next=%2Fonboarding"
-                  className="text-sm font-bold bg-black text-white px-4 py-1.5 rounded-full hover:bg-gray-800 transition-colors"
+                  className="inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800"
                 >
-                  Créer un compte
+                  Commencer
                 </Link>
               </>
             )}

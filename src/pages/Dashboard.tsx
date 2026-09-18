@@ -19,7 +19,7 @@ export default function Dashboard() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSignedIn, userEmail, userFirstName } = useAuth();
+  const { isSignedIn, userFirstName } = useAuth();
 
   const [generatingSession, setGeneratingSession] = useState(false);
   const [sessionError, setSessionError] = useState("");
@@ -115,7 +115,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
 
       {showSessionPicker && profile && (
@@ -132,7 +132,7 @@ export default function Dashboard() {
         />
       )}
 
-      <main className="max-w-2xl mx-auto px-4 pt-20 pb-28 md:pb-24 sm:px-6">
+      <main className="mx-auto max-w-6xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
         <div
           className={`relative overflow-hidden rounded-3xl p-6 mt-6 mb-6 ${heroBg}`}
           role="banner"
@@ -154,11 +154,9 @@ export default function Dashboard() {
                 Bonjour {firstName}
                 {objMeta?.emoji ? ` ${objMeta.emoji}` : ""}
               </h1>
-              {userEmail && (
-                <p className={`text-xs mt-0.5 ${objMeta ? "text-gray-500" : "text-white/50"}`}>
-                  {userEmail}
-                </p>
-              )}
+              <p className={`mt-1 text-xs ${objMeta ? "text-gray-500" : "text-white/50"}`}>
+                Voici l’essentiel pour ton prochain entraînement.
+              </p>
             </div>
             <Link
               to="/settings"
@@ -197,39 +195,41 @@ export default function Dashboard() {
           )}
         </div>
 
-        {program !== null && (
-          <WeekProgressCard
-            currentWeek={currentProgramWeek}
-            completedSessions={completedSessions}
-            totalSessions={totalSessions}
-            hasProgram={program !== null}
-            onToggleSession={(sessionId, completed) => {
-              if (!currentProgramWeek) return;
-              dispatch({
-                type: "SET_PROGRAM_SESSION_COMPLETION",
-                weekNumber: currentProgramWeek.week_number,
-                sessionId,
-                completed,
-              });
-            }}
-          />
-        )}
+        <div className="grid items-start gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="space-y-4">
+            {program !== null && (
+              <WeekProgressCard
+                currentWeek={currentProgramWeek}
+                completedSessions={completedSessions}
+                totalSessions={totalSessions}
+                hasProgram={program !== null}
+                onToggleSession={(sessionId, completed) => {
+                  if (!currentProgramWeek) return;
+                  dispatch({
+                    type: "SET_PROGRAM_SESSION_COMPLETION",
+                    weekNumber: currentProgramWeek.week_number,
+                    sessionId,
+                    completed,
+                  });
+                }}
+              />
+            )}
 
-        <div className="space-y-4">
-          <ProgramSection
-            program={program}
-            downloadingPDF={downloadingPDF}
-            onDownloadPDF={handleDownloadPDF}
-          />
+            <ProgramSection
+              program={program}
+              downloadingPDF={downloadingPDF}
+              onDownloadPDF={handleDownloadPDF}
+            />
+          </div>
 
           <Section
             icon={<Zap className="w-4 h-4" />}
-            title="Séance en plus"
+            title="Séance libre"
             color="text-green-600"
             bg="bg-green-50"
             badge={
               <span className="rounded-full border border-green-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-green-700">
-                Optionnel
+                Hors programme
               </span>
             }
           >

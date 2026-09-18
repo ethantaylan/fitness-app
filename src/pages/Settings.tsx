@@ -184,10 +184,10 @@ export default function Settings() {
     !hasEquipmentLabel(form.equipment, customEquipmentDraft);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
 
-      <div className="max-w-2xl mx-auto px-4 pt-20 pb-28 md:pb-24 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
         {/* ── Hero profile card ── */}
         <div className={`relative overflow-hidden rounded-3xl p-6 mb-6 ${heroBg}`}>
           <div className="relative flex items-start justify-between">
@@ -250,7 +250,8 @@ export default function Settings() {
         <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 mb-6 shadow-sm">
           <button
             onClick={() => setTab("entrainement")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+            data-active={tab === "entrainement"}
+            className={`theme-segment-tab flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
               tab === "entrainement"
                 ? "bg-black text-white shadow-sm"
                 : "text-gray-500 hover:text-black"
@@ -261,7 +262,8 @@ export default function Settings() {
           </button>
           <button
             onClick={() => setTab("compte")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+            data-active={tab === "compte"}
+            className={`theme-segment-tab flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
               tab === "compte" ? "bg-black text-white shadow-sm" : "text-gray-500 hover:text-black"
             }`}
           >
@@ -272,7 +274,7 @@ export default function Settings() {
 
         {/* ── Tab Entraînement ── */}
         {tab === "entrainement" && (
-          <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Objectif */}
             <Section
               icon={<Target className="w-4 h-4" />}
@@ -753,7 +755,7 @@ export default function Settings() {
             {/* Save */}
             <button
               onClick={handleSave}
-              className={`w-full flex items-center justify-center gap-2 font-bold py-4 rounded-2xl text-base transition-all active:scale-[0.99] ${
+              className={`theme-profile-save sticky bottom-24 z-30 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold shadow-xl transition-all active:scale-[0.99] md:bottom-4 lg:col-span-2 ${
                 saved ? "bg-green-500 text-white" : "bg-black text-white hover:bg-gray-900"
               }`}
             >
@@ -769,7 +771,7 @@ export default function Settings() {
             </button>
 
             {/* Reset profile */}
-            <div className="border border-red-200 rounded-2xl p-5">
+            <div className="rounded-2xl border border-red-200 p-5 lg:col-span-2">
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
                 <p className="text-xs font-bold uppercase tracking-wider text-red-500">

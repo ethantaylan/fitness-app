@@ -47,7 +47,7 @@ export default function TodayCard({
         </div>
         <p className="font-black text-gray-900 mb-1 text-sm">Configure ton profil</p>
         <p className="text-xs text-gray-400 mb-4">
-          Remplis ton profil pour débloquer ton programme principal et les séances supplémentaires.
+          Remplis ton profil pour débloquer ton programme principal et les séances libres.
         </p>
         <Link
           to="/onboarding"
@@ -62,20 +62,22 @@ export default function TodayCard({
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-black text-gray-900">Une séance en plus aujourd'hui ?</p>
+        <p className="text-sm font-black text-gray-900">
+          Besoin d’un entraînement hors programme ?
+        </p>
         <p className="mt-1 text-xs leading-relaxed text-gray-600">
-          Ton programme principal reste la priorité. Utilise cette zone uniquement si tu veux
-          ajouter un entraînement supplémentaire adapté à ton état du jour.
+          Crée ici une séance libre adaptée à ton état du jour. Elle ne remplace pas les séances
+          planifiées dans ton programme.
         </p>
       </div>
 
       {todaySessions.length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">
-            Séances supplémentaires du jour
+            Séances libres du jour
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            Tu peux revoir ici les séances supplémentaires que tu as déjà ajoutées aujourd'hui.
+            Retrouve ici les entraînements ponctuels que tu as créés aujourd’hui.
           </p>
         </div>
       )}
@@ -86,7 +88,7 @@ export default function TodayCard({
           <button
             key={s.uid}
             type="button"
-            aria-label={`Voir la séance supplémentaire ${s.goal}`}
+            aria-label={`Voir la séance libre ${s.goal}`}
             className="w-full flex items-center justify-between text-left rounded-2xl border border-gray-200 bg-white p-3 transition-colors hover:bg-gray-50 active:scale-[0.99]"
             onClick={() => onNavigate(s.uid)}
           >
@@ -143,11 +145,10 @@ export default function TodayCard({
                 <Dumbbell className={`w-5 h-5 ${objMeta?.color ?? "text-gray-400"}`} />
               </div>
               <p className="font-black text-gray-900 mb-1 text-sm">
-                Tu veux ajouter une séance en plus ?
+                Tu veux créer une séance libre ?
               </p>
               <p className="text-xs text-gray-400 mb-4">
-                Si tu as une disponibilité supplémentaire, l'IA te prépare un entraînement adapté à
-                ton niveau en quelques secondes.
+                Vincere peut préparer un entraînement ponctuel adapté à ton niveau et à ta durée.
               </p>
             </>
           )}
@@ -171,15 +172,15 @@ export default function TodayCard({
               <>
                 <Play className="w-4 h-4" aria-hidden="true" />
                 {todaySessions.length === 0
-                  ? "Générer une séance en plus"
-                  : "Ajouter une autre séance"}
+                  ? "Créer une séance libre"
+                  : "Créer une autre séance libre"}
               </>
             )}
           </button>
         </div>
       ) : (
         <p className="text-xs text-center text-gray-400 py-1">
-          Maximum {MAX_SESSIONS_PER_DAY} séances supplémentaires par jour atteint
+          Maximum de {MAX_SESSIONS_PER_DAY} séances libres par jour atteint
         </p>
       )}
     </div>

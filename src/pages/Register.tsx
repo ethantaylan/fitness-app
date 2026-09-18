@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { buildAuthPath, sanitizeNextPath } from "../lib/authRedirect";
 import logoUrl from "../assets/logo.png";
 import BetaBadge from "../components/BetaBadge";
+import { ArrowLeft, Check, Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const nextPath = sanitizeNextPath(searchParams.get("next"));
   const signInPath = buildAuthPath("/sign-in", nextPath);
 
@@ -58,10 +60,10 @@ export default function Register() {
 
   if (sent) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+      <div className="theme-auth-page flex min-h-screen items-center justify-center bg-gray-50 px-4">
         <div className="text-center max-w-sm">
-          <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">✓</span>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+            <Check className="h-6 w-6 text-emerald-600" />
           </div>
           <h2 className="font-black text-xl mb-2">Vérifie tes emails !</h2>
           <p className="text-gray-400 text-sm">
@@ -73,27 +75,31 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <Link to="/" className="flex items-center gap-2 justify-center mb-8">
-          <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-9 h-9 rounded-xl" />
+    <div className="theme-auth-page relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
+      <div className="hero-dots absolute inset-0 opacity-25" aria-hidden="true" />
+      <Link
+        to="/"
+        className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-black sm:left-6 sm:top-6"
+        aria-label="Retour à l'accueil"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Link>
+
+      <div className="theme-auth-card relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-200/50 sm:p-8">
+        <Link to="/" className="mb-7 flex items-center justify-center gap-2">
+          <img src={logoUrl} alt="" className="theme-logo-adaptive h-9 w-9" />
           <span className="font-black text-xl">Vincere</span>
           <BetaBadge compact />
         </Link>
 
-        <h1 className="text-2xl font-black text-center mb-1">Créer un compte</h1>
-        <p className="text-gray-400 text-sm text-center mb-8">
-          Ton compte gratuit te donne accès au programme, au PDF et au suivi.
+        <h1 className="text-center text-2xl font-black">Crée ton programme</h1>
+        <p className="mb-6 mt-2 text-center text-sm leading-relaxed text-gray-500">
+          Un compte suffit pour sauvegarder ton profil et retrouver ton plan partout.
         </p>
-        <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-center">
-          <p className="text-xs font-bold text-emerald-800">
-            Gratuit, sans carte bancaire. Tes données servent uniquement à personnaliser ton plan.
-          </p>
-        </div>
 
         <button
           onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-2xl py-3.5 font-semibold text-sm hover:bg-gray-50 active:scale-[0.98] transition-all mb-6"
+          className="mb-5 flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 font-semibold text-sm transition-all hover:bg-gray-50 active:scale-[0.98]"
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path
@@ -116,41 +122,90 @@ export default function Register() {
           Continuer avec Google
         </button>
 
-        <div className="flex items-center gap-3 mb-6">
+        <div className="mb-5 flex items-center gap-3">
           <div className="flex-1 h-px bg-gray-100" />
           <span className="text-xs text-gray-400 font-medium">ou</span>
           <div className="flex-1 h-px bg-gray-100" />
         </div>
 
-        <form onSubmit={handleEmail} className="space-y-3">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full border border-gray-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-black transition-colors"
-          />
-          <input
-            type="password"
-            placeholder="Mot de passe (min. 6 caractères)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full border border-gray-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-black transition-colors"
-          />
-          {error && <p className="text-red-500 text-xs px-1">{error}</p>}
+        <form onSubmit={handleEmail} className="space-y-4">
+          <div>
+            <label
+              htmlFor="register-email"
+              className="mb-1.5 block text-xs font-bold text-gray-700"
+            >
+              Adresse email
+            </label>
+            <input
+              id="register-email"
+              type="email"
+              autoComplete="email"
+              placeholder="toi@exemple.fr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="min-h-12 w-full rounded-xl border border-gray-200 px-4 text-sm transition-colors focus:border-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="register-password"
+              className="mb-1.5 block text-xs font-bold text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <div className="relative">
+              <input
+                id="register-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="6 caractères minimum"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="min-h-12 w-full rounded-xl border border-gray-200 px-4 pr-12 text-sm transition-colors focus:border-black focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-black"
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 px-3 py-2.5 text-xs font-medium text-red-700"
+            >
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-60"
+            className="flex min-h-12 w-full items-center justify-center rounded-xl bg-black text-sm font-bold text-white transition-all hover:bg-gray-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Création..." : "Créer mon compte"}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-400 mt-6">
+        <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-gray-400">
+          <span className="flex items-center gap-1">
+            <Check className="h-3 w-3 text-emerald-600" /> Gratuit
+          </span>
+          <span className="flex items-center gap-1">
+            <Check className="h-3 w-3 text-emerald-600" /> Sans carte
+          </span>
+          <span className="flex items-center gap-1">
+            <Check className="h-3 w-3 text-emerald-600" /> Données protégées
+          </span>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-gray-500">
           Déjà un compte ?{" "}
           <Link to={signInPath} className="text-black font-semibold hover:underline">
             Se connecter

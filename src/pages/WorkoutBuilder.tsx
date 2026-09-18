@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Minus, Plus, Trash2, Bot } from "lucide-react";
+import { Zap, Minus, Plus, Trash2, Bot, MousePointerClick } from "lucide-react";
 import { useApp } from "../lib/store";
 import { generateCustomSession } from "../lib/openai";
 import type { UserProfile } from "../lib/types";
@@ -385,8 +385,9 @@ function WorkoutCard({
   return (
     <button
       onClick={onAdd}
+      data-active={isActive}
       style={{ touchAction: "manipulation" }}
-      className={`relative flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border-2 transition-all duration-150 min-h-22 select-none
+      className={`theme-workout-card relative flex min-h-22 select-none flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 transition-all duration-150
         ${
           isActive
             ? `${card.colors.activeBg} ${card.colors.activeBorder} shadow-sm`
@@ -488,7 +489,7 @@ function CartPanel({
     >
       <div className="max-w-2xl mx-auto">
         <div
-          className="bg-white rounded-t-3xl border-t border-gray-100 overflow-hidden"
+          className="theme-builder-cart overflow-hidden rounded-t-3xl border-t border-gray-100 bg-white"
           style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.14), 0 -1px 0 rgba(0,0,0,0.05)" }}
         >
           {/* Drag handle */}
@@ -580,7 +581,7 @@ function CartPanel({
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  Générer ma séance
+                  Créer ma séance libre
                 </>
               )}
             </button>
@@ -671,7 +672,7 @@ export default function WorkoutBuilder() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+      <div className="theme-app-page flex min-h-screen items-center justify-center bg-white px-4">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Complète ton profil pour construire une séance.</p>
           <button
@@ -689,39 +690,31 @@ export default function WorkoutBuilder() {
   const typeCards = CARDS.filter((c) => c.section === "types");
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
 
       {/* Hero header */}
       <div
-        className="relative overflow-hidden bg-black text-white px-5 pb-8"
-        style={{ paddingTop: "max(56px, env(safe-area-inset-top, 56px))" }}
+        className="theme-builder-hero relative overflow-hidden bg-black px-5 pb-8 text-white"
+        style={{ paddingTop: "calc(6rem + env(safe-area-inset-top, 0px))" }}
       >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 120% at 90% 40%, rgba(99,102,241,0.25) 0%, transparent 60%), radial-gradient(ellipse 60% 80% at 10% 80%, rgba(236,72,153,0.15) 0%, transparent 55%)",
-          }}
-        />
-
-        <div className="relative">
+        <div className="relative mx-auto max-w-4xl">
           <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-black mb-2">
-            Workout Builder
+            Séance libre · choix manuel
           </p>
-          <h1 className="text-3xl font-black leading-tight mb-2 tracking-tight">
-            Construis ta
+          <h1 className="mb-2 text-3xl font-black leading-tight">
+            Choisis les exercices de ta
             <br />
-            séance sur mesure
+            séance libre
           </h1>
           <p className="text-white/50 text-sm leading-relaxed">
-            Sélectionne tes zones et l'IA génère les exercices parfaits pour ton niveau.
+            Sélectionne les zones et types d’effort. Vincere composera ensuite l’entraînement.
           </p>
         </div>
       </div>
 
       <div
-        className="max-w-2xl mx-auto px-4 sm:px-6"
+        className="mx-auto max-w-4xl px-4 sm:px-6"
         style={{ paddingBottom: totalItems > 0 ? "22rem" : "7rem" }}
       >
         {/* Quick presets */}
@@ -734,7 +727,7 @@ export default function WorkoutBuilder() {
               <button
                 key={preset.label}
                 onClick={() => setCart(preset.cart)}
-                className="flex items-center gap-2 bg-white border border-gray-100 rounded-full px-4 py-2.5 text-xs font-bold whitespace-nowrap hover:border-gray-300 hover:shadow-sm active:scale-95 transition-all shrink-0 shadow-sm"
+                className="theme-builder-preset flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-gray-100 bg-white px-4 py-2.5 text-xs font-bold shadow-sm transition-all hover:border-gray-300 hover:shadow-sm active:scale-95"
               >
                 <span className="text-base leading-none">{preset.emoji}</span>
                 {preset.label}
@@ -748,8 +741,8 @@ export default function WorkoutBuilder() {
 
         {/* Hint */}
         <div className="flex items-center gap-2 mt-5 mb-1">
-          <span className="inline-flex items-center gap-1.5 bg-black text-white text-[11px] font-bold rounded-full px-3 py-1.5">
-            <span className="text-sm leading-none">👆</span>1 clic = 1 exercice
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[11px] font-bold text-white">
+            <MousePointerClick className="h-3.5 w-3.5" />1 clic = 1 exercice
           </span>
           <span className="text-[11px] text-gray-500 font-medium">
             Ajoute autant d'exercices que tu veux

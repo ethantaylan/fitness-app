@@ -16,15 +16,15 @@ interface Props {
  */
 export default function Section({ icon, title, color, bg, children, noPad = false, badge }: Props) {
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section className="theme-app-section overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div
-        className={`flex items-center justify-between gap-2.5 px-5 py-4 border-b border-gray-50 ${bg}`}
+        className={`flex items-center justify-between gap-2.5 border-b border-gray-100 px-5 py-3.5 ${bg}`}
       >
         <div className="flex items-center gap-2.5">
           <div className={color} aria-hidden="true">
             {icon}
           </div>
-          <h2 className={`text-xs font-black uppercase tracking-wider ${color}`}>{title}</h2>
+          <h2 className={`text-xs font-black uppercase tracking-[0.12em] ${color}`}>{title}</h2>
         </div>
         {badge && <div>{badge}</div>}
       </div>

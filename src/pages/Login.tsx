@@ -6,6 +6,7 @@ import { getAppRedirectUrl } from "../lib/appUrl";
 import { buildAuthPath, sanitizeNextPath } from "../lib/authRedirect";
 import logoUrl from "../assets/logo.png";
 import BetaBadge from "../components/BetaBadge";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const nextPath = sanitizeNextPath(searchParams.get("next"));
   const signUpPath = buildAuthPath("/sign-up", nextPath);
 
@@ -47,22 +49,31 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <Link to="/" className="flex items-center gap-2 justify-center mb-8">
-          <img src={logoUrl} alt="Vincere" className="theme-logo-adaptive w-9 h-9 rounded-xl" />
+    <div className="theme-auth-page relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
+      <div className="hero-dots absolute inset-0 opacity-25" aria-hidden="true" />
+      <Link
+        to="/"
+        className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-black sm:left-6 sm:top-6"
+        aria-label="Retour à l'accueil"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Link>
+
+      <div className="theme-auth-card relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-200/50 sm:p-8">
+        <Link to="/" className="mb-7 flex items-center justify-center gap-2">
+          <img src={logoUrl} alt="" className="theme-logo-adaptive h-9 w-9" />
           <span className="font-black text-xl">Vincere</span>
           <BetaBadge compact />
         </Link>
 
-        <h1 className="text-2xl font-black text-center mb-1">Connexion</h1>
-        <p className="text-gray-400 text-sm text-center mb-8">
+        <h1 className="text-center text-2xl font-black">Content de te revoir</h1>
+        <p className="mb-7 mt-2 text-center text-sm leading-relaxed text-gray-500">
           Connecte-toi pour retrouver ton programme, ton PDF et ton suivi.
         </p>
 
         <button
           onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-2xl py-3.5 font-semibold text-sm hover:bg-gray-50 active:scale-[0.98] transition-all mb-6"
+          className="mb-5 flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 font-semibold text-sm transition-all hover:bg-gray-50 active:scale-[0.98]"
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path
@@ -85,49 +96,79 @@ export default function Login() {
           Continuer avec Google
         </button>
 
-        <div className="flex items-center gap-3 mb-6">
+        <div className="mb-5 flex items-center gap-3">
           <div className="flex-1 h-px bg-gray-100" />
           <span className="text-xs text-gray-400 font-medium">ou</span>
           <div className="flex-1 h-px bg-gray-100" />
         </div>
 
-        <form onSubmit={handleEmail} className="space-y-3">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full border border-gray-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-black transition-colors"
-          />
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full border border-gray-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-black transition-colors"
-          />
-          {error && <p className="text-red-500 text-xs px-1">{error}</p>}
+        <form onSubmit={handleEmail} className="space-y-4">
+          <div>
+            <label htmlFor="login-email" className="mb-1.5 block text-xs font-bold text-gray-700">
+              Adresse email
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              placeholder="toi@exemple.fr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="min-h-12 w-full rounded-xl border border-gray-200 px-4 text-sm transition-colors focus:border-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <label htmlFor="login-password" className="text-xs font-bold text-gray-700">
+                Mot de passe
+              </label>
+              <Link
+                to="/reset-password"
+                className="text-xs font-semibold text-gray-500 hover:text-black"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+            <div className="relative">
+              <input
+                id="login-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Ton mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="min-h-12 w-full rounded-xl border border-gray-200 px-4 pr-12 text-sm transition-colors focus:border-black focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-black"
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 px-3 py-2.5 text-xs font-medium text-red-700"
+            >
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-60"
+            className="flex min-h-12 w-full items-center justify-center rounded-xl bg-black text-sm font-bold text-white transition-all hover:bg-gray-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Connexion..." : "Se connecter"}
           </button>
         </form>
 
-        <div className="mt-4 text-center">
-          <Link
-            to="/reset-password"
-            className="text-sm font-semibold text-gray-500 hover:text-black"
-          >
-            Mot de passe oublié ?
-          </Link>
-        </div>
-
-        <p className="text-center text-sm text-gray-400 mt-6">
+        <p className="mt-6 text-center text-sm text-gray-500">
           Pas de compte ?{" "}
           <Link to={signUpPath} className="text-black font-semibold hover:underline">
             S'inscrire
