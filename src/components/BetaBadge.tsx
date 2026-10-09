@@ -1,4 +1,5 @@
 export default function BetaBadge({ compact = false }: Readonly<{ compact?: boolean }>) {
+  if (!import.meta.env.DEV) return null;
   return (
     <span
       className={`inline-flex items-center rounded-full border font-black uppercase tracking-[0.18em] ${

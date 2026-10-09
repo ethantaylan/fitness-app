@@ -41,6 +41,10 @@ interface AppState {
   _hydrated: boolean;
 }
 
+function reportSyncError() {
+  window.dispatchEvent(new Event("app-sync-error"));
+}
+
 type Action =
   | { type: "SET_PROFILE_PARTIAL"; data: Partial<UserProfile> }
   | { type: "SET_PROGRAM"; program: Program }
@@ -220,7 +224,11 @@ export function AppProvider({
   // ── Persistance localStorage ────────────────────────────────────────────────
   useEffect(() => {
     const { _hydrated: _h, ...toSave } = state;
-    localStorage.setItem(key, JSON.stringify(toSave));
+    try {
+      localStorage.setItem(key, JSON.stringify(toSave));
+    } catch {
+      reportSyncError();
+    }
   }, [state, key]);
 
   // ── Dispatch wrappé : sync Supabase automatique ─────────────────────────────
@@ -232,11 +240,11 @@ export function AppProvider({
 
     switch (action.type) {
       case "SET_PROGRAM":
-        dbSaveProgram(supabase, iuid, action.program).catch(console.warn);
+        dbSaveProgram(supabase, iuid, action.program).catch(reportSyncError);
         break;
 
       case "CLEAR_PROGRAM":
-        dbClearProgram(supabase, iuid).catch(console.warn);
+        dbClearProgram(supabase, iuid).catch(reportSyncError);
         break;
 
       case "SET_PROGRAM_SESSION_COMPLETION":
@@ -246,41 +254,51 @@ export function AppProvider({
           action.weekNumber,
           action.sessionId,
           action.completed,
-        ).catch(console.warn);
+        ).catch(reportSyncError);
         break;
 
       case "ADD_SESSION":
-        dbSaveSession(supabase, iuid, action.session).catch(console.warn);
+        dbSaveSession(supabase, iuid, action.session).catch(reportSyncError);
         break;
 
       case "DELETE_SESSION":
-        dbDeleteSession(supabase, iuid, action.uid).catch(console.warn);
+        dbDeleteSession(supabase, iuid, action.uid).catch(reportSyncError);
         break;
 
+      case "REPLACE_EXERCISE": {
+        const updated = reducer(stateRef.current, action).sessions.find(
+          (session) => session.uid === action.sessionUid,
+        );
+        if (updated) dbSaveSession(supabase, iuid, updated).catch(reportSyncError);
+        break;
+      }
+
       case "UPDATE_SESSION_FEEDBACK":
-        dbUpdateFeedback(supabase, iuid, action.uid, action.feedback).catch(console.warn);
+        dbUpdateFeedback(supabase, iuid, action.uid, action.feedback).catch(reportSyncError);
         break;
 
       case "UPDATE_SESSION_NOTES":
-        dbUpdateSessionNotes(supabase, iuid, action.uid, action.notes ?? null).catch(console.warn);
+        dbUpdateSessionNotes(supabase, iuid, action.uid, action.notes ?? null).catch(
+          reportSyncError,
+        );
         break;
 
       case "ADD_RECORD":
-        dbSaveRecord(supabase, iuid, action.record).catch(console.warn);
+        dbSaveRecord(supabase, iuid, action.record).catch(reportSyncError);
         break;
 
       case "DELETE_RECORD":
-        dbDeleteRecord(supabase, iuid, action.id).catch(console.warn);
+        dbDeleteRecord(supabase, iuid, action.id).catch(reportSyncError);
         break;
 
       case "SET_ONBOARDING_STEP":
-        saveOnboardingStep(supabase, iuid, action.step).catch(console.warn);
+        saveOnboardingStep(supabase, iuid, action.step).catch(reportSyncError);
         break;
 
       case "SET_PROFILE_PARTIAL": {
         const merged = { ...stateRef.current.profile, ...action.data };
         if (isProfileSaveable(merged)) {
-          saveProfile(supabase, iuid, merged).catch(console.warn);
+          saveProfile(supabase, iuid, merged).catch(reportSyncError);
         }
         break;
       }
@@ -294,6 +312,8 @@ export function AppProvider({
       return;
     }
 
+    let cancelled = false;
+
     void (async () => {
       try {
         const user = await upsertUser(supabase, {
@@ -301,6 +321,7 @@ export function AppProvider({
           email: userEmail ?? "",
           firstName: userFirstName ?? undefined,
         });
+        if (cancelled) return;
         internalIdRef.current = user.id;
 
         const current = stateRef.current;
@@ -312,6 +333,8 @@ export function AppProvider({
             getOnboardingProgress(supabase, user.id).catch(() => null),
             dbGetRecords(supabase, user.id).catch(() => [] as PersonalRecord[]),
           ]);
+
+        if (cancelled) return;
 
         rawDispatch({
           type: "HYDRATE",
@@ -328,16 +351,21 @@ export function AppProvider({
 
         // Upload des données locales si Supabase était vide (premier accès cross-device)
         if (!profile && isProfileSaveable(current.profile)) {
-          saveProfile(supabase, user.id, current.profile).catch(console.warn);
+          saveProfile(supabase, user.id, current.profile).catch(reportSyncError);
         }
         if (!programResult?.program && current.program) {
-          dbSaveProgram(supabase, user.id, current.program).catch(console.warn);
+          dbSaveProgram(supabase, user.id, current.program).catch(reportSyncError);
         }
       } catch (err) {
+        if (cancelled) return;
         console.warn("[store] Hydratation Supabase échouée, données locales conservées", err);
         rawDispatch({ type: "HYDRATE", state: {} });
       }
     })();
+    return () => {
+      cancelled = true;
+      internalIdRef.current = null;
+    };
     // Intentionnellement déclenché uniquement au changement d'utilisateur
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);

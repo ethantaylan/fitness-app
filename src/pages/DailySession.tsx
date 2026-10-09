@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
+import RestTimer from "../components/RestTimer";
+import { getAppBaseUrl } from "../lib/appUrl";
+import { shareLink } from "../lib/native";
+import { encodeSharedSession } from "../lib/sharedSession";
 import { replaceExercise } from "../lib/openai";
 import { FEEDBACK_META } from "../lib/constants";
 import { formatLoadValue } from "../lib/formatLoad";
@@ -259,6 +263,7 @@ function SessionDetail({
     load_kg?: string;
   }>(null);
   const [copied, setCopied] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   function giveFeedback(feedback: "good" | "normal" | "hard") {
     dispatch({ type: "UPDATE_SESSION_FEEDBACK", uid: session.uid, feedback });
@@ -266,6 +271,7 @@ function SessionDetail({
 
   async function handleReplace(blockName: string, exerciseName: string) {
     if (!profile) return;
+    setActionError("");
     const key = `${blockName}::${exerciseName}`;
     setReplacing((prev) => ({ ...prev, [key]: true }));
     try {
@@ -286,18 +292,27 @@ function SessionDetail({
       });
       setReplaced((prev) => ({ ...prev, [key]: true }));
       setTimeout(() => setReplaced((prev) => ({ ...prev, [key]: false })), 2500);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Le remplacement n'a pas abouti.");
     } finally {
       setReplacing((prev) => ({ ...prev, [key]: false }));
     }
   }
 
-  function handleShare() {
-    const encoded = btoa(encodeURIComponent(JSON.stringify(session)));
-    const url = `${window.location.origin}/s?d=${encoded}`;
-    void navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
+  async function handleShare() {
+    setActionError("");
+    try {
+      const encoded = encodeSharedSession(session);
+      const url = `${getAppBaseUrl()}/s#d=${encodeURIComponent(encoded)}`;
+      const result = await shareLink(url, "Ma séance Vincere");
+      if (result === "copied") {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === "AbortError"))
+        setActionError("Le partage n'a pas abouti.");
+    }
   }
 
   const ic = intensityClasses(session.intensity);
@@ -358,6 +373,14 @@ function SessionDetail({
           </div>
         </div>
 
+        {actionError && (
+          <p role="alert" className="mb-5 text-sm text-red-600">
+            {actionError}
+          </p>
+        )}
+        <div className="mb-6">
+          <RestTimer />
+        </div>
         {/* Warmup */}
         {session.warmup?.length > 0 && (
           <div className="mb-6">

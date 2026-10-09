@@ -122,7 +122,7 @@ export default function Navbar() {
   return (
     <>
       {/* ── Navbar ── */}
-      <nav className="fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
+      <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0">

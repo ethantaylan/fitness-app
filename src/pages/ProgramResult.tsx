@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
-import { exportProgramToPDF } from "../lib/pdf";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import { formatLoadValue } from "../lib/formatLoad";
 import type { Session, Week } from "../lib/types";
@@ -335,6 +334,7 @@ export default function ProgramResult() {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const program = state.program;
 
@@ -372,10 +372,15 @@ export default function ProgramResult() {
   async function handleDownload() {
     if (!program) return;
     setDownloading(true);
+    setDownloadError("");
     try {
+      const { exportProgramToPDF } = await import("../lib/pdf");
       await exportProgramToPDF(program);
     } catch (err) {
-      console.error("PDF export failed:", err);
+      if (!(err instanceof DOMException && err.name === "AbortError"))
+        setDownloadError(
+          "L'export n'a pas abouti. Réessaie ou vérifie l'espace disponible sur ton appareil.",
+        );
     } finally {
       setDownloading(false);
     }
@@ -393,6 +398,14 @@ export default function ProgramResult() {
   return (
     <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
+      {downloadError && (
+        <div className="connection-status" role="alert">
+          {downloadError}
+          <button type="button" onClick={() => setDownloadError("")}>
+            Fermer
+          </button>
+        </div>
+      )}
 
       <div className="mx-auto max-w-5xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
         <div className="mb-8 mt-8">

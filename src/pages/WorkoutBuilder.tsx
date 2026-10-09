@@ -557,9 +557,11 @@ function CartPanel({
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-55 transition-transform duration-300 ease-out ${
-        totalItems > 0 ? "translate-y-0" : "translate-y-full"
+      className={`app-builder-cart fixed inset-x-0 z-55 transition-transform duration-300 ease-out ${
+        totalItems > 0 ? "translate-y-0" : "invisible pointer-events-none translate-y-full"
       }`}
+      inert={totalItems === 0}
+      aria-hidden={totalItems === 0}
     >
       <div className="max-w-2xl mx-auto">
         <div

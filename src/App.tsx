@@ -1,25 +1,30 @@
-import { type ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { AppProvider } from "./lib/store";
 import { sanitizeNextPath } from "./lib/authRedirect";
-import Landing from "./pages/Landing";
-import Onboarding from "./pages/Onboarding";
-import Generating from "./pages/Generating";
-import ProgramResult from "./pages/ProgramResult";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import DailySession from "./pages/DailySession";
-import Settings from "./pages/Settings";
-import ResetPassword from "./pages/ResetPassword";
-import WorkoutBuilder from "./pages/WorkoutBuilder";
-import SharedSession from "./pages/SharedSession";
-import Records from "./pages/Records";
+const Landing = lazy(() => import("./pages/Landing"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Generating = lazy(() => import("./pages/Generating"));
+const ProgramResult = lazy(() => import("./pages/ProgramResult"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DailySession = lazy(() => import("./pages/DailySession"));
+const Settings = lazy(() => import("./pages/Settings"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const WorkoutBuilder = lazy(() => import("./pages/WorkoutBuilder"));
+const SharedSession = lazy(() => import("./pages/SharedSession"));
+const Records = lazy(() => import("./pages/Records"));
 
 import ChatWidget from "./components/ChatWidget";
 import BottomNav from "./components/BottomNav";
 import ProtectedRoute from "./components/ProtectedRoute";
+import NativeLifecycle from "./components/NativeLifecycle";
+import AIConsentDialog from "./components/AIConsentDialog";
+const Legal = lazy(() => import("./pages/Legal"));
+const Explore = lazy(() => import("./pages/Explore"));
+import { isNativeApp } from "./lib/native";
 
 function HomeRoute() {
   const { isSignedIn } = useAuth();
@@ -28,7 +33,7 @@ function HomeRoute() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <Landing />;
+  return isNativeApp ? <Navigate to="/explore" replace /> : <Landing />;
 }
 
 function PublicOnlyRoute({ children }: Readonly<{ children: ReactNode }>) {
@@ -73,93 +78,107 @@ function AppWithProvider({ children }: Readonly<{ children: ReactNode }>) {
 export default function App() {
   return (
     <BrowserRouter>
+      <NativeLifecycle />
+      <AIConsentDialog />
       <AppWithProvider>
-        <Routes>
-          <Route path="/" element={<HomeRoute />} />
-          <Route
-            path="/onboarding"
-            element={
-              <ProtectedRoute>
-                <Onboarding />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/generating"
-            element={
-              <ProtectedRoute>
-                <Generating />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/sign-in/*"
-            element={
-              <PublicOnlyRoute>
-                <Login />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/sign-up/*"
-            element={
-              <PublicOnlyRoute>
-                <Register />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/s" element={<SharedSession />} />
-          <Route
-            path="/builder"
-            element={
-              <ProtectedRoute>
-                <WorkoutBuilder />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/session"
-            element={
-              <ProtectedRoute>
-                <DailySession />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/result"
-            element={
-              <ProtectedRoute>
-                <ProgramResult />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/records"
-            element={
-              <ProtectedRoute>
-                <Records />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <div className="min-h-screen flex items-center justify-center text-sm" role="status">
+              Chargement...
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/privacy" element={<Legal />} />
+            <Route path="/terms" element={<Legal />} />
+            <Route path="/support" element={<Legal />} />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/generating"
+              element={
+                <ProtectedRoute>
+                  <Generating />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sign-in/*"
+              element={
+                <PublicOnlyRoute>
+                  <Login />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/sign-up/*"
+              element={
+                <PublicOnlyRoute>
+                  <Register />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/s" element={<SharedSession />} />
+            <Route
+              path="/builder"
+              element={
+                <ProtectedRoute>
+                  <WorkoutBuilder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/session"
+              element={
+                <ProtectedRoute>
+                  <DailySession />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/result"
+              element={
+                <ProtectedRoute>
+                  <ProgramResult />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/records"
+              element={
+                <ProtectedRoute>
+                  <Records />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
         <ChatWidget />
         <BottomNav />
       </AppWithProvider>

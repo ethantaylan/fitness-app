@@ -1,0 +1,39 @@
+name: iOS validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          node-version: "22"
+          cache: true
+      - run: vp install --frozen-lockfile
+      - run: vp check
+      - run: vp test --run
+      - run: vp exec playwright install chromium webkit
+      - run: vp run test:e2e
+      - run: vp run ios:prepare
+      - run: vp run ios:check
+      - name: Build unsigned iOS application
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Release -destination 'generic/platform=iOS'
+          -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-validation
+          path: artifacts/playwright
+          retention-days: 7

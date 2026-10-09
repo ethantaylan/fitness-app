@@ -13,21 +13,21 @@ function newMsg(role: Message["role"], content: string): Message {
 const INITIAL: Message[] = [
   newMsg(
     "assistant",
-    "Salut ! Je suis l'assistant Vincere 👋\nProgramme, sport, abonnement… pose-moi n'importe quelle question !",
+    "Bonjour ! Je suis l'assistant IA Vincere. Comment puis-je t'aider avec ton programme ou tes séances ?",
   ),
 ];
 
 const SUGGESTION_POOL = [
   "Comment créer un programme ?",
   "Quels sports sont disponibles ?",
-  "C'est quoi le plan Premium ?",
+  "Comment créer une séance libre ?",
   "Combien de temps dure la génération ?",
   "Peut-on exporter en PDF ?",
   "Comment adapter l'intensité ?",
   "C'est quoi HYROX ?",
   "Comment suivre mes séances ?",
   "Puis-je modifier mon programme ?",
-  "Combien coûte l'abonnement ?",
+  "Comment supprimer mon compte ?",
 ];
 
 function pickSuggestions(exclude: string[], count = 3): string[] {
@@ -67,10 +67,15 @@ export default function SupportChat() {
         history.map((m) => ({ role: m.role, content: m.content })),
       );
       setMessages([...history, newMsg("assistant", reply)]);
-    } catch {
+    } catch (err) {
       setMessages([
         ...history,
-        newMsg("assistant", "Oups, une erreur est survenue. Réessaie dans un instant !"),
+        newMsg(
+          "assistant",
+          err instanceof Error
+            ? err.message
+            : "La demande n'a pas abouti. Réessaie dans un instant.",
+        ),
       ]);
     } finally {
       setLoading(false);

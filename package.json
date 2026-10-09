@@ -1,6 +1,6 @@
 {
   "name": "vincere",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,9 +8,27 @@
     "build": "tsc -b && vp build",
     "lint": "eslint .",
     "preview": "vp preview",
-    "prepare": "vp config"
+    "prepare": "vp config",
+    "ios:assets": "node scripts/ios-assets.mjs",
+    "ios:prepare": "vp run ios:assets && tsc -b && vp build --mode native && vp exec cap sync ios",
+    "ios:open": "vp exec cap open ios",
+    "ios:check": "node scripts/ios-check.mjs",
+    "ios:archive": "node scripts/ios-archive.mjs",
+    "test:e2e": "vp exec playwright test"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
     "@supabase/supabase-js": "^2.99.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
@@ -20,7 +38,10 @@
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.57.0",
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
@@ -31,6 +52,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "sharp": "^0.35.5",
     "supabase": "^2.117.0",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",

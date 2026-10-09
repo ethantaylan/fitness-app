@@ -737,7 +737,7 @@ export default function Onboarding() {
       style={{ maxWidth: 480, margin: "0 auto" }}
     >
       {/* Header / progress bar */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm px-4 pt-4 pb-3 border-b border-gray-100">
+      <div className="app-onboarding-header sticky top-0 z-40 bg-white/95 backdrop-blur-sm px-4 pt-4 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
           {step === 0 ? (
             <button

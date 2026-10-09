@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { Clock, Flame, Zap, ChevronLeft } from "lucide-react";
 import { formatLoadValue } from "../lib/formatLoad";
 import type { DailySession } from "../lib/types";
+import { parseSharedSession } from "../lib/sharedSession";
 
 function intensityClasses(intensity: string) {
   const i = intensity?.toLowerCase() ?? "";
@@ -13,16 +14,11 @@ function intensityClasses(intensity: string) {
 
 export default function SharedSession() {
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
 
   const session = useMemo<DailySession | null>(() => {
-    const d = searchParams.get("d");
-    if (!d) return null;
-    try {
-      return JSON.parse(decodeURIComponent(atob(d))) as DailySession;
-    } catch {
-      return null;
-    }
-  }, [searchParams]);
+    return parseSharedSession(new URLSearchParams(hash.slice(1)).get("d") || searchParams.get("d"));
+  }, [searchParams, hash]);
 
   if (!session) {
     return (
@@ -181,7 +177,7 @@ export default function SharedSession() {
             équipement.
           </p>
           <Link
-            to="/register"
+            to="/sign-up"
             className="inline-flex items-center gap-2 bg-black text-white font-bold px-6 py-3 rounded-xl hover:bg-gray-900 transition-colors"
           >
             Commencer gratuitement →

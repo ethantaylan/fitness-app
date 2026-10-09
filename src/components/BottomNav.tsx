@@ -1,8 +1,21 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Dumbbell, LayoutDashboard, Trophy, UserCircle } from "lucide-react";
 import { useAuth } from "../lib/auth";
+import { selectionFeedback } from "../lib/native";
 
-const HIDE_ROUTES = ["/", "/sign-in", "/sign-up", "/onboarding", "/generating"];
+const HIDE_ROUTES = [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/onboarding",
+  "/generating",
+  "/reset-password",
+  "/privacy",
+  "/terms",
+  "/support",
+  "/explore",
+  "/s",
+];
 
 const TABS = [
   { key: "dashboard", label: "Accueil", icon: LayoutDashboard, path: "/dashboard" },
@@ -27,7 +40,10 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 md:hidden" aria-label="Navigation principale">
+    <nav
+      className="app-bottom-nav fixed inset-x-0 bottom-0 z-50 md:hidden"
+      aria-label="Navigation principale"
+    >
       <div
         className="pointer-events-none absolute inset-x-0 -top-10 h-10"
         style={{
@@ -44,13 +60,18 @@ export default function BottomNav() {
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 9px)" }}
         >
           {TABS.map(({ key, label, icon: Icon, path }) => {
-            const active = location.pathname === path;
+            const active =
+              location.pathname === path ||
+              (path === "/session" && location.pathname === "/builder");
 
             return (
               <button
                 key={key}
                 type="button"
-                onClick={() => void navigate(path)}
+                onClick={() => {
+                  void selectionFeedback();
+                  void navigate(path);
+                }}
                 aria-label={label}
                 aria-current={active ? "page" : undefined}
                 className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 transition-transform active:scale-[0.96]"

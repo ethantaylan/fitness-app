@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo, type ReactNode
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { getUserAccount, updateUserDisplayName as dbUpdateUserDisplayName } from "./db";
+import { answerAIConsent } from "./aiConsent";
 
 interface AuthContextType {
   session: Session | null;
@@ -23,18 +24,40 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [storedFirstName, setStoredFirstName] = useState<string | null>(null);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setIsLoaded(true);
-    });
+    let active = true;
+    let authChanged = false;
+    let previousUserId: string | null = null;
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        if (!active) return;
+        if (!authChanged) {
+          previousUserId = s?.user.id ?? null;
+          setSession(s);
+        }
+        setIsLoaded(true);
+      })
+      .catch(() => {
+        if (active) setIsLoaded(true);
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
+      authChanged = true;
+      if (previousUserId && previousUserId !== s?.user.id) {
+        localStorage.removeItem(`Vincere_state_${previousUserId}`);
+        void answerAIConsent(false);
+      }
+      previousUserId = s?.user.id ?? null;
       setSession(s);
+      setIsLoaded(true);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const user: User | null = session?.user ?? null;
@@ -83,7 +106,11 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         setStoredFirstName(updated.first_name?.trim() || null);
       },
       signOut: async () => {
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut({ scope: "local" });
+        if (error) throw error;
+        if (user?.id) localStorage.removeItem(`Vincere_state_${user.id}`);
+        localStorage.removeItem("vincere-ai-consent-anon");
+        await answerAIConsent(false);
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

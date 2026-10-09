@@ -1,5 +1,6 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { shareFile } from "./native";
 import { OBJECTIVE_LABELS } from "./agents";
 import { LEVEL_META } from "./constants";
 import { formatLoadValue } from "./formatLoad";
@@ -615,7 +616,11 @@ export async function exportProgramToPDF(program: Program): Promise<void> {
       }
     }
 
-    pdf.save(`programme-Vincere-${Date.now()}.pdf`);
+    await shareFile(
+      pdf.output("blob"),
+      `programme-Vincere-${Date.now()}.pdf`,
+      "Mon programme Vincere",
+    );
   } finally {
     document.body.removeChild(container);
   }

@@ -36,6 +36,7 @@ import {
   removeEquipmentLabel,
 } from "../lib/equipment";
 import Navbar from "../components/Navbar";
+import AccountPrivacy from "../components/AccountPrivacy";
 
 export default function Settings() {
   const { state, dispatch } = useApp();
@@ -45,6 +46,8 @@ export default function Settings() {
   const profile = state.profile;
   const [saved, setSaved] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resetPending, setResetPending] = useState(false);
+  const [resetError, setResetError] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showCustomEquipmentInput, setShowCustomEquipmentInput] = useState(false);
   const [customEquipmentDraft, setCustomEquipmentDraft] = useState("");
@@ -914,9 +917,6 @@ export default function Settings() {
                   <p className="text-xs text-gray-500 mt-1">
                     Choisis un mode fixe ou laisse Vincere suivre le thème de ton appareil.
                   </p>
-                  <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-700">
-                    Dark mode en cours d'optimisation
-                  </span>
                 </div>
                 <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">
                   {resolvedTheme === "dark" ? (
@@ -983,10 +983,6 @@ export default function Settings() {
                   );
                 })}
               </div>
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-                Le mode sombre est encore en work in progress. Certaines pages ou certains
-                composants peuvent rester imparfaits pendant cette phase.
-              </div>
             </div>
 
             <div className="border border-gray-100 rounded-2xl p-5">
@@ -1013,19 +1009,34 @@ export default function Settings() {
               )}
               <button
                 onClick={() => {
-                  if (userEmail) {
-                    void supabase.auth.resetPasswordForEmail(userEmail, {
+                  if (!userEmail) return;
+                  setResetPending(true);
+                  setResetError("");
+                  void supabase.auth
+                    .resetPasswordForEmail(userEmail, {
                       redirectTo: getAppRedirectUrl("/reset-password"),
-                    });
-                    setResetSent(true);
-                  }
+                    })
+                    .then(({ error }) => {
+                      if (error) throw error;
+                      setResetSent(true);
+                    })
+                    .catch(() =>
+                      setResetError("Le lien n'a pas pu être envoyé. Réessaie dans un instant."),
+                    )
+                    .finally(() => setResetPending(false));
                 }}
-                disabled={resetSent}
+                disabled={resetSent || resetPending}
                 className="inline-flex items-center gap-2 bg-black text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Envoyer le lien de réinitialisation
               </button>
+              {resetError && (
+                <p className="mt-3 text-sm text-red-600" role="alert">
+                  {resetError}
+                </p>
+              )}
             </div>
+            <AccountPrivacy />
           </div>
         )}
       </div>

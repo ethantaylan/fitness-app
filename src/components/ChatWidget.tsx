@@ -25,6 +25,15 @@ export default function ChatWidget() {
   }
 
   if (
+    [
+      "/explore",
+      "/privacy",
+      "/terms",
+      "/support",
+      "/sign-in",
+      "/sign-up",
+      "/reset-password",
+    ].includes(pathname) ||
     pathname === "/onboarding" ||
     pathname === "/builder" ||
     pathname === "/generating" ||
@@ -65,7 +74,12 @@ export default function ChatWidget() {
             ? "opacity-100 scale-100 pointer-events-auto"
             : "opacity-0 scale-95 pointer-events-none"
         }`}
-        style={{ height: "520px" }}
+        style={{
+          height: "520px",
+          maxHeight: "calc(100dvh - 12rem - env(safe-area-inset-top, 0px))",
+        }}
+        inert={!open}
+        aria-hidden={!open}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/8 shrink-0">
@@ -83,6 +97,7 @@ export default function ChatWidget() {
           </div>
           <button
             onClick={() => setOpen(false)}
+            aria-label="Fermer l'assistant"
             className="w-8 h-8 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center hover:bg-white/15 transition-colors text-white"
           >
             <X className="w-4 h-4" />

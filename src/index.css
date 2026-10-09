@@ -1,5 +1,190 @@
 @import "tailwindcss";
 
+/* Shared native surfaces use the same tokens as the web light/dark themes. */
+.app-primary,
+.app-secondary,
+.app-danger,
+.app-icon-button,
+.timer-preset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.app-primary {
+  background: var(--theme-text);
+  color: var(--theme-bg);
+}
+.app-secondary,
+.app-icon-button,
+.timer-preset {
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+}
+.app-danger {
+  background: #b91c1c;
+  color: white;
+}
+.app-icon-button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.app-input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border-strong);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font-size: 16px;
+}
+:is(.app-primary, .app-secondary, .app-danger, .app-icon-button, .timer-preset):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 3px;
+}
+.app-dialog {
+  margin: auto;
+  width: min(440px, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+}
+.app-dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+.app-builder-cart {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .app-builder-cart {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+.legal-page section {
+  margin-top: 2rem;
+}
+.legal-page h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.legal-page p {
+  line-height: 1.7;
+  margin-top: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.legal-page,
+.guest-workout {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-bottom: max(3rem, env(safe-area-inset-bottom));
+}
+.rest-timer {
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--theme-surface-muted);
+}
+.timer-digits {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+  min-width: 5ch;
+}
+.timer-preset {
+  min-width: 56px;
+  padding-inline: 0.75rem;
+}
+.timer-preset[aria-pressed="true"] {
+  background: var(--theme-text);
+  color: var(--theme-bg);
+  border-color: var(--theme-text);
+}
+.connection-status {
+  position: fixed;
+  bottom: calc(6rem + env(safe-area-inset-bottom));
+  left: 1rem;
+  right: 1rem;
+  margin-inline: auto;
+  max-width: 600px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  box-shadow: 0 4px 24px rgb(0 0 0 / 15%);
+  font-size: 0.875rem;
+}
+.connection-status svg {
+  flex-shrink: 0;
+}
+.connection-status button {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.app-top-nav,
+.app-onboarding-header {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-inline: max(0px, env(safe-area-inset-left)) max(0px, env(safe-area-inset-right));
+}
+.app-onboarding-header {
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+}
+.theme-app-page > .pt-20 {
+  padding-top: calc(5rem + env(safe-area-inset-top, 0px));
+}
+html[data-platform="native"] .min-h-screen {
+  min-height: 100dvh;
+}
+html[data-platform="native"] .theme-auth-page {
+  padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+}
+html[data-platform="native"] .theme-auth-page > a.absolute {
+  top: calc(1rem + env(safe-area-inset-top, 0px));
+}
+html[data-platform="native"] :is(input, textarea, select) {
+  font-size: 16px;
+}
+html[data-keyboard="open"] .app-bottom-nav {
+  display: none;
+}
+@media (pointer: coarse) {
+  html[data-platform="native"] button {
+    min-height: 44px;
+  }
+  html[data-platform="native"] button:has(> svg:only-child) {
+    min-width: 44px;
+  }
+}
+
 @plugin "daisyui" {
   themes: false;
 }

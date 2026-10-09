@@ -799,7 +799,17 @@ export default {
       return jsonResponse({ error: "Méthode non autorisée." }, 405, { Allow: "POST" });
     }
     try {
-      const body = (await req.json()) as { action?: string; payload?: Record<string, unknown> };
+      const body = (await req.json()) as {
+        action?: string;
+        payload?: Record<string, unknown>;
+        consentVersion?: string;
+      };
+      if (body.consentVersion !== "2026-10-08") {
+        return jsonResponse(
+          { error: "Ton accord est requis avant l'envoi de données à OpenAI." },
+          403,
+        );
+      }
       if (!body.action || !ACTIONS.has(body.action) || !body.payload)
         return jsonResponse({ error: "Requête IA invalide." }, 400);
 

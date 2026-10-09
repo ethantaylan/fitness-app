@@ -1,5 +1,6 @@
 import type { DailySession, Exercise, GeneratedDailySession, Program, UserProfile } from "./types";
 import { supabase } from "./supabase";
+import { AI_CONSENT_VERSION, requestAIConsent } from "./aiConsent";
 
 type SupportMessage = { role: "user" | "assistant"; content: string };
 
@@ -25,13 +26,22 @@ type AIRequest =
       action: "replace-exercise";
       payload: {
         exercise: Exercise;
+        profile: UserProfile;
         context: { blockName: string; sessionGoal: string; profile: UserProfile };
       };
     }
   | { action: "support"; payload: { messages: SupportMessage[] } };
 
 async function invokeAI<T>(request: AIRequest): Promise<T> {
-  const { data, error, response } = await supabase.functions.invoke("ai-coach", { body: request });
+  if (!navigator.onLine)
+    throw new Error("Une connexion Internet est nécessaire pour utiliser le coach IA.");
+  if (!(await requestAIConsent()))
+    throw new Error(
+      "Le partage avec OpenAI n'a pas été autorisé. Tes séances enregistrées restent disponibles.",
+    );
+  const { data, error, response } = await supabase.functions.invoke("ai-coach", {
+    body: { ...request, consentVersion: AI_CONSENT_VERSION },
+  });
   if (error) {
     if (response) {
       let payload: { error?: unknown } | null = null;
@@ -86,7 +96,10 @@ export function replaceExercise(
   exercise: Exercise,
   context: { blockName: string; sessionGoal: string; profile: UserProfile },
 ): Promise<Exercise> {
-  return invokeAI<Exercise>({ action: "replace-exercise", payload: { exercise, context } });
+  return invokeAI<Exercise>({
+    action: "replace-exercise",
+    payload: { exercise, context, profile: context.profile },
+  });
 }
 
 export function chatWithSupport(messages: SupportMessage[]): Promise<string> {

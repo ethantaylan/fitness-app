@@ -9,4 +9,6 @@ export default defineConfig({
   },
   lint: { options: { typeAware: true, typeCheck: true } },
   plugins: [tailwindcss(), react()],
+  build: { target: "safari17" },
+  test: { exclude: ["**/node_modules/**", "**/e2e/**", "**/ios/**", "**/dist/**"] },
 });
