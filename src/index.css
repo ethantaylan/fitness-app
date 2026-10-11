@@ -147,6 +147,13 @@
     bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
     width: calc(100% - 1.5rem);
   }
+  .app-ai-trigger,
+  .theme-profile-save {
+    bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+  .app-ai-panel {
+    bottom: calc(11.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 .timer-preset[aria-pressed="true"] {
   background: var(--theme-text);

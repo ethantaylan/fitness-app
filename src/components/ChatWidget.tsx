@@ -45,7 +45,7 @@ export default function ChatWidget() {
   return (
     <>
       <div
-        className={`fixed bottom-24 right-4 z-50 md:bottom-6 md:right-6 ${
+        className={`app-ai-trigger fixed bottom-24 right-4 z-50 md:bottom-6 md:right-6 ${
           isSignedIn ? "block" : "hidden md:block"
         }`}
       >
@@ -69,7 +69,7 @@ export default function ChatWidget() {
 
       {/* ── Chat panel ── */}
       <div
-        className={`fixed bottom-40 right-4 z-50 flex w-[min(420px,calc(100vw-2rem))] origin-bottom-right flex-col overflow-hidden rounded-3xl border border-white/8 bg-[#0e0e0e] shadow-2xl transition-all duration-300 md:bottom-24 md:right-6 ${
+        className={`app-ai-panel fixed bottom-40 right-4 z-50 flex w-[min(420px,calc(100vw-2rem))] origin-bottom-right flex-col overflow-hidden rounded-3xl border border-white/8 bg-[#0e0e0e] shadow-2xl transition-all duration-300 md:bottom-24 md:right-6 ${
           open
             ? "opacity-100 scale-100 pointer-events-auto"
             : "opacity-0 scale-95 pointer-events-none"
