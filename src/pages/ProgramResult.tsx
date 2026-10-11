@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Download,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -333,8 +332,6 @@ export default function ProgramResult() {
   const { state, dispatch } = useApp();
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const program = state.program;
 
@@ -369,23 +366,6 @@ export default function ProgramResult() {
     );
   }
 
-  async function handleDownload() {
-    if (!program) return;
-    setDownloading(true);
-    setDownloadError("");
-    try {
-      const { exportProgramToPDF } = await import("../lib/pdf");
-      await exportProgramToPDF(program);
-    } catch (err) {
-      if (!(err instanceof DOMException && err.name === "AbortError"))
-        setDownloadError(
-          "L'export n'a pas abouti. Réessaie ou vérifie l'espace disponible sur ton appareil.",
-        );
-    } finally {
-      setDownloading(false);
-    }
-  }
-
   const { program_overview, weeks, nutrition_recommendations, general_advice, user_profile } =
     program;
   const profileDetails = [
@@ -398,14 +378,6 @@ export default function ProgramResult() {
   return (
     <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
-      {downloadError && (
-        <div className="connection-status" role="alert">
-          {downloadError}
-          <button type="button" onClick={() => setDownloadError("")}>
-            Fermer
-          </button>
-        </div>
-      )}
 
       <div className="mx-auto max-w-5xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
         <div className="mb-8 mt-8">
@@ -444,20 +416,6 @@ export default function ProgramResult() {
         </div>
 
         <div className="mb-10 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading}
-            className="flex items-center justify-center gap-2 rounded-xl bg-black px-6 py-3 font-bold text-white transition-colors hover:bg-gray-900 disabled:opacity-50"
-          >
-            {downloading ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            {downloading ? "Génération PDF..." : "Télécharger PDF"}
-          </button>
-
           {!isSignedIn && (
             <button
               type="button"

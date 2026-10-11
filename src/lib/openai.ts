@@ -34,7 +34,7 @@ type AIRequest =
 
 async function invokeAI<T>(request: AIRequest): Promise<T> {
   if (!navigator.onLine)
-    throw new Error("Une connexion Internet est nécessaire pour utiliser le coach IA.");
+    throw new Error("Une connexion Internet est nécessaire pour générer ce contenu.");
   if (!(await requestAIConsent()))
     throw new Error(
       "Le partage avec OpenAI n'a pas été autorisé. Tes séances enregistrées restent disponibles.",
@@ -54,13 +54,15 @@ async function invokeAI<T>(request: AIRequest): Promise<T> {
         throw new Error(payload.error);
       }
     }
-    throw new Error("Le coach IA est temporairement indisponible. Réessaie dans un instant.");
+    throw new Error(
+      "Le service de génération est temporairement indisponible. Réessaie dans un instant.",
+    );
   }
   if (!data || typeof data !== "object" || !("result" in data)) {
     const message =
       data && typeof data === "object" && "error" in data && typeof data.error === "string"
         ? data.error
-        : "Réponse invalide du coach IA.";
+        : "Réponse invalide du service de génération.";
     throw new Error(message);
   }
   return data.result as T;

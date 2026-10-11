@@ -19,7 +19,7 @@ export default function NativeLifecycle() {
     window.addEventListener("offline", update);
     const syncError = () =>
       setError(
-        "Une modification n'a pas pu être synchronisée. Vérifie ta connexion avant de réessayer.",
+        "La sauvegarde en ligne n'a pas abouti. Tes changements restent visibles sur cet appareil.",
       );
     window.addEventListener("app-sync-error", syncError);
     return () => {
@@ -66,11 +66,19 @@ export default function NativeLifecycle() {
           if (isActive) void supabase.auth.startAutoRefresh();
           else void supabase.auth.stopAutoRefresh();
         }),
-        Keyboard.addListener("keyboardWillShow", () => {
+        Keyboard.addListener("keyboardWillShow", ({ keyboardHeight }) => {
           document.documentElement.dataset.keyboard = "open";
+          document.documentElement.style.setProperty("--keyboard-height", `${keyboardHeight}px`);
+          window.setTimeout(() => {
+            const activeElement = document.activeElement;
+            if (activeElement instanceof HTMLElement) {
+              activeElement.scrollIntoView({ block: "center", behavior: "smooth" });
+            }
+          }, 120);
         }),
         Keyboard.addListener("keyboardWillHide", () => {
           delete document.documentElement.dataset.keyboard;
+          document.documentElement.style.removeProperty("--keyboard-height");
         }),
       ]);
       handles.forEach((handle) => {
@@ -95,6 +103,7 @@ export default function NativeLifecycle() {
       disposed = true;
       cleanup.forEach((dispose) => dispose());
       delete document.documentElement.dataset.keyboard;
+      document.documentElement.style.removeProperty("--keyboard-height");
     };
   }, [navigate]);
 

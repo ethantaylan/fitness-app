@@ -17,7 +17,7 @@ const config: CapacitorConfig = {
       backgroundColor: "#ffffff",
       showSpinner: false,
     },
-    Keyboard: { resize: "body" },
+    Keyboard: { resize: "native", autoBackdropColor: "dom" },
     StatusBar: { style: "DEFAULT" },
   },
 };

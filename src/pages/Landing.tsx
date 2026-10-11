@@ -42,9 +42,9 @@ const FAQ = [
       "Oui. Salle complète, quelques haltères ou poids du corps : les exercices sont sélectionnés selon ce que tu as réellement à disposition.",
   },
   {
-    question: "Puis-je récupérer mon programme en PDF ?",
+    question: "Où retrouver mon programme ?",
     answer:
-      "Oui. Le programme complet peut être exporté pour être consulté sur ton téléphone, imprimé ou partagé.",
+      "Ton programme complet reste accessible dans Vincere, avec ses semaines, ses séances et ta progression.",
   },
   {
     question: "Est-ce vraiment gratuit ?",
@@ -100,12 +100,14 @@ export default function Landing() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-gray-500">
-                {["Compte gratuit", "Sans carte bancaire", "Export PDF inclus"].map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5">
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                    {item}
-                  </span>
-                ))}
+                {["Compte gratuit", "Sans carte bancaire", "Programme toujours accessible"].map(
+                  (item) => (
+                    <span key={item} className="inline-flex items-center gap-1.5">
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      {item}
+                    </span>
+                  ),
+                )}
               </div>
             </div>
 
@@ -279,7 +281,7 @@ export default function Landing() {
                 },
                 {
                   Icon: Download,
-                  title: "Export PDF",
+                  title: "Programme dans l'app",
                   text: "Ton programme disponible partout, même hors connexion.",
                 },
                 {
@@ -315,7 +317,7 @@ export default function Landing() {
                 veux aller plus loin.
               </p>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-300">
-                {["Génération personnalisée", "Programme multi-semaines", "Export PDF"].map(
+                {["Génération personnalisée", "Programme multi-semaines", "Suivi dans l'app"].map(
                   (item) => (
                     <span key={item} className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-emerald-400" />

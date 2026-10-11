@@ -174,7 +174,7 @@ Valider au minimum les points suivants :
 - [ ] Creation de programme running et autre objectif, sans exercices incoherents.
 - [ ] Creation d'une seance libre, minuteur et retour d'arriere-plan.
 - [ ] Acceptation, refus puis retrait du consentement IA.
-- [ ] Export PDF long vers Fichiers et partage vers Messages ou AirDrop.
+- [ ] Consultation d'un programme long et reprise après relance de l'application.
 - [ ] Suppression d'un compte de test et verification en base.
 - [ ] Mode avion : cache accessible et erreurs reseau comprehensibles.
 - [ ] Clair, sombre et theme systeme sur petit iPhone et iPad.
@@ -222,7 +222,7 @@ Texte propose :
 > entrainements en un seul endroit.
 >
 > Suis tes records, note ton ressenti et utilise le minuteur de recuperation
-> pendant ta seance. Exporte ton programme en PDF ou partage une seance avec la
+> pendant ta seance. Consulte ton programme dans l'app ou partage une seance avec la
 > feuille de partage de ton appareil.
 >
 > Le coach IA est facultatif et demande ton accord avant de transmettre tes

@@ -7,7 +7,7 @@ import type { UserProfile } from "../lib/types";
 
 const MESSAGES = [
   "Analyse de ton profil en cours…",
-  "Sélection de l'agent IA spécialisé…",
+  "Analyse de ton objectif…",
   "Calcul des charges optimales…",
   "Construction de la progression semaine par semaine…",
   "Ajout des alternatives et conseils techniques…",
@@ -92,7 +92,7 @@ export default function Generating() {
             />
           </div>
 
-          <h1 className="text-2xl font-black mb-4">Ton coach travaille pour toi</h1>
+          <h1 className="text-2xl font-black mb-4">Création de ton programme</h1>
           <p className="text-gray-400 text-sm mb-8 min-h-6 transition-all duration-300">
             {MESSAGES[messageIdx]}
           </p>

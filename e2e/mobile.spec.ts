@@ -114,19 +114,14 @@ async function noOverflow(page: Page) {
 }
 
 for (const theme of ["light", "dark"] as const) {
-  test(`guest workout, timer and theme: ${theme}`, async ({ page }, info) => {
+  test(`guest entry and theme: ${theme}`, async ({ page }, info) => {
     await setup(page, theme);
     await page.goto("/explore");
-    await expect(page.getByRole("heading", { name: "Ma séance libre" })).toBeVisible();
-    await page.getByLabel("Exercice", { exact: true }).fill("Squats, 3 x 10");
-    await page.getByRole("button", { name: "Ajouter l'exercice" }).click();
-    await page.getByRole("button", { name: "Terminer : Squats, 3 x 10" }).click();
-    await expect(page.getByText("1 / 1 exercices terminés")).toBeVisible();
-    await page.getByRole("button", { name: "Démarrer le minuteur" }).click();
-    await expect(page.getByRole("button", { name: "Mettre en pause" })).toBeVisible();
-    await page.getByRole("button", { name: "Mettre en pause" }).click();
-    await page.getByRole("button", { name: "Réinitialiser le minuteur" }).click();
-    await expect(page.getByLabel("Temps restant")).toHaveText("1:00");
+    await expect(
+      page.getByRole("heading", { name: "Construis un programme qui suit ton objectif." }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /Créer mon programme/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "J'ai déjà un compte" })).toBeVisible();
     await noOverflow(page);
     await page.screenshot({ path: info.outputPath(`guest-${theme}.png`), fullPage: true });
   });

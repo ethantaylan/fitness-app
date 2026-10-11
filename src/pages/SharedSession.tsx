@@ -160,15 +160,6 @@ export default function SharedSession() {
           </div>
         )}
 
-        {/* Motivation */}
-        {session.motivation_message && (
-          <div className="bg-black text-white rounded-2xl p-5 mb-8">
-            <div className="text-lg mb-2">💬</div>
-            <p className="font-semibold text-sm leading-relaxed">{session.motivation_message}</p>
-            <p className="text-xs text-white/40 mt-2">- Coach IA Vincere</p>
-          </div>
-        )}
-
         {/* CTA */}
         <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 text-center">
           <p className="font-black text-lg mb-1">Génère tes propres séances</p>

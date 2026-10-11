@@ -107,7 +107,7 @@ Ne pas declarer « aucune donnee collectee ». La version actuelle n'utilise pas
 
 Vincere rassemble tes programmes, tes seances et tes progres sportifs. Cree un programme adapte a ton objectif, compose une seance libre et retrouve tes entrainements en un seul endroit.
 
-Suis tes records, note ton ressenti et utilise le minuteur de recuperation pendant ta seance. Exporte ton programme en PDF ou partage une seance avec la feuille de partage de ton appareil.
+Suis tes records, note ton ressenti et utilise le minuteur de recuperation pendant ta seance. Consulte ton programme dans l'app ou partage une seance avec la feuille de partage de ton appareil.
 
 Le coach IA est facultatif et demande ton accord avant de transmettre tes informations sportives a OpenAI. Les suggestions peuvent contenir des erreurs et ne remplacent pas un professionnel de sante. La generation et la synchronisation necessitent Internet. Les entrainements deja enregistres sur cet appareil restent consultables hors connexion.
 
@@ -120,7 +120,7 @@ Remplir les questionnaires d'age, de contenu IA, de droits sur les contenus et d
 - [ ] Compilation iOS 26+ et archive signee validee par Xcode.
 - [ ] Premier lancement, mode sans compte, inscription/confirme, connexion, recuperation et reconnexion apres relance.
 - [ ] Consentement accepte/refuse, retrait, changement de compte et generation reelle avec profil running puis autre objectif.
-- [ ] Programme long, PDF natif vers Fichiers, Messages/AirDrop, partage annule, liens de seance valides/invalides.
+- [ ] Programme long, reprise apres relance, partage annule, liens de seance valides/invalides.
 - [ ] Suppression reelle d'un compte de test et verification SQL, export local, compte de controle intact.
 - [ ] Mode avion : consultation du cache, generation refusee, erreurs reseau lisibles. La synchronisation des modifications hors ligne n'est pas garantie ; il n'y a pas encore de file de synchronisation durable.
 - [ ] Encoche, indicateur d'accueil, clavier, rotation, petit iPhone, iPad et multitache. Verifier les modales longues et le panneau de creation.

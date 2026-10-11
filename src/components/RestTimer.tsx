@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pause, Play, RotateCcw, Timer } from "lucide-react";
+import { ChevronDown, ChevronUp, Pause, Play, RotateCcw, Timer } from "lucide-react";
 import { timerFeedback } from "../lib/native";
 import { formatTimer, remainingSeconds } from "../lib/timer";
 
@@ -8,6 +8,7 @@ export default function RestTimer() {
   const [remaining, setRemaining] = useState(60);
   const [deadline, setDeadline] = useState<number | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (deadline === null) return;
     let notified = false;
@@ -37,15 +38,16 @@ export default function RestTimer() {
     setCompleted(false);
   };
   return (
-    <section className="rest-timer" aria-label="Minuteur de récupération">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <Timer size={18} /> Récupération
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-4">
-        <output className="timer-digits tabular-nums" aria-label="Temps restant" aria-live="off">
-          {formatTimer(remaining)}
-        </output>
-        <div className="flex gap-2">
+    <section className="rest-timer" aria-label="Minuteur">
+      <div className="flex items-center gap-2">
+        <Timer className="shrink-0 text-emerald-600" size={18} aria-hidden="true" />
+        <div className="min-w-0">
+          <span className="block text-xs font-semibold text-gray-500">Minuteur</span>
+          <output className="timer-digits tabular-nums" aria-label="Temps restant" aria-live="off">
+            {formatTimer(remaining)}
+          </output>
+        </div>
+        <div className="ml-auto flex gap-1.5">
           <button
             type="button"
             className="app-icon-button"
@@ -72,29 +74,39 @@ export default function RestTimer() {
           >
             <RotateCcw size={20} />
           </button>
+          <button
+            type="button"
+            className="app-icon-button"
+            aria-label={expanded ? "Masquer les durées" : "Choisir une durée"}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+          </button>
         </div>
       </div>
-      <div
-        className="mt-3 flex flex-wrap items-center gap-2"
-        role="group"
-        aria-label="Durée de récupération"
-      >
-        {[30, 60, 90, 120].map((seconds) => (
-          <button
-            key={seconds}
-            type="button"
-            className="timer-preset"
-            aria-pressed={duration === seconds}
-            disabled={deadline !== null}
-            onClick={() => reset(seconds)}
-          >
-            {seconds} s
-          </button>
-        ))}
-      </div>
-      <p role="status" className="mt-2 min-h-5 text-sm text-emerald-600">
-        {completed ? "Récupération terminée." : ""}
-      </p>
+      {expanded && (
+        <div className="timer-presets" role="group" aria-label="Durée du minuteur">
+          {[30, 60, 90, 120].map((seconds) => (
+            <button
+              key={seconds}
+              type="button"
+              className="timer-preset"
+              aria-pressed={duration === seconds}
+              disabled={deadline !== null}
+              onClick={() => {
+                reset(seconds);
+                setExpanded(false);
+              }}
+            >
+              {seconds} s
+            </button>
+          ))}
+        </div>
+      )}
+      <span role="status" className="sr-only">
+        {completed ? "Minuteur terminé." : ""}
+      </span>
     </section>
   );
 }

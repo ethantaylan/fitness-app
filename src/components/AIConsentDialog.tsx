@@ -38,7 +38,7 @@ export default function AIConsentDialog() {
     >
       <ShieldCheck className="mb-4 text-emerald-600" size={28} aria-hidden="true" />
       <h2 id="ai-consent-title" className="text-xl font-bold">
-        Autoriser le coach IA
+        Autoriser les fonctions IA
       </h2>
       <p className="mt-3 text-sm leading-relaxed">
         Pour personnaliser tes entraînements, Vincere transmet ton profil sportif à{" "}

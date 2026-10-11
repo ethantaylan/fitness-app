@@ -22,7 +22,7 @@ const SUGGESTION_POOL = [
   "Quels sports sont disponibles ?",
   "Comment créer une séance libre ?",
   "Combien de temps dure la génération ?",
-  "Peut-on exporter en PDF ?",
+  "Où retrouver mon programme ?",
   "Comment adapter l'intensité ?",
   "C'est quoi HYROX ?",
   "Comment suivre mes séances ?",

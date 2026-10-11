@@ -88,7 +88,7 @@ export default function AccountPrivacy() {
           onClick={() =>
             void run(async () => {
               await revokeAIConsent();
-              setMessage("Accord retiré. Aucun nouvel envoi au coach IA sans ton autorisation.");
+              setMessage("Accord retiré. Aucun nouvel envoi à OpenAI sans ton autorisation.");
             })
           }
         >

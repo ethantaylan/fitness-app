@@ -151,7 +151,7 @@ export default function Navbar() {
           )}
 
           <div className="flex items-center gap-2">
-            <div className="hidden sm:block">
+            <div>
               <ThemeToggleButton />
             </div>
             {isSignedIn ? (

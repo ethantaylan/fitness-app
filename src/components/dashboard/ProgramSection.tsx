@@ -1,15 +1,13 @@
 import { Link } from "react-router-dom";
-import { Dumbbell, Target, ChevronRight, Download } from "lucide-react";
+import { Dumbbell, Target, ChevronRight } from "lucide-react";
 import Section from "../ui/Section";
 import type { Program } from "../../lib/types";
 
 interface Props {
   readonly program: Program | null;
-  readonly downloadingPDF: boolean;
-  readonly onDownloadPDF: () => void;
 }
 
-export default function ProgramSection({ program, downloadingPDF, onDownloadPDF }: Props) {
+export default function ProgramSection({ program }: Props) {
   if (!program) {
     return (
       <Section
@@ -73,15 +71,6 @@ export default function ProgramSection({ program, downloadingPDF, onDownloadPDF 
         >
           Voir le programme complet <ChevronRight className="w-4 h-4" aria-hidden="true" />
         </Link>
-        <button
-          onClick={onDownloadPDF}
-          disabled={downloadingPDF}
-          aria-label="Télécharger le programme en PDF"
-          className="flex items-center gap-1.5 border-2 border-gray-100 rounded-xl py-2.5 px-4 text-sm font-bold text-gray-600 hover:border-gray-300 transition-all disabled:opacity-50"
-        >
-          <Download className="w-3.5 h-3.5" aria-hidden="true" />
-          {downloadingPDF ? "..." : "PDF"}
-        </button>
       </div>
     </Section>
   );

@@ -69,7 +69,7 @@ export default function Login() {
 
         <h1 className="text-center text-2xl font-black">Content de te revoir</h1>
         <p className="mb-7 mt-2 text-center text-sm leading-relaxed text-gray-500">
-          Connecte-toi pour retrouver ton programme, ton PDF et ton suivi.
+          Connecte-toi pour retrouver ton programme et suivre ta progression.
         </p>
 
         {!isNativeApp && (

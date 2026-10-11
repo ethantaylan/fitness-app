@@ -4,14 +4,11 @@ import {
   Accessibility,
   ArrowDownToLine,
   ArrowUpFromLine,
-  Bot,
   BookOpen,
-  CircleCheck,
   Dumbbell,
   Footprints,
   Gauge,
   HeartPulse,
-  Lightbulb,
   Minus,
   MousePointerClick,
   PersonStanding,
@@ -20,7 +17,6 @@ import {
   RotateCcw,
   Shield,
   Trash2,
-  TriangleAlert,
   WandSparkles,
   Zap,
   type LucideIcon,
@@ -301,113 +297,6 @@ const CARDS: CardDef[] = [
 const CARD_MAP = Object.fromEntries(CARDS.map((c) => [c.id, c]));
 const WARMUP_COOLDOWN_MIN = 10;
 
-// ── Advisory rules ───────────────────────────────────────────────────────────
-
-interface Advisory {
-  level: "warning" | "tip" | "good";
-  message: string;
-}
-
-function computeAdvisories(cart: Record<string, number>): Advisory[] {
-  const get = (id: string) => cart[id] ?? 0;
-  const advisories: Advisory[] = [];
-
-  // Trop de triceps isolés
-  if (get("triceps") > 2)
-    advisories.push({
-      level: "warning",
-      message: `${get("triceps")} exercices de triceps — 2 en isolation max, les pecs et épaules les sollicitent déjà.`,
-    });
-
-  // Trop de biceps isolés
-  if (get("biceps") > 2)
-    advisories.push({
-      level: "warning",
-      message: `${get("biceps")} exercices de biceps — le dos les sollicite déjà, 1-2 en addition suffisent.`,
-    });
-
-  // Dos + jambes dans la même séance
-  if (get("dos") > 0 && get("jambes") > 0)
-    advisories.push({
-      level: "warning",
-      message:
-        "Dos + jambes = deux gros groupes polyarticulaires. Mieux vaut les séparer en deux séances distinctes.",
-    });
-
-  // Trop de groupes musculaires
-  const muscleIds = [
-    "abdos",
-    "pectoraux",
-    "dos",
-    "epaules",
-    "biceps",
-    "triceps",
-    "jambes",
-    "fessiers",
-    "mollets",
-    "lombaires",
-  ];
-  const muscleCount = muscleIds.filter((m) => get(m) > 0).length;
-  if (muscleCount >= 5)
-    advisories.push({
-      level: "warning",
-      message: `${muscleCount} groupes en une séance → intensité diluée. Concentre-toi sur 3-4 max pour vraiment progresser.`,
-    });
-
-  // Pecs sans dos
-  if (get("pectoraux") >= 2 && get("dos") === 0)
-    advisories.push({
-      level: "tip",
-      message:
-        "Pecs sans dos → déséquilibre postural sur le long terme. Quelques exercices de dos équilibrent les épaules.",
-    });
-
-  // Cardio avant musculation
-  if (get("cardio") > 0 && (get("jambes") > 0 || get("pectoraux") > 0 || get("dos") > 0))
-    advisories.push({
-      level: "tip",
-      message:
-        "Force + cardio dans la même séance : fais toujours le cardio EN DERNIER pour ne pas impacter tes perfs.",
-    });
-
-  // HIIT + jambes lourdes
-  if (get("hiit") > 0 && get("jambes") >= 2)
-    advisories.push({
-      level: "tip",
-      message:
-        "HIIT + jambes lourdes : tes quadriceps vont souffrir. Réduis le volume jambes ou place le HIIT en finisher.",
-    });
-
-  // Bon combo Push Day
-  if (get("pectoraux") > 0 && get("epaules") > 0 && get("triceps") > 0)
-    advisories.push({
-      level: "good",
-      message: "Push Day parfait — Pecs + Épaules + Triceps partagent les synergies, combo idéal.",
-    });
-
-  // Bon combo Pull Day
-  if (get("dos") > 0 && get("biceps") > 0 && get("pectoraux") === 0 && get("jambes") === 0)
-    advisories.push({
-      level: "good",
-      message: "Pull Day classique — Dos + Biceps, les tirages recrutent naturellement les biceps.",
-    });
-
-  // Bon combo Lower Body
-  if (get("jambes") > 0 && get("fessiers") > 0 && get("dos") === 0 && get("pectoraux") === 0)
-    advisories.push({
-      level: "good",
-      message:
-        "Lower Body complet — Jambes + Fessiers, la plupart des exercices composés couvrent les deux.",
-    });
-
-  // Priorité warnings > tips > good, max 3 affichés
-  return [
-    ...advisories.filter((a) => a.level === "warning"),
-    ...advisories.filter((a) => a.level === "tip"),
-    ...advisories.filter((a) => a.level === "good"),
-  ].slice(0, 3);
-}
-
 // ── Preset suggestions ────────────────────────────────────────────────────────
 
 const PRESETS: { label: string; icon: LucideIcon; cart: Record<string, number> }[] = [
@@ -488,44 +377,6 @@ function WorkoutCard({
 }
 
 // ── CartPanel ─────────────────────────────────────────────────────────────────
-
-function AdvisoryPanel({
-  advisories,
-  visible,
-}: Readonly<{ advisories: Advisory[]; visible: boolean }>) {
-  if (!visible || advisories.length === 0) return null;
-  return (
-    <div className="mt-5 mb-1">
-      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2.5 flex items-center gap-1.5">
-        <Bot className="w-3.5 h-3.5" />
-        Coach IA
-      </p>
-      <div className="space-y-2">
-        {advisories.map((a, i) => (
-          <div
-            key={i}
-            className={`flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-medium leading-relaxed ${
-              a.level === "warning"
-                ? "bg-amber-50 text-amber-800 border border-amber-200"
-                : a.level === "good"
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                  : "bg-blue-50 text-blue-800 border border-blue-200"
-            }`}
-          >
-            {a.level === "warning" ? (
-              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            ) : a.level === "good" ? (
-              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            ) : (
-              <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            )}
-            <span>{a.message}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function CartPanel({
   entries,
@@ -701,7 +552,6 @@ export default function WorkoutBuilder() {
     [cart],
   );
 
-  const advisories = useMemo(() => computeAdvisories(cart), [cart]);
   const activeWeek =
     state.program?.weeks.find((week) => week.sessions.some((session) => !session.completed)) ??
     null;
@@ -933,9 +783,6 @@ export default function WorkoutBuilder() {
             })}
           </div>
         </div>
-
-        {/* Coach IA advisory */}
-        <AdvisoryPanel advisories={advisories} visible={totalItems > 0} />
 
         {/* Hint */}
         <div className="flex items-center gap-2 mt-5 mb-1">

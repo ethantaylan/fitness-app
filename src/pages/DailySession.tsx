@@ -320,7 +320,7 @@ function SessionDetail({
   return (
     <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
-      <div className="mx-auto max-w-4xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
+      <div className="session-page-content mx-auto max-w-4xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
         <div className="mt-6 mb-6 flex justify-end">
           <div className="flex items-center gap-2">
             <button
@@ -378,9 +378,7 @@ function SessionDetail({
             {actionError}
           </p>
         )}
-        <div className="mb-6">
-          <RestTimer />
-        </div>
+        <RestTimer />
         {/* Warmup */}
         {session.warmup?.length > 0 && (
           <div className="mb-6">
@@ -524,20 +522,11 @@ function SessionDetail({
           </div>
         )}
 
-        {/* Motivation */}
-        {session.motivation_message && (
-          <div className="bg-black text-white rounded-2xl p-5 mb-6">
-            <div className="text-lg mb-2">💬</div>
-            <p className="font-semibold text-sm leading-relaxed">{session.motivation_message}</p>
-            <p className="text-xs text-white/40 mt-2">- Ton coach IA</p>
-          </div>
-        )}
-
         {/* Feedback */}
         <div>
           <h2 className="font-black mb-3">Comment s'est passée la séance ?</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Ton feedback permet à l'IA d'ajuster l'intensité des prochaines séances.
+            Ton ressenti aide à ajuster l'intensité des prochaines séances.
           </p>
           <div className="grid grid-cols-3 gap-3">
             {[

@@ -1522,7 +1522,7 @@ export default function Onboarding() {
               <div className="text-5xl mb-4">🚀</div>
               <h1 className="text-2xl font-black mb-1">C'est parti&nbsp;!</h1>
               <p className="text-gray-500 text-sm mb-8">
-                Comment veux-tu récupérer ton programme&nbsp;?
+                Ton profil est prêt. Génère maintenant ton programme personnalisé.
               </p>
               <div className="space-y-3">
                 {isSignedIn ? (
@@ -1539,48 +1539,28 @@ export default function Onboarding() {
                     <div>
                       <div className="font-bold text-[15px]">Générer mon programme</div>
                       <div className="text-sm text-gray-300 mt-1 leading-relaxed">
-                        Ton profil est sauvegardé&nbsp;· programme complet avec PDF
+                        Ton profil est sauvegardé&nbsp;· programme complet dans l'app
                       </div>
                     </div>
                   </button>
                 ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        saveProfile();
-                        void navigate("/sign-up");
-                      }}
-                      className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
-                    >
-                      <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                        🚀
+                  <button
+                    onClick={() => {
+                      saveProfile();
+                      void navigate("/sign-up");
+                    }}
+                    className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
+                  >
+                    <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
+                      🚀
+                    </div>
+                    <div>
+                      <div className="font-bold text-[15px]">Créer un compte et générer</div>
+                      <div className="text-sm text-gray-300 mt-1 leading-relaxed">
+                        Retrouve ton programme et ta progression sur tous tes appareils.
                       </div>
-                      <div>
-                        <div className="font-bold text-[15px]">Créer un compte (recommandé)</div>
-                        <div className="text-sm text-gray-300 mt-1 leading-relaxed">
-                          PDF + séances quotidiennes&nbsp;· suivi de progression&nbsp;· ajustements
-                          IA
-                        </div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => {
-                        saveProfile();
-                        void navigate("/generating");
-                      }}
-                      className="w-full flex items-start gap-4 border-2 border-gray-200 rounded-2xl p-5 text-left hover:border-gray-400 transition-all active:scale-[0.98]"
-                    >
-                      <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                        📄
-                      </div>
-                      <div>
-                        <div className="font-bold text-[15px]">PDF uniquement</div>
-                        <div className="text-sm text-gray-500 mt-1 leading-relaxed">
-                          Génération immédiate, téléchargement PDF. Aucun compte requis.
-                        </div>
-                      </div>
-                    </button>
-                  </>
+                    </div>
+                  </button>
                 )}
               </div>
             </div>

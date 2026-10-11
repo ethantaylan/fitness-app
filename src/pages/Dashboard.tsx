@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Calendar, Zap, Target } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
-import { exportProgramToPDF } from "../lib/pdf";
 import { OBJECTIVE_META, LEVEL_META } from "../lib/constants";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import type { UserProfile } from "../lib/types";
@@ -18,8 +17,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isSignedIn, userFirstName } = useAuth();
-
-  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   if (!isSignedIn) {
     return (
@@ -78,12 +75,6 @@ export default function Dashboard() {
       return;
     }
     void navigate("/builder");
-  }
-
-  function handleDownloadPDF() {
-    if (!program) return;
-    setDownloadingPDF(true);
-    void exportProgramToPDF(program).finally(() => setDownloadingPDF(false));
   }
 
   return (
@@ -181,11 +172,7 @@ export default function Dashboard() {
               />
             )}
 
-            <ProgramSection
-              program={program}
-              downloadingPDF={downloadingPDF}
-              onDownloadPDF={handleDownloadPDF}
-            />
+            <ProgramSection program={program} />
           </div>
 
           <Section

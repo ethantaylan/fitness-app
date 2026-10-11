@@ -26,8 +26,8 @@ import type {
 
 const MODEL = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const BATCH_SIZE = 4;
-const PROGRAM_BATCH_CONCURRENCY = 2;
+const MAX_SESSIONS_PER_BATCH = 10;
+const PROGRAM_BATCH_CONCURRENCY = 3;
 
 type CustomSelection = {
   id: string;
@@ -427,10 +427,9 @@ function programDurationWeeks(profile: UserProfile): number {
   if (profile.targetDate) {
     const target = new Date(profile.targetDate);
     const diff = Math.round((target.getTime() - Date.now()) / (7 * 24 * 60 * 60 * 1000));
-    if (Number.isFinite(diff)) return Math.min(24, Math.max(2, diff));
+    if (Number.isFinite(diff)) return Math.min(8, Math.max(4, diff));
   }
-  if (profile.objective === "yoga" || profile.objective === "remise-en-forme") return 8;
-  return 12;
+  return 8;
 }
 
 async function structuredResponse<T>(options: {
@@ -458,7 +457,10 @@ async function structuredResponse<T>(options: {
   });
   const message = completion.choices[0]?.message;
   if (!message?.content) {
-    throw new Error(message?.refusal || "Le modèle n'a pas retourné de réponse exploitable.");
+    throw new Error(
+      message?.refusal ||
+        `Le modèle n'a pas retourné de réponse exploitable (${completion.choices[0]?.finish_reason ?? "raison inconnue"}).`,
+    );
   }
   return JSON.parse(message.content) as T;
 }
@@ -610,10 +612,11 @@ ${planCorrection ? `CORRECTIONS OBLIGATOIRES : ${planCorrection}` : ""}`,
   }
   if (!plan) throw new Error("Impossible de construire une progression cohérente.");
 
+  const batchSize = Math.max(1, Math.floor(MAX_SESSIONS_PER_BATCH / profile.weeklyFrequency));
   const batches: number[][] = [];
-  for (let start = 1; start <= durationWeeks; start += BATCH_SIZE) {
+  for (let start = 1; start <= durationWeeks; start += batchSize) {
     batches.push(
-      Array.from({ length: Math.min(BATCH_SIZE, durationWeeks - start + 1) }, (_, i) => start + i),
+      Array.from({ length: Math.min(batchSize, durationWeeks - start + 1) }, (_, i) => start + i),
     );
   }
 
@@ -635,7 +638,7 @@ ${volumeRules(profile)}
 Contraintes : exactement ${profile.weeklyFrequency} séances par semaine, identifiants W{semaine}D{séance}, progression visible et aucun copier-coller entre semaines.
 ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
           temperature: attempt === 0 ? 0.35 : 0.2,
-          maxTokens: 12000,
+          maxTokens: Math.min(12000, 2500 + weekNumbers.length * profile.weeklyFrequency * 800),
         });
         const errors = batchErrors(response.weeks, weekNumbers, profile);
         if (errors.length === 0) return response.weeks;
@@ -903,9 +906,18 @@ export default {
       }
       return jsonResponse({ error: "Action IA inconnue." }, 404);
     } catch (error) {
-      console.error("ai-coach error", error);
+      const requestId = crypto.randomUUID();
+      console.error("ai-coach error", {
+        requestId,
+        action: "unknown",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return jsonResponse(
-        { error: "Le coach IA n'a pas pu finaliser cette demande. Réessaie dans un instant." },
+        {
+          error: "Le coach IA n'a pas pu finaliser cette demande. Réessaie dans un instant.",
+          requestId,
+        },
         500,
       );
     }

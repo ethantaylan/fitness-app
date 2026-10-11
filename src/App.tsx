@@ -33,7 +33,7 @@ function HomeRoute() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return isNativeApp ? <Navigate to="/explore" replace /> : <Landing />;
+  return isNativeApp ? <Navigate to="/sign-in" replace /> : <Landing />;
 }
 
 function PublicOnlyRoute({ children }: Readonly<{ children: ReactNode }>) {

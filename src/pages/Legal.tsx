@@ -57,9 +57,9 @@ export default function Legal() {
             <h2>Stockage sur l'appareil et partage</h2>
             <p>
               Une copie de tes entraînements et de ton profil est conservée sur cet appareil pour
-              permettre leur consultation hors connexion. Elle est effacée à la déconnexion. Un PDF
-              ou une séance que tu partages peut contenir des informations personnelles : vérifie le
-              destinataire avant de confirmer le partage.
+              permettre leur consultation hors connexion. Elle est effacée à la déconnexion. Un
+              export ou une séance que tu partages peut contenir des informations personnelles :
+              vérifie le destinataire avant de confirmer le partage.
             </p>
             <p>
               Vincere n'intègre ni publicité, ni suivi publicitaire, ni accès à HealthKit, à la

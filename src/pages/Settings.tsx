@@ -55,7 +55,7 @@ export default function Settings() {
   const [savingNickname, setSavingNickname] = useState(false);
   const [nicknameSaved, setNicknameSaved] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
-  const [tab, setTab] = useState<"entrainement" | "compte">("entrainement");
+  const [tab, setTab] = useState<"entrainement" | "apparence" | "compte">("entrainement");
 
   useEffect(() => {
     if (!resetSent) return;
@@ -256,7 +256,7 @@ export default function Settings() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 mb-6 shadow-sm">
+        <div className="grid grid-cols-3 gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 mb-6 shadow-sm">
           <button
             onClick={() => setTab("entrainement")}
             data-active={tab === "entrainement"}
@@ -270,6 +270,18 @@ export default function Settings() {
             Entraînement
           </button>
           <button
+            onClick={() => setTab("apparence")}
+            data-active={tab === "apparence"}
+            className={`theme-segment-tab flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+              tab === "apparence"
+                ? "bg-black text-white shadow-sm"
+                : "text-gray-500 hover:text-black"
+            }`}
+          >
+            <Sun className="w-4 h-4" />
+            Apparence
+          </button>
+          <button
             onClick={() => setTab("compte")}
             data-active={tab === "compte"}
             className={`theme-segment-tab flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
@@ -280,6 +292,49 @@ export default function Settings() {
             Compte
           </button>
         </div>
+
+        {tab === "apparence" && (
+          <div className="border border-gray-100 rounded-2xl p-5">
+            <div className="mb-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                Thème de l'application
+              </p>
+              <p className="text-sm text-gray-500">
+                Choisis un mode fixe ou suis automatiquement le réglage de ton appareil.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { value: "light", label: "Clair", Icon: Sun },
+                  { value: "dark", label: "Sombre", Icon: Moon },
+                  { value: "system", label: "Système", Icon: Monitor },
+                ] as { value: ThemeMode; label: string; Icon: React.ElementType }[]
+              ).map(({ value, label, Icon }) => {
+                const active = themeMode === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setThemeMode(value)}
+                    className={`flex min-w-0 flex-col items-center gap-2 rounded-xl border-2 px-2 py-4 text-center transition-all ${
+                      active
+                        ? "border-black bg-black text-white"
+                        : "border-gray-100 bg-gray-50 text-gray-700"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-xs font-bold">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs font-semibold text-gray-500" role="status">
+              Mode actif : {resolvedTheme === "dark" ? "sombre" : "clair"}
+            </p>
+          </div>
+        )}
 
         {/* ── Tab Entraînement ── */}
         {tab === "entrainement" && (
@@ -905,84 +960,6 @@ export default function Settings() {
                   {nicknameError}
                 </div>
               )}
-            </div>
-
-            <div className="border border-gray-100 rounded-2xl p-5">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                    Apparence
-                  </p>
-                  <p className="font-semibold text-sm text-gray-900">Thème de l'application</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Choisis un mode fixe ou laisse Vincere suivre le thème de ton appareil.
-                  </p>
-                </div>
-                <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">
-                  {resolvedTheme === "dark" ? (
-                    <>
-                      <Moon className="w-3.5 h-3.5" />
-                      Sombre actif
-                    </>
-                  ) : (
-                    <>
-                      <Sun className="w-3.5 h-3.5" />
-                      Clair actif
-                    </>
-                  )}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    {
-                      value: "light",
-                      label: "Clair",
-                      sub: "Toujours lumineux",
-                      Icon: Sun,
-                    },
-                    {
-                      value: "dark",
-                      label: "Sombre",
-                      sub: "Repos des yeux",
-                      Icon: Moon,
-                    },
-                    {
-                      value: "system",
-                      label: "Système",
-                      sub: "Suit l'appareil",
-                      Icon: Monitor,
-                    },
-                  ] as {
-                    value: ThemeMode;
-                    label: string;
-                    sub: string;
-                    Icon: React.ElementType;
-                  }[]
-                ).map(({ value, label, sub, Icon }) => {
-                  const active = themeMode === value;
-                  return (
-                    <button
-                      key={value}
-                      onClick={() => setThemeMode(value)}
-                      className={`rounded-2xl border-2 px-3 py-3 text-left transition-all active:scale-[0.98] ${
-                        active
-                          ? "border-black bg-black text-white"
-                          : "border-gray-100 bg-gray-50 text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 mb-2" />
-                      <div className="text-xs font-black uppercase tracking-wider">{label}</div>
-                      <div
-                        className={`text-[11px] mt-1 leading-tight ${active ? "text-gray-300" : "text-gray-400"}`}
-                      >
-                        {sub}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             <div className="border border-gray-100 rounded-2xl p-5">

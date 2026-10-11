@@ -41,7 +41,8 @@ interface AppState {
   _hydrated: boolean;
 }
 
-function reportSyncError() {
+function reportSyncError(error?: unknown) {
+  console.warn("[store] Synchronisation distante échouée", error);
   window.dispatchEvent(new Event("app-sync-error"));
 }
 
@@ -224,12 +225,13 @@ export function AppProvider({
   // ── Persistance localStorage ────────────────────────────────────────────────
   useEffect(() => {
     const { _hydrated: _h, ...toSave } = state;
+    const compactState = userId ? { ...toSave, program: null } : toSave;
     try {
-      localStorage.setItem(key, JSON.stringify(toSave));
-    } catch {
-      reportSyncError();
+      localStorage.setItem(key, JSON.stringify(compactState));
+    } catch (error) {
+      console.warn("[store] Stockage local saturé, état conservé en mémoire", error);
     }
-  }, [state, key]);
+  }, [state, key, userId]);
 
   // ── Dispatch wrappé : sync Supabase automatique ─────────────────────────────
   const dispatch = useCallback((action: Action) => {

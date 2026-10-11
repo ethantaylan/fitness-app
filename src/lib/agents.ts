@@ -109,14 +109,14 @@ L'APPLICATION Vincere :
 - Génère des programmes d'entraînement personnalisés à partir du profil sportif
 - 9 disciplines : musculation, running, yoga, CrossFit, HYROX, remise en forme, perte de poids, prise de masse, compétition
 - Objectifs : Perte de poids, Prise de masse, Entretien, Compétition, HYROX, CrossFit, Running, Yoga/Mobilité, Remise en forme
-- Export PDF du programme complet inclus
+- Programme complet consultable dans l'application
 - Historique des séances libres et suivi des records
 
 COMMENT ÇA MARCHE :
 1. Créer un compte (inscription rapide par email)
 2. Remplir l'onboarding : objectif, niveau, matériel, préférences, disponibilités
 3. L'IA génère un programme complet structuré sur plusieurs semaines
-4. Télécharger en PDF ou suivre les séances directement dans l'app
+4. Suivre les séances directement dans l'app
 5. Suivi quotidien avec feedback d'intensité pour adapter les prochaines séances
 
 NAVIGATION :

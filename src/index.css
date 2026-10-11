@@ -100,20 +100,53 @@
   padding-bottom: max(3rem, env(safe-area-inset-bottom));
 }
 .rest-timer {
+  position: fixed;
+  z-index: 60;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  width: min(360px, calc(100% - 2rem));
   border: 1px solid var(--theme-border);
   border-radius: 8px;
-  padding: 1rem;
-  background: var(--theme-surface-muted);
+  padding: 0.625rem;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 18%);
 }
 .timer-digits {
-  font-size: 2.5rem;
-  line-height: 1.2;
+  display: block;
+  font-size: 1.375rem;
+  line-height: 1.1;
   font-weight: 700;
-  min-width: 5ch;
+  min-width: 4.5ch;
+}
+.rest-timer .app-icon-button {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+}
+.timer-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.375rem;
+  margin-top: 0.625rem;
 }
 .timer-preset {
-  min-width: 56px;
-  padding-inline: 0.75rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.4rem;
+}
+@media (max-width: 767px) {
+  .theme-app-page > :where(main, div.mx-auto) {
+    padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .theme-app-page .session-page-content {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .rest-timer {
+    right: 0.75rem;
+    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 1.5rem);
+  }
 }
 .timer-preset[aria-pressed="true"] {
   background: var(--theme-text);
@@ -175,6 +208,12 @@ html[data-platform="native"] :is(input, textarea, select) {
 }
 html[data-keyboard="open"] .app-bottom-nav {
   display: none;
+}
+html[data-platform="native"][data-keyboard="open"] body {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+html[data-platform="native"] :is(input, textarea, select) {
+  scroll-margin-block: 30dvh;
 }
 @media (pointer: coarse) {
   html[data-platform="native"] button {
