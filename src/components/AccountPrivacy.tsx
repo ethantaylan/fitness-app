@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Download, LogOut, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, LogOut, Mail, ShieldCheck, Trash2 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
 import { supabase } from "../lib/supabase";
@@ -57,6 +57,13 @@ export default function AccountPrivacy() {
         Données et confidentialité
       </h2>
       <div className="flex flex-col gap-3">
+        <button
+          className="app-secondary justify-start"
+          disabled={busy}
+          onClick={() => globalThis.dispatchEvent(new Event("open-contact"))}
+        >
+          <Mail size={18} /> Contacter l'assistance
+        </button>
         <button
           className="app-secondary justify-start"
           disabled={busy}

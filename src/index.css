@@ -196,6 +196,9 @@
 html[data-platform="native"] .min-h-screen {
   min-height: 100dvh;
 }
+html[data-platform="native"] .theme-app-page > .pt-20 {
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+}
 html[data-platform="native"] .theme-auth-page {
   padding-top: calc(4rem + env(safe-area-inset-top, 0px));
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));

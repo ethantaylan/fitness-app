@@ -7,6 +7,7 @@ import { saveContactMessage } from "../lib/db";
 import { supabase } from "../lib/supabase";
 import BetaBadge from "./BetaBadge";
 import ThemeToggleButton from "./ThemeToggleButton";
+import { isNativeApp } from "../lib/native";
 
 const CONTACT_SUBJECTS = [
   { value: "programme", label: "Question sur mon programme" },
@@ -121,119 +122,121 @@ export default function Navbar() {
 
   return (
     <>
-      {/* ── Navbar ── */}
-      <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src={logoUrl} alt="" className="theme-logo-adaptive h-7 w-7" />
-            <span className="text-sm font-black">Vincere</span>
-            <BetaBadge compact />
-          </Link>
+      {/* The native app uses the bottom navigation and profile actions instead. */}
+      {!isNativeApp && (
+        <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 shrink-0">
+              <img src={logoUrl} alt="" className="theme-logo-adaptive h-7 w-7" />
+              <span className="text-sm font-black">Vincere</span>
+              <BetaBadge compact />
+            </Link>
 
-          {!isSignedIn && (
-            <div className="hidden items-center gap-1 lg:flex">
-              {[
-                ["Fonctionnement", "#fonctionnement"],
-                ["Fonctionnalités", "#fonctionnalites"],
-                ["Tarifs", "#tarifs"],
-                ["FAQ", "#faq"],
-              ].map(([label, href]) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black"
-                >
-                  {label}
-                </a>
-              ))}
-            </div>
-          )}
+            {!isSignedIn && (
+              <div className="hidden items-center gap-1 lg:flex">
+                {[
+                  ["Fonctionnement", "#fonctionnement"],
+                  ["Fonctionnalités", "#fonctionnalites"],
+                  ["Tarifs", "#tarifs"],
+                  ["FAQ", "#faq"],
+                ].map(([label, href]) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </div>
+            )}
 
-          <div className="flex items-center gap-2">
-            <div>
-              <ThemeToggleButton />
-            </div>
-            {isSignedIn ? (
-              <>
-                {/* Mobile: contact + logout */}
-                <button
-                  aria-label="Contact"
-                  onClick={openContact}
-                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-                >
-                  <Mail className="w-4 h-4" />
-                </button>
-                <button
-                  aria-label="Se déconnecter"
-                  onClick={() => void signOut().then(() => navigate("/"))}
-                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-                {/* Desktop: nav complète */}
-                <div className="hidden items-center gap-1 md:flex">
-                  {[
-                    { label: "Accueil", path: "/dashboard" },
-                    { label: "Programme", path: "/result" },
-                    { label: "Entraînements", path: "/session" },
-                    { label: "Suivi", path: "/records" },
-                    { label: "Profil", path: "/settings" },
-                  ].map(({ label, path }) => {
-                    const active = location.pathname === path;
-                    return (
-                      <Link
-                        key={path}
-                        to={path}
-                        aria-current={active ? "page" : undefined}
-                        className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-                          active
-                            ? "bg-gray-100 text-gray-950"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-black"
-                        }`}
-                      >
-                        {label}
-                      </Link>
-                    );
-                  })}
-                  <div className="w-px h-4 bg-gray-200 mx-1" />
+            <div className="flex items-center gap-2">
+              <div>
+                <ThemeToggleButton />
+              </div>
+              {isSignedIn ? (
+                <>
+                  {/* Mobile: contact + logout */}
                   <button
                     aria-label="Contact"
-                    title="Contact"
                     onClick={openContact}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
                   >
                     <Mail className="w-4 h-4" />
                   </button>
                   <button
                     aria-label="Se déconnecter"
-                    title="Se déconnecter"
                     onClick={() => void signOut().then(() => navigate("/"))}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/sign-in"
-                  className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black sm:inline-flex"
-                >
-                  Connexion
-                </Link>
-                <Link
-                  to="/sign-up?next=%2Fonboarding"
-                  className="inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800"
-                >
-                  Commencer
-                </Link>
-              </>
-            )}
+                  {/* Desktop: nav complète */}
+                  <div className="hidden items-center gap-1 md:flex">
+                    {[
+                      { label: "Accueil", path: "/dashboard" },
+                      { label: "Programme", path: "/result" },
+                      { label: "Entraînements", path: "/session" },
+                      { label: "Suivi", path: "/records" },
+                      { label: "Profil", path: "/settings" },
+                    ].map(({ label, path }) => {
+                      const active = location.pathname === path;
+                      return (
+                        <Link
+                          key={path}
+                          to={path}
+                          aria-current={active ? "page" : undefined}
+                          className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                            active
+                              ? "bg-gray-100 text-gray-950"
+                              : "text-gray-500 hover:bg-gray-100 hover:text-black"
+                          }`}
+                        >
+                          {label}
+                        </Link>
+                      );
+                    })}
+                    <div className="w-px h-4 bg-gray-200 mx-1" />
+                    <button
+                      aria-label="Contact"
+                      title="Contact"
+                      onClick={openContact}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                    >
+                      <Mail className="w-4 h-4" />
+                    </button>
+                    <button
+                      aria-label="Se déconnecter"
+                      title="Se déconnecter"
+                      onClick={() => void signOut().then(() => navigate("/"))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/sign-in"
+                    className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black sm:inline-flex"
+                  >
+                    Connexion
+                  </Link>
+                  <Link
+                    to="/sign-up?next=%2Fonboarding"
+                    className="inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800"
+                  >
+                    Commencer
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       {/* ── Contact drawer ── */}
       <div
