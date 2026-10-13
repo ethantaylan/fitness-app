@@ -655,7 +655,7 @@ export default function WorkoutBuilder() {
 
       {/* Hero header */}
       <div
-        className="theme-builder-hero relative overflow-hidden bg-black px-5 pb-8 text-white"
+        className="app-builder-hero theme-builder-hero relative overflow-hidden bg-black px-5 pb-8 text-white"
         style={{ paddingTop: "calc(6rem + env(safe-area-inset-top, 0px))" }}
       >
         <div className="relative mx-auto max-w-4xl">

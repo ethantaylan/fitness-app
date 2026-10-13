@@ -301,7 +301,7 @@ function ChoiceCard({
         )}
         {desc && (
           <div
-            className={`text-xs mt-1 leading-relaxed ${selected ? "text-white/60" : "text-gray-400"}`}
+            className={`text-xs mt-1 leading-relaxed ${selected ? "text-gray-200" : "text-gray-400"}`}
           >
             {desc}
           </div>
@@ -645,9 +645,14 @@ export default function Onboarding() {
   function toggleAvailability(val: AvailabilityType) {
     setForm((f) => ({
       ...f,
-      availability: f.availability.includes(val)
-        ? f.availability.filter((x) => x !== val)
-        : [...f.availability, val],
+      availability:
+        val === "indifférent"
+          ? f.availability.includes(val)
+            ? []
+            : [val]
+          : f.availability.includes(val)
+            ? f.availability.filter((x) => x !== val)
+            : [...f.availability.filter((x) => x !== "indifférent"), val],
     }));
   }
 
@@ -781,9 +786,7 @@ export default function Onboarding() {
           {step === 0 && (
             <div>
               <h1 className="text-2xl font-black mb-1">Ton objectif&nbsp;?</h1>
-              <p className="text-gray-500 text-sm mb-6">
-                L'IA sélectionnera l'agent le mieux adapté.
-              </p>
+              <p className="text-gray-500 text-sm mb-6">On adapte le programme à ta priorité.</p>
               <div className="grid grid-cols-2 gap-3">
                 {OBJECTIVES.map(({ id, emoji }) => (
                   <button
@@ -801,7 +804,6 @@ export default function Onboarding() {
                     >
                       {OBJECTIVE_LABELS[id]}
                     </span>
-                    {form.objective === id && <Check className="w-3.5 h-3.5 mt-2 text-gray-300" />}
                   </button>
                 ))}
               </div>
@@ -856,7 +858,7 @@ export default function Onboarding() {
           {/* Step 1 — Genre */}
           {step === 1 && (
             <div>
-              <h1 className="text-2xl font-black mb-1">Tu es&hellip;</h1>
+              <h1 className="text-2xl font-black mb-1">Comment te définis-tu&nbsp;?</h1>
               <p className="text-gray-500 text-sm mb-6">
                 Pour calibrer les charges et la nutrition.
               </p>
@@ -887,7 +889,9 @@ export default function Onboarding() {
           {step === 2 && (
             <div>
               <h1 className="text-2xl font-black mb-1">Ton niveau&nbsp;?</h1>
-              <p className="text-gray-500 text-sm mb-6">Sois honnête&nbsp;— l'IA adapte tout.</p>
+              <p className="text-gray-500 text-sm mb-6">
+                Choisis le niveau qui correspond à ta pratique actuelle.
+              </p>
               <div className="space-y-3">
                 <ChoiceCard
                   label="Débutant"
@@ -1046,7 +1050,7 @@ export default function Onboarding() {
                     }`}
                   >
                     {!showCustomEquipmentInput && <Plus className="w-3.5 h-3.5" />}
-                    {showCustomEquipmentInput ? "Fermer" : "J'aimerais ajouter"}
+                    {showCustomEquipmentInput ? "Fermer" : "Ajouter"}
                   </button>
                 </div>
 
@@ -1110,7 +1114,7 @@ export default function Onboarding() {
             <div>
               <h1 className="text-2xl font-black mb-1">Exercices que tu kiffes ✅</h1>
               <p className="text-gray-500 text-sm mb-6">
-                L'IA les priorisera quand c'est pertinent dans ton programme.
+                On les privilégiera quand c'est pertinent dans ton programme.
               </p>
               <div className="space-y-5">
                 <div>
@@ -1149,7 +1153,7 @@ export default function Onboarding() {
                       }`}
                     >
                       {!showLikedExerciseInput && <Plus className="w-3.5 h-3.5" />}
-                      {showLikedExerciseInput ? "Fermer" : "J'aimerais ajouter"}
+                      {showLikedExerciseInput ? "Fermer" : "Ajouter"}
                     </button>
                   </div>
 
@@ -1232,7 +1236,7 @@ export default function Onboarding() {
             <div>
               <h1 className="text-2xl font-black mb-1">Exercices à éviter ❌</h1>
               <p className="text-gray-500 text-sm mb-6">
-                L'IA les écartera autant que possible dans tes séances.
+                On les écartera autant que possible dans tes séances.
               </p>
               <div className="flex flex-wrap gap-2">
                 {exerciseOptions.map((ex) => (
@@ -1269,7 +1273,7 @@ export default function Onboarding() {
                     }`}
                   >
                     {!showDislikedExerciseInput && <Plus className="w-3.5 h-3.5" />}
-                    {showDislikedExerciseInput ? "Fermer" : "J'aimerais ajouter"}
+                    {showDislikedExerciseInput ? "Fermer" : "Ajouter"}
                   </button>
                 </div>
 
@@ -1377,7 +1381,9 @@ export default function Onboarding() {
           {step === 10 && (
             <div>
               <h1 className="text-2xl font-black mb-1">Contraintes</h1>
-              <p className="text-gray-500 text-sm mb-6">L'IA adapte pour protéger ton corps.</p>
+              <p className="text-gray-500 text-sm mb-6">
+                Ces informations permettent d'adapter les exercices à ton corps.
+              </p>
               <div className="space-y-4">
                 <div>
                   <label

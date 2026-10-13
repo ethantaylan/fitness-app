@@ -487,7 +487,7 @@ function SessionDetail({
                       </div>
                       {isReplaced && (
                         <p className="mt-2 text-xs text-green-600 font-semibold flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Exercice remplacé par l'IA
+                          <Check className="w-3 h-3" /> Exercice remplacé
                         </p>
                       )}
                     </div>
@@ -566,7 +566,7 @@ function SessionDetail({
           </div>
           {session.feedback && (
             <p className="text-sm text-gray-500 text-center mt-4">
-              Feedback enregistré ! L'IA en tiendra compte pour ta prochaine séance. 🎯
+              Ressenti enregistré pour adapter ta prochaine séance.
             </p>
           )}
         </div>

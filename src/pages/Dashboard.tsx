@@ -81,7 +81,7 @@ export default function Dashboard() {
     <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
+      <main className="app-dashboard-content mx-auto max-w-6xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
         <div
           className={`relative overflow-hidden rounded-3xl p-6 mt-6 mb-6 ${heroBg}`}
           role="banner"

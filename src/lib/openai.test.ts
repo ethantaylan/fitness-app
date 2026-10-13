@@ -69,7 +69,7 @@ describe("validateObjectiveCoherence", () => {
   });
 
   test("n'impose pas un volume de musculation à une sortie longue", () => {
-    expect(minActivitiesForObjective(90, "running")).toBe(4);
+    expect(minActivitiesForObjective(90, "running")).toBe(1);
     expect(maxActivitiesForObjective(90, "running")).toBe(6);
     expect(minActivitiesForObjective(90, "prise-masse")).toBe(10);
     expect(maxActivitiesForObjective(90, "prise-masse")).toBe(14);

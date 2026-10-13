@@ -11,10 +11,7 @@ function newMsg(role: Message["role"], content: string): Message {
 }
 
 const INITIAL: Message[] = [
-  newMsg(
-    "assistant",
-    "Bonjour ! Je suis l'assistant IA Vincere. Comment puis-je t'aider avec ton programme ou tes séances ?",
-  ),
+  newMsg("assistant", "Bonjour ! Comment puis-je t'aider avec ton programme ou tes séances ?"),
 ];
 
 const SUGGESTION_POOL = [

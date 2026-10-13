@@ -19,9 +19,7 @@ export function minActivitiesForObjective(
   objective: UserProfile["objective"],
 ): number {
   if (objective === "running") {
-    if (durationMin <= 35) return 2;
-    if (durationMin <= 65) return 3;
-    return 4;
+    return 1;
   }
   if (objective === "yoga") return durationMin <= 45 ? 3 : 4;
   if (durationMin <= 35) return 3;

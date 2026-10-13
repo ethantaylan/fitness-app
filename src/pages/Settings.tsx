@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Save,
   User,
@@ -43,6 +43,7 @@ export default function Settings() {
   const { userEmail, userFirstName, updateUserDisplayName } = useAuth();
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const profile = state.profile;
   const [saved, setSaved] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -56,6 +57,17 @@ export default function Settings() {
   const [nicknameSaved, setNicknameSaved] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
   const [tab, setTab] = useState<"entrainement" | "apparence" | "compte">("entrainement");
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(location.search).get("tab");
+    if (
+      requestedTab === "entrainement" ||
+      requestedTab === "apparence" ||
+      requestedTab === "compte"
+    ) {
+      setTab(requestedTab);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (!resetSent) return;
@@ -151,9 +163,14 @@ export default function Settings() {
   function toggleAvailability(val: AvailabilityType) {
     setForm((f) => ({
       ...f,
-      availability: f.availability.includes(val)
-        ? f.availability.filter((x) => x !== val)
-        : [...f.availability, val],
+      availability:
+        val === "indifférent"
+          ? f.availability.includes(val)
+            ? []
+            : [val]
+          : f.availability.includes(val)
+            ? f.availability.filter((x) => x !== val)
+            : [...f.availability.filter((x) => x !== "indifférent"), val],
     }));
   }
 
@@ -248,7 +265,7 @@ export default function Settings() {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
                   >
                     <Icon className="w-3 h-3" />
-                    <span className="capitalize">{label}</span>
+                    <span>{label}</span>
                   </div>
                 ))}
             </div>
@@ -260,7 +277,7 @@ export default function Settings() {
           <button
             onClick={() => setTab("entrainement")}
             data-active={tab === "entrainement"}
-            className={`theme-segment-tab flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+            className={`theme-segment-tab flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2.5 text-xs font-semibold transition-colors sm:gap-2 sm:text-sm ${
               tab === "entrainement"
                 ? "bg-black text-white shadow-sm"
                 : "text-gray-500 hover:text-black"
@@ -272,7 +289,7 @@ export default function Settings() {
           <button
             onClick={() => setTab("apparence")}
             data-active={tab === "apparence"}
-            className={`theme-segment-tab flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+            className={`theme-segment-tab flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2.5 text-xs font-semibold transition-colors sm:gap-2 sm:text-sm ${
               tab === "apparence"
                 ? "bg-black text-white shadow-sm"
                 : "text-gray-500 hover:text-black"
@@ -284,7 +301,7 @@ export default function Settings() {
           <button
             onClick={() => setTab("compte")}
             data-active={tab === "compte"}
-            className={`theme-segment-tab flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+            className={`theme-segment-tab flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2.5 text-xs font-semibold transition-colors sm:gap-2 sm:text-sm ${
               tab === "compte" ? "bg-black text-white shadow-sm" : "text-gray-500 hover:text-black"
             }`}
           >
@@ -366,13 +383,6 @@ export default function Settings() {
                       >
                         {OBJECTIVE_LABELS[id]}
                       </span>
-                      {active && (
-                        <span
-                          className={`absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center ${meta.bg} ${meta.border} border`}
-                        >
-                          <Check className={`w-2.5 h-2.5 ${meta.color}`} />
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -549,7 +559,6 @@ export default function Settings() {
                       >
                         {desc}
                       </span>
-                      {active && <Check className={`w-3.5 h-3.5 ${color}`} />}
                     </button>
                   );
                 })}
@@ -723,13 +732,12 @@ export default function Settings() {
                       onClick={() => toggleEquipment(label)}
                       className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-xs font-semibold transition-all active:scale-[0.96] ${
                         active
-                          ? "bg-black text-white border-black"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
                           : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
                       }`}
                     >
                       <span>{emoji}</span>
                       {label}
-                      {active && <Check className="w-3 h-3 ml-0.5 shrink-0" />}
                     </button>
                   );
                 })}
@@ -753,7 +761,7 @@ export default function Settings() {
                     }`}
                   >
                     {!showCustomEquipmentInput && <Plus className="w-3.5 h-3.5" />}
-                    {showCustomEquipmentInput ? "Fermer" : "J'aimerais ajouter"}
+                    {showCustomEquipmentInput ? "Fermer" : "Ajouter"}
                   </button>
                 </div>
 
@@ -859,7 +867,7 @@ export default function Settings() {
             {/* Save */}
             <button
               onClick={handleSave}
-              className={`theme-profile-save sticky bottom-24 z-30 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold shadow-xl transition-all active:scale-[0.99] md:bottom-4 lg:col-span-2 ${
+              className={`theme-profile-save flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold shadow-sm transition-colors active:scale-[0.99] lg:col-span-2 ${
                 saved ? "bg-green-500 text-white" : "bg-black text-white hover:bg-gray-900"
               }`}
             >
@@ -1036,12 +1044,18 @@ function Section({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className={`flex items-center gap-2.5 px-5 py-4 border-b border-gray-50 ${bg}`}>
+    <details
+      className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+      open
+    >
+      <summary className={`flex cursor-pointer list-none items-center gap-2.5 px-5 py-4 ${bg}`}>
         <div className={`${color}`}>{icon}</div>
-        <h2 className={`text-xs font-black uppercase tracking-wider ${color}`}>{title}</h2>
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
+        <h2 className={`flex-1 text-xs font-black uppercase tracking-wider ${color}`}>{title}</h2>
+        <span className="text-lg leading-none text-gray-400 transition-transform group-open:rotate-45">
+          +
+        </span>
+      </summary>
+      <div className="border-t border-gray-50 p-5">{children}</div>
+    </details>
   );
 }

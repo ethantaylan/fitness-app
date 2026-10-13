@@ -240,7 +240,7 @@ export default function Navbar() {
 
       {/* ── Contact drawer ── */}
       <div
-        className={`fixed inset-0 z-60 flex justify-end transition-opacity duration-300 ${
+        className={`fixed inset-0 z-60 flex items-end justify-end transition-opacity duration-200 sm:items-stretch ${
           contactOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -249,18 +249,22 @@ export default function Navbar() {
 
         {/* Panel */}
         <div
-          className={`relative w-full max-w-md bg-[#0e0e0e] text-white flex flex-col overflow-y-auto transition-transform duration-300 ${
-            contactOpen ? "translate-x-0" : "translate-x-full"
+          className={`relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-t-3xl bg-[#0e0e0e] text-white transition-transform duration-300 sm:max-h-none sm:rounded-none ${
+            contactOpen
+              ? "translate-y-0 sm:translate-x-0"
+              : "translate-y-full sm:translate-x-full sm:translate-y-0"
           }`}
         >
           {/* Header */}
-          <div className="sticky top-0 z-10 bg-[#0e0e0e]/90 backdrop-blur-md px-6 pt-6 pb-4 border-b border-white/5">
+          <div className="contact-sheet-header sticky top-0 z-10 border-b border-white/5 bg-[#0e0e0e]/90 px-6 pb-4 pt-6 backdrop-blur-md">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-2xl font-black">Contactez-nous</h2>
               </div>
               <button
                 onClick={closeContact}
+                type="button"
+                aria-label="Fermer le formulaire de contact"
                 className="w-8 h-8 rounded-full bg-white/8 border border-white/10 flex items-center justify-center hover:bg-white/15 transition-colors shrink-0 mt-1"
               >
                 <X className="w-4 h-4" />

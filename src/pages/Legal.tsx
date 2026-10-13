@@ -7,7 +7,9 @@ import { revokeAIConsent } from "../lib/aiConsent";
 export default function Legal() {
   const [consentMessage, setConsentMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const fromAccount = new URLSearchParams(search).get("from") === "account";
+  const returnTo = fromAccount ? "/settings?tab=compte" : "/";
   const isPrivacy = pathname === "/privacy";
   const isSupport = pathname === "/support";
   const title = isPrivacy
@@ -17,8 +19,11 @@ export default function Legal() {
       : "Conditions d'utilisation";
   return (
     <main className="legal-page mx-auto max-w-2xl px-5 py-8 pb-32">
-      <Link to="/" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-semibold">
-        <ArrowLeft size={18} /> Vincere
+      <Link
+        to={returnTo}
+        className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-semibold"
+      >
+        <ArrowLeft size={18} /> {fromAccount ? "Retour au profil" : "Vincere"}
       </Link>
       <h1 className="text-3xl font-bold">{title}</h1>
       <p className="mt-2 text-sm text-gray-500">Mise à jour : {LEGAL_VERSION}</p>
@@ -184,9 +189,9 @@ export default function Legal() {
         className="mt-8 flex flex-wrap gap-5 text-sm underline"
         aria-label="Informations légales"
       >
-        <Link to="/privacy">Confidentialité</Link>
-        <Link to="/terms">Conditions</Link>
-        <Link to="/support">Assistance</Link>
+        <Link to={`/privacy${fromAccount ? "?from=account" : ""}`}>Confidentialité</Link>
+        <Link to={`/terms${fromAccount ? "?from=account" : ""}`}>Conditions</Link>
+        <Link to={`/support${fromAccount ? "?from=account" : ""}`}>Assistance</Link>
       </nav>
     </main>
   );

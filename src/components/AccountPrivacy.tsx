@@ -115,9 +115,9 @@ export default function AccountPrivacy() {
         </button>
       </div>
       <nav className="flex flex-wrap gap-4 text-sm underline" aria-label="Données et assistance">
-        <Link to="/privacy">Confidentialité</Link>
-        <Link to="/terms">Conditions</Link>
-        <Link to="/support">Assistance</Link>
+        <Link to="/privacy?from=account">Confidentialité</Link>
+        <Link to="/terms?from=account">Conditions</Link>
+        <Link to="/support?from=account">Assistance</Link>
       </nav>
       {message && (
         <p className="text-sm text-emerald-600" role="status">

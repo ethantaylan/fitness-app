@@ -415,7 +415,7 @@ const SPORT_RULES = `COHÉRENCE SPORTIVE OBLIGATOIRE :
 
 function volumeRules(profile: UserProfile): string {
   if (profile.objective === "running") {
-    return `VOLUME RUNNING : 2 à 3 éléments pour 30 min, 3 à 5 pour 45-60 min, 4 à 6 au-delà. Une sortie longue peut avoir un seul bloc principal détaillé. Ne remplis jamais avec du haut du corps.`;
+    return `VOLUME RUNNING : 1 à 3 éléments principaux détaillés suffisent pour une séance courte, 1 à 5 pour 45-60 min et 1 à 6 au-delà. Une sortie continue ou longue peut avoir un seul bloc principal. L'échauffement et le retour au calme sont comptés séparément. Ne remplis jamais avec du haut du corps.`;
   }
   if (profile.objective === "yoga") {
     return "VOLUME YOGA : 3 à 6 séquences cohérentes de postures, respiration ou mobilité.";
@@ -625,6 +625,7 @@ ${planCorrection ? `CORRECTIONS OBLIGATOIRES : ${planCorrection}` : ""}`,
     PROGRAM_BATCH_CONCURRENCY,
     async (weekNumbers) => {
       let correction = "";
+      let lastErrors: string[] = [];
       for (let attempt = 0; attempt < 3; attempt++) {
         const response = await structuredResponse<{ weeks: Week[] }>({
           name: `program_weeks_${weekNumbers[0]}_${weekNumbers.at(-1)}`,
@@ -642,9 +643,12 @@ ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
         });
         const errors = batchErrors(response.weeks, weekNumbers, profile);
         if (errors.length === 0) return response.weeks;
+        lastErrors = errors;
         correction = errors.join(" ");
       }
-      throw new Error(`Impossible de générer les semaines ${weekNumbers.join(", ")} correctement.`);
+      throw new Error(
+        `Impossible de générer les semaines ${weekNumbers.join(", ")} correctement : ${lastErrors.slice(0, 4).join(" ")}`,
+      );
     },
   );
 
@@ -841,7 +845,7 @@ export default {
       const isProgram = body.action === "program";
       const retryAfter = consumeRateLimit(
         `${body.action}:${user.id}`,
-        isProgram ? 3 : 20,
+        isProgram ? 10 : 20,
         isProgram ? 60 * 60_000 : 10 * 60_000,
       );
       if (retryAfter) {
@@ -907,15 +911,21 @@ export default {
       return jsonResponse({ error: "Action IA inconnue." }, 404);
     } catch (error) {
       const requestId = crypto.randomUUID();
+      const message = error instanceof Error ? error.message : String(error);
       console.error("ai-coach error", {
         requestId,
         action: "unknown",
-        message: error instanceof Error ? error.message : String(error),
+        message,
         stack: error instanceof Error ? error.stack : undefined,
       });
+      const expectedFailure = /^(Impossible de|Programme invalide|Vincere n'a pas réussi)/.test(
+        message,
+      );
       return jsonResponse(
         {
-          error: "Le coach IA n'a pas pu finaliser cette demande. Réessaie dans un instant.",
+          error: expectedFailure
+            ? message
+            : "La génération n'a pas pu être finalisée. Réessaie dans un instant.",
           requestId,
         },
         500,

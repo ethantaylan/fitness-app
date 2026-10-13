@@ -52,7 +52,7 @@ export default function ChatWidget() {
         {/* Main FAB */}
         <button
           onClick={() => toggle()}
-          aria-label={open ? "Fermer l'assistant" : "Ouvrir l'assistant IA"}
+          aria-label={open ? "Fermer l'assistant" : "Ouvrir l'assistant"}
           className="relative w-14 h-14 bg-black text-white rounded-2xl shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
         >
           {/* Pulse ring (shown until first open) */}
