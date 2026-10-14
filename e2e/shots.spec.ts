@@ -6,6 +6,8 @@ import { setupApp } from "./support/app";
  * Captures d'écran avant/après (docs/ui-audit/ux-revamp). Ignoré sans SHOTS_DIR :
  *   SHOTS_DIR=docs/ui-audit/ux-revamp/avant vp exec playwright test e2e/shots.spec.ts --project=iphone-webkit
  */
+import { FREE_SESSION_BUILDER_ENABLED } from "../src/lib/features";
+
 const dir = process.env.SHOTS_DIR;
 test.skip(!dir, "SHOTS_DIR non défini");
 
@@ -22,7 +24,10 @@ const PAGES: Array<{ name: string; path: string; prepare?: "assistant" }> = [
 ];
 
 for (const theme of ["light", "dark"] as const) {
-  for (const entry of PAGES) {
+  for (const entry of PAGES.filter(
+    (page) =>
+      FREE_SESSION_BUILDER_ENABLED || !["seances", "creation-seance-libre"].includes(page.name),
+  )) {
     test(`${entry.name} ${theme}`, async ({ page }, info) => {
       await page.setViewportSize(
         info.project.name.includes("iphone")

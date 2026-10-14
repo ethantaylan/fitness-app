@@ -171,12 +171,15 @@ export default function Dashboard() {
           />
         )}
 
-        <FreeSessionCard
-          todaySessions={todaySessions}
-          profile={profile as UserProfile | null}
-          onGenerate={handleGenerateSession}
-          onNavigate={(uid) => navigate(`/session?uid=${uid}`)}
-        />
+        {/* Bloc « Séance libre » masqué avec le builder (voir src/lib/features.ts). */}
+        {FREE_SESSION_BUILDER_ENABLED && (
+          <FreeSessionCard
+            todaySessions={todaySessions}
+            profile={profile as UserProfile | null}
+            onGenerate={handleGenerateSession}
+            onNavigate={(uid) => navigate(`/session?uid=${uid}`)}
+          />
+        )}
       </main>
     </div>
   );

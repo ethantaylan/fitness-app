@@ -370,8 +370,8 @@ export default function Settings() {
                     : "Profil à jour"}
               </p>
               <p className="mt-2 text-sm text-ink-soft">
-                Les changements s'appliquent aux prochaines séances libres. Ton programme conserve
-                son profil de création ; tu peux le régénérer depuis Programme.
+                Les changements s'appliquent à tes prochains programmes. Ton programme actuel
+                conserve son profil de création ; tu peux le régénérer depuis Programme.
               </p>
             </div>
             {/* Objectif */}

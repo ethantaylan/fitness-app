@@ -1,5 +1,13 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, Dumbbell, LayoutDashboard, TrendingUp, UserCircle } from "lucide-react";
+import { FREE_SESSION_BUILDER_ENABLED } from "../lib/features";
+import {
+  BookOpen,
+  Dumbbell,
+  LayoutDashboard,
+  Sparkles,
+  TrendingUp,
+  UserCircle,
+} from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { selectionFeedback } from "../lib/native";
 
@@ -17,13 +25,20 @@ const HIDE_ROUTES = [
   "/s",
 ];
 
-const TABS = [
+const ALL_TABS = [
   { key: "dashboard", label: "Accueil", icon: LayoutDashboard, path: "/dashboard" },
   { key: "programme", label: "Programme", icon: BookOpen, path: "/result" },
   { key: "sessions", label: "Séances", icon: Dumbbell, path: "/session" },
   { key: "records", label: "Suivi", icon: TrendingUp, path: "/records" },
   { key: "settings", label: "Profil", icon: UserCircle, path: "/settings" },
 ] as const;
+
+// L'onglet « Séances » (séances libres) est masqué avec le builder : voir src/lib/features.ts.
+const TABS = ALL_TABS.filter((tab) => FREE_SESSION_BUILDER_ENABLED || tab.key !== "sessions");
+
+// L'assistant n'est pas une page : il s'ouvre en feuille. Il occupe le centre de la barre
+// (avec 4 ou 5 onglets) et se distingue des onglets par une pastille de marque pleine.
+const ASSISTANT_SLOT = Math.floor(TABS.length / 2);
 
 export default function BottomNav() {
   const { isSignedIn } = useAuth();
@@ -38,6 +53,32 @@ export default function BottomNav() {
   ) {
     return null;
   }
+
+  const assistant = (
+    <button
+      key="assistant"
+      type="button"
+      aria-haspopup="dialog"
+      aria-label="Ouvrir l'assistant"
+      onClick={(event) => {
+        // Safari ne donne pas le focus au clic : on le pose pour le restituer à la fermeture.
+        event.currentTarget.focus();
+        void selectionFeedback();
+        globalThis.dispatchEvent(new Event("open-Vincere-chat"));
+      }}
+      className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-1.5 transition-transform active:scale-[0.97]"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-brand-fg shadow-md ring-4 ring-brand-soft"
+      >
+        <Sparkles className="h-[18px] w-[18px]" strokeWidth={2.2} />
+      </span>
+      <span className="block whitespace-nowrap text-[11px] font-extrabold leading-none text-ink">
+        Assistant
+      </span>
+    </button>
+  );
 
   return (
     <nav
@@ -56,15 +97,18 @@ export default function BottomNav() {
         style={{ boxShadow: "var(--theme-nav-shadow)" }}
       >
         <div
-          className="grid grid-cols-5 gap-1 px-2 pt-1.5"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}
+          className="grid gap-1 px-2 pt-1.5"
+          style={{
+            gridTemplateColumns: `repeat(${TABS.length + 1}, minmax(0, 1fr))`,
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)",
+          }}
         >
-          {TABS.map(({ key, label, icon: Icon, path }) => {
+          {TABS.flatMap(({ key, label, icon: Icon, path }, index) => {
             const active =
               location.pathname === path ||
               (path === "/session" && location.pathname === "/builder");
 
-            return (
+            const tab = (
               <button
                 key={key}
                 type="button"
@@ -94,6 +138,7 @@ export default function BottomNav() {
                 </span>
               </button>
             );
+            return index === ASSISTANT_SLOT ? [assistant, tab] : [tab];
           })}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { FREE_SESSION_BUILDER_ENABLED } from "../lib/features";
 import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "../lib/auth";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -151,7 +152,10 @@ export default function Navbar() {
                   {[
                     { label: "Accueil", path: "/dashboard" },
                     { label: "Programme", path: "/result" },
-                    { label: "Séances", path: "/session" },
+                    // Onglet « Séances » masqué avec le builder (voir src/lib/features.ts).
+                    ...(FREE_SESSION_BUILDER_ENABLED
+                      ? [{ label: "Séances", path: "/session" }]
+                      : []),
                     { label: "Suivi", path: "/records" },
                     { label: "Profil", path: "/settings" },
                   ].map(({ label, path }) => {
@@ -175,6 +179,7 @@ export default function Navbar() {
                   })}
                   <div className="mx-1 h-4 w-px bg-line-strong" aria-hidden="true" />
                 </div>
+                {/* Mobile : l'assistant est dans la barre du bas ; ce bouton ne sert qu'au bureau. */}
                 <button
                   type="button"
                   aria-label="Ouvrir l'assistant"
@@ -184,7 +189,7 @@ export default function Navbar() {
                     event.currentTarget.focus();
                     globalThis.dispatchEvent(new Event("open-Vincere-chat"));
                   }}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card-soft text-ink transition-colors hover:bg-card-strong"
+                  className="hidden h-11 w-11 items-center justify-center rounded-full border border-line bg-card-soft text-ink transition-colors hover:bg-card-strong md:inline-flex"
                 >
                   <Sparkles className="h-[18px] w-[18px]" aria-hidden="true" />
                 </button>

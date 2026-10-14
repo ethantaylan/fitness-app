@@ -121,10 +121,18 @@ select.app-input {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  width: min(520px, calc(100% - 2rem));
+  /* Modale centrée : 90 % de la largeur et de la hauteur visibles, avec fond assombri. */
+  width: 90%;
   max-width: none;
-  height: min(40rem, calc(var(--app-vh, 100dvh) - 2rem));
+  height: calc(var(--app-vh, 100dvh) * 0.9);
   max-height: none;
+  inset: var(--app-vv-top, 0px) 0 auto 0;
+  margin: calc(var(--app-vh, 100dvh) * 0.05) auto 0;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
+}
+.app-chat-modal::backdrop {
+  background: rgb(2 6 23 / 62%);
+  backdrop-filter: blur(3px);
 }
 .app-chat-modal > .app-modal-body {
   display: flex;
@@ -140,18 +148,12 @@ select.app-input {
     max-height: calc(100dvh - max(1rem, env(safe-area-inset-top, 0px)));
     border-radius: 16px 16px 0 0;
   }
+  /* La modale de l'assistant reste centrée et arrondie (écrase la feuille ci-dessus). */
   .app-chat-modal {
-    inset: var(--app-vv-top, 0px) 0 auto 0;
-    margin: 0;
-    width: 100%;
-    max-width: none;
-    height: var(--app-vh, 100dvh);
+    width: 90%;
     max-height: none;
-    border-radius: 0;
-    border-width: 0;
-  }
-  .app-chat-modal > .app-modal-header {
-    padding-top: max(1rem, env(safe-area-inset-top, 0px));
+    margin-bottom: 0;
+    border-radius: 16px;
   }
   .app-modal-body {
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));

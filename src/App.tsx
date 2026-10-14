@@ -143,7 +143,7 @@ export default function App() {
                       <WorkoutBuilder />
                     </ProtectedRoute>
                   ) : (
-                    <Navigate to="/session" replace />
+                    <Navigate to="/dashboard" replace />
                   )
                 }
               />
@@ -155,12 +155,17 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              {/* Page « Séances » (séances libres) masquée avec le builder : voir src/lib/features.ts. */}
               <Route
                 path="/session"
                 element={
-                  <ProtectedRoute>
-                    <DailySession />
-                  </ProtectedRoute>
+                  FREE_SESSION_BUILDER_ENABLED ? (
+                    <ProtectedRoute>
+                      <DailySession />
+                    </ProtectedRoute>
+                  ) : (
+                    <Navigate to="/dashboard" replace />
+                  )
                 }
               />
               <Route

@@ -176,7 +176,7 @@ for (const theme of ["light", "dark"] as const) {
       "/dashboard",
       // Builder masqué pour le moment (src/lib/features.ts) : réactiver avec le drapeau.
       ...(FREE_SESSION_BUILDER_ENABLED ? ["/builder"] : []),
-      "/session?uid=fixture",
+      ...(FREE_SESSION_BUILDER_ENABLED ? ["/session?uid=fixture"] : []),
       "/result",
       "/records",
       "/settings",
@@ -223,6 +223,7 @@ for (const theme of ["light", "dark"] as const) {
   });
 
   test(`AI refusal prevents any server request: ${theme}`, async ({ page }, info) => {
+    test.skip(!FREE_SESSION_BUILDER_ENABLED, "séances libres masquées (src/lib/features.ts)");
     await setup(page, theme, true);
     let requests = 0;
     page.on("request", (request) => {

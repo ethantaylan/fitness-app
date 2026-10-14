@@ -114,7 +114,7 @@ L'APPLICATION Vincere :
 - 9 disciplines : musculation, running, yoga, CrossFit, HYROX, remise en forme, perte de poids, prise de masse, compétition
 - Objectifs : Perte de poids, Prise de masse, Entretien, Compétition, HYROX, CrossFit, Running, Yoga/Mobilité, Remise en forme
 - Programme complet consultable dans l'application
-- Historique des séances libres, suivi de la régularité, des performances et des notes
+- Suivi de la régularité, des performances et des notes
 
 COMMENT ÇA MARCHE :
 1. Créer un compte (inscription rapide par email)
@@ -132,7 +132,7 @@ ${
   FREE_SESSION_BUILDER_ENABLED
     ? `- Créer une séance → "/builder" : construire une séance ou laisser Vincere en proposer une, avec adaptation au programme actif
 - Séances → "/session" : consulter l'historique et le détail des séances libres déjà créées`
-    : `- Séances → "/session" : historique des séances libres déjà créées (la création de séances libres n'est pas disponible pour le moment : ne la propose pas)`
+    : ""
 }
 - Suivi → "/records" : régularité, performances et notes
 - Profil → "/settings" : préférences et compte
@@ -146,7 +146,7 @@ RÈGLES :
 ${
   FREE_SESSION_BUILDER_ENABLED
     ? "- Pour créer un programme, oriente vers Créer un programme ; pour créer une séance libre, vers Créer une séance ; pour revoir une séance, vers Séances"
-    : "- Pour créer un programme, oriente vers Créer un programme ; la création de séances libres arrive bientôt (dis-le si on te le demande) ; pour revoir une séance, vers Séances"
+    : "- Pour créer un programme, oriente vers Créer un programme ; les séances libres ne sont pas disponibles pour le moment (dis qu'elles arriveront bientôt si on te le demande)"
 }
 `;
 

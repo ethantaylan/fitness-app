@@ -12,15 +12,16 @@ export const FREE_SESSION_BUILDER_ENABLED = false;
 
 ## Ce qui est masqué quand le drapeau est à `false`
 
-| Où                                             | Comportement masqué                                                                                                                                                                                       |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/App.tsx`                                  | La route `/builder` redirige vers `/session`.                                                                                                                                                             |
-| `src/pages/Dashboard.tsx`                      | Le lien `?bonus=1` ne mène plus au builder ; le bouton de création n'existe plus.                                                                                                                         |
-| `src/components/dashboard/FreeSessionCard.tsx` | Le bloc « Séance libre » de l'Accueil n'apparaît que s'il y a des séances libres du jour (sans bouton de création).                                                                                       |
-| `src/pages/DailySession.tsx` (onglet Séances)  | Le bouton « Créer une séance libre » et les **modèles rapides** sont masqués ; l'état vide annonce que la création arrive bientôt. L'historique et le détail des séances déjà créées restent accessibles. |
-| `src/components/SupportChat.tsx`               | La suggestion « Comment créer une séance libre ? » est retirée.                                                                                                                                           |
-| `src/lib/agents.ts` (`SUPPORT_AGENT_PROMPT`)   | L'assistant ne propose plus la création de séances libres (texte conditionné par le drapeau).                                                                                                             |
-| `e2e/*.spec.ts`                                | Les parcours du builder sont ignorés tant que le drapeau est à `false`.                                                                                                                                   |
+| Où                                             | Comportement masqué                                                                                                                       |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/App.tsx`                                  | Les routes `/builder` **et `/session`** (onglet Séances) redirigent vers `/dashboard`.                                                    |
+| `src/components/BottomNav.tsx`, `Navbar.tsx`   | L'onglet « Séances » est retiré de la navigation (mobile : 4 onglets ; bureau : lien retiré).                                             |
+| `src/pages/Dashboard.tsx`                      | Le bloc « Séance libre » de l'Accueil n'est plus rendu ; le lien `?bonus=1` ne mène plus au builder.                                      |
+| `src/components/dashboard/FreeSessionCard.tsx` | Conservé tel quel, rendu seulement si le drapeau est à `true`.                                                                            |
+| `src/pages/DailySession.tsx` (page Séances)    | Conservée ; inaccessible tant que la route est redirigée. Contient l'historique, le détail, les modèles rapides et le bouton de création. |
+| `src/components/SupportChat.tsx`               | La suggestion « Comment créer une séance libre ? » est retirée.                                                                           |
+| `src/lib/agents.ts` (`SUPPORT_AGENT_PROMPT`)   | L'assistant ne propose plus la création de séances libres (texte conditionné par le drapeau).                                             |
+| `e2e/*.spec.ts`                                | Les parcours du builder sont ignorés tant que le drapeau est à `false`.                                                                   |
 
 ## Fichiers conservés (à ne pas supprimer)
 
@@ -45,7 +46,7 @@ export const FREE_SESSION_BUILDER_ENABLED = false;
 ## Réactiver
 
 1. Passer `FREE_SESSION_BUILDER_ENABLED` à `true` dans `src/lib/features.ts`.
-2. Vérifier les points du tableau ci-dessus (Accueil, onglet Séances, route `/builder`, assistant).
+2. Vérifier les points du tableau ci-dessus (Accueil, onglet Séances dans les deux navigations, routes `/builder` et `/session`, assistant).
 3. Lancer `vp check`, `vp test` et `vp exec playwright test` (les parcours du builder se réactivent seuls).
 
 ## Prompt de réactivation

@@ -237,8 +237,8 @@ export default function ProgramResult() {
             <h2 className="font-bold">Ton profil a évolué</h2>
             <p className="mt-1 text-sm">
               Différences : {differences.join(", ")}. Ce plan conserve les paramètres utilisés à sa
-              création. Modifier ton profil adapte les futures séances libres ; le programme reste
-              inchangé jusqu'à sa régénération.
+              création. Modifier ton profil n'y change rien : le programme reste inchangé jusqu'à sa
+              régénération.
             </p>
             <button
               type="button"

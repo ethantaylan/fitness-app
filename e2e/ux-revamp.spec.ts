@@ -95,7 +95,12 @@ const ROUTES: Array<{
 
 const WIDTHS = [375, 567, 768, 1280];
 // Écrans du builder de séance libre : masqué pour le moment (src/lib/features.ts).
-const BUILDER_ROUTES = new Set(["création de séance libre", "création avec sélection"]);
+const BUILDER_ROUTES = new Set([
+  "séances",
+  "séance libre",
+  "création de séance libre",
+  "création avec sélection",
+]);
 
 for (const theme of ["light", "dark"] as const) {
   for (const width of WIDTHS) {
@@ -168,13 +173,15 @@ test("cocher une séance : case du programme, retour immédiat et annulation", a
   const { writes } = await setupApp(page, { theme: "light" });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/result?week=1");
+  // La séance du jour porte le nom du jour courant (les données de test suivent la date).
+  const today = new Date().toLocaleDateString("fr-FR", { weekday: "long" });
   const todayCheck = page.getByRole("checkbox", {
-    name: "Marquer la séance du mercredi comme réalisée",
+    name: `Marquer la séance du ${today} comme réalisée`,
   });
   await expect(todayCheck).toHaveAttribute("aria-checked", "false");
   await todayCheck.click();
   await expect(
-    page.getByRole("checkbox", { name: "Marquer la séance du mercredi comme non réalisée" }),
+    page.getByRole("checkbox", { name: `Marquer la séance du ${today} comme non réalisée` }),
   ).toHaveAttribute("aria-checked", "true");
   await expect(
     page.getByRole("status").filter({ hasText: "marquée comme réalisée" }),

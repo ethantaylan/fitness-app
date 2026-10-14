@@ -280,61 +280,66 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(assistant).toBeFocused();
 
-    await page.goto("/session?uid=run");
-    await expect(page.locator("h1")).toHaveText("Course en endurance");
-    await expect(page.getByText("5 min", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("N/A", { exact: true })).toHaveCount(0);
-    await page.getByRole("button", { name: "Démarrer le minuteur" }).click();
-    await expect.poll(async () => page.locator(".timer-digits").textContent()).not.toBe("1:00");
-    await page.getByRole("button", { name: "Mettre en pause" }).click();
-    await page.getByRole("button", { name: "Bien passé", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Bien passé", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(
-      page.getByText("Ressenti enregistré pour adapter ta prochaine séance."),
-    ).toBeVisible();
-    await page.screenshot({
-      path: info.outputPath(`session-${theme}.png`),
-      animations: "disabled",
-    });
-    await page.getByTitle("Plus d'infos", { exact: true }).click();
-    await expect(page.getByRole("dialog", { name: exercise.name })).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByRole("button", { name: "Retour aux séances" }).click();
-    await expect(page).toHaveURL(/\/session$/);
-    // Builder de séance libre masqué pour le moment (src/lib/features.ts) : la route redirige.
-    if (!FREE_SESSION_BUILDER_ENABLED) {
-      await page.goto("/builder");
-      await expect(page).toHaveURL(/\/session$/);
-    }
+    // Séances libres (page, détail, builder) masquées pour le moment (src/lib/features.ts).
     if (FREE_SESSION_BUILDER_ENABLED) {
-      await page.goto("/builder");
-
-      await expect(page.getByRole("button", { name: "Retour aux séances" })).toBeVisible();
-      // Le CTA « Composer avec Vincere » reste atteignable (dock fixe au-dessus de la navigation).
-      await expect(page.getByRole("button", { name: /Composer avec Vincere/ })).toBeVisible();
-      await page
-        .getByRole("button", { name: /Ajouter une activité : Endurance, 15 minutes/ })
-        .click();
-      await expect(page.locator(".app-dock")).toContainText("25 min");
-      await page
-        .getByRole("button", { name: "Ajouter une activité : Endurance", exact: true })
-        .click();
-      await expect(page.locator(".app-dock")).toContainText("40 min");
-      await noOverflow(page);
+      await page.goto("/session?uid=run");
+      await expect(page.locator("h1")).toHaveText("Course en endurance");
+      await expect(page.getByText("5 min", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("N/A", { exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Démarrer le minuteur" }).click();
+      await expect.poll(async () => page.locator(".timer-digits").textContent()).not.toBe("1:00");
+      await page.getByRole("button", { name: "Mettre en pause" }).click();
+      await page.getByRole("button", { name: "Bien passé", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Bien passé", exact: true })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await expect(
+        page.getByText("Ressenti enregistré pour adapter ta prochaine séance."),
+      ).toBeVisible();
       await page.screenshot({
-        path: info.outputPath(`builder-${theme}.png`),
+        path: info.outputPath(`session-${theme}.png`),
         animations: "disabled",
       });
-      const nav = await page.locator(".app-bottom-nav").boundingBox();
-      const cart = await page.locator(".app-dock").boundingBox();
-      if (nav && cart) expect(cart.y + cart.height).toBeLessThanOrEqual(nav.y);
-      await page.getByRole("button", { name: "Vider le panier" }).click();
-      await expect(page.getByText(/activités? sélectionnées?/)).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /Composer avec Vincere/ })).toBeVisible();
+      await page.getByTitle("Plus d'infos", { exact: true }).click();
+      await expect(page.getByRole("dialog", { name: exercise.name })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await page.getByRole("button", { name: "Retour aux séances" }).click();
+      await expect(page).toHaveURL(/\/session$/);
+      if (FREE_SESSION_BUILDER_ENABLED) {
+        await page.goto("/builder");
+
+        await expect(page.getByRole("button", { name: "Retour aux séances" })).toBeVisible();
+        // Le CTA « Composer avec Vincere » reste atteignable (dock fixe au-dessus de la navigation).
+        await expect(page.getByRole("button", { name: /Composer avec Vincere/ })).toBeVisible();
+        await page
+          .getByRole("button", { name: /Ajouter une activité : Endurance, 15 minutes/ })
+          .click();
+        await expect(page.locator(".app-dock")).toContainText("25 min");
+        await page
+          .getByRole("button", { name: "Ajouter une activité : Endurance", exact: true })
+          .click();
+        await expect(page.locator(".app-dock")).toContainText("40 min");
+        await noOverflow(page);
+        await page.screenshot({
+          path: info.outputPath(`builder-${theme}.png`),
+          animations: "disabled",
+        });
+        const nav = await page.locator(".app-bottom-nav").boundingBox();
+        const cart = await page.locator(".app-dock").boundingBox();
+        if (nav && cart) expect(cart.y + cart.height).toBeLessThanOrEqual(nav.y);
+        await page.getByRole("button", { name: "Vider le panier" }).click();
+        await expect(page.getByText(/activités? sélectionnées?/)).toHaveCount(0);
+        await expect(page.getByRole("button", { name: /Composer avec Vincere/ })).toBeVisible();
+      }
+    } else {
+      for (const hidden of ["/session", "/builder"]) {
+        await page.goto(hidden);
+        await expect(page).toHaveURL(/\/dashboard$/);
+      }
+      await expect(page.getByRole("link", { name: "Séances", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Séances", exact: true })).toHaveCount(0);
     }
 
     await page.goto("/records");
