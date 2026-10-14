@@ -193,7 +193,7 @@ export default function Navbar() {
                 >
                   <Sparkles className="h-[18px] w-[18px]" aria-hidden="true" />
                 </button>
-                <ThemeToggleButton />
+                {/* Le thème se change depuis Profil : plus de bouton dans l'en-tête connecté. */}
               </>
             ) : (
               <>

@@ -21,12 +21,18 @@ export function minActivitiesForObjective(
   if (objective === "running") {
     return 1;
   }
-  if (objective === "yoga") return durationMin <= 45 ? 3 : 4;
+  if (objective === "yoga") return 3;
+  // CrossFit, HYROX et compétition : séances en WOD ou en stations, avec peu d'éléments détaillés.
+  if (objective === "crossfit" || objective === "hyrox" || objective === "competition") {
+    return durationMin <= 50 ? 3 : 4;
+  }
+  // Minimum volontairement un cran sous la fourchette annoncée au modèle : un compte d'exercices
+  // trop strict faisait échouer toute la génération alors que la séance était cohérente.
   if (durationMin <= 35) return 3;
-  if (durationMin <= 50) return 5;
-  if (durationMin <= 65) return 6;
-  if (durationMin <= 80) return 8;
-  return 10;
+  if (durationMin <= 50) return 4;
+  if (durationMin <= 65) return 5;
+  if (durationMin <= 80) return 6;
+  return 8;
 }
 
 export function maxActivitiesForObjective(

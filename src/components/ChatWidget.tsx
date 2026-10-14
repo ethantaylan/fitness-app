@@ -26,14 +26,27 @@ function useVisualViewport(active: boolean) {
     if (!active) return;
     const root = document.documentElement;
     const viewport = window.visualViewport;
-    const apply = () => {
-      root.style.setProperty("--app-vh", `${viewport?.height ?? window.innerHeight}px`);
-      root.style.setProperty("--app-vv-top", `${viewport?.offsetTop ?? 0}px`);
+    let frame = 0;
+    let lastHeight = -1;
+    let lastTop = -1;
+    // Un seul calcul par image : le clavier iOS émet des dizaines d'événements pendant son animation.
+    const write = () => {
+      frame = 0;
+      const height = Math.round(viewport?.height ?? window.innerHeight);
+      const top = Math.round(viewport?.offsetTop ?? 0);
+      if (height !== lastHeight) root.style.setProperty("--app-vh", `${height}px`);
+      if (top !== lastTop) root.style.setProperty("--app-vv-top", `${top}px`);
+      lastHeight = height;
+      lastTop = top;
     };
-    apply();
+    const apply = () => {
+      if (!frame) frame = requestAnimationFrame(write);
+    };
+    write();
     viewport?.addEventListener("resize", apply);
     viewport?.addEventListener("scroll", apply);
     return () => {
+      if (frame) cancelAnimationFrame(frame);
       viewport?.removeEventListener("resize", apply);
       viewport?.removeEventListener("scroll", apply);
       root.style.removeProperty("--app-vh");

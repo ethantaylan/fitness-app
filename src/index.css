@@ -121,18 +121,17 @@ select.app-input {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Modale centrée : 90 % de la largeur et de la hauteur visibles, avec fond assombri. */
-  width: 90%;
+  width: min(520px, calc(100% - 2rem));
   max-width: none;
-  height: calc(var(--app-vh, 100dvh) * 0.9);
+  height: min(40rem, calc(var(--app-vh, 100dvh) - 2rem));
   max-height: none;
-  inset: var(--app-vv-top, 0px) 0 auto 0;
-  margin: calc(var(--app-vh, 100dvh) * 0.05) auto 0;
-  box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
 }
 .app-chat-modal::backdrop {
   background: rgb(2 6 23 / 62%);
-  backdrop-filter: blur(3px);
+}
+/* Saisie du chat : 16 px minimum, sinon iOS zoome la page au focus et la mise en page saute. */
+.app-chat-modal input {
+  font-size: 16px;
 }
 .app-chat-modal > .app-modal-body {
   display: flex;
@@ -148,12 +147,19 @@ select.app-input {
     max-height: calc(100dvh - max(1rem, env(safe-area-inset-top, 0px)));
     border-radius: 16px 16px 0 0;
   }
-  /* La modale de l'assistant reste centrée et arrondie (écrase la feuille ci-dessus). */
+  /* Mobile : l'assistant occupe toute la page, alignée sur le viewport visuel (clavier). */
   .app-chat-modal {
-    width: 90%;
+    inset: var(--app-vv-top, 0px) 0 auto 0;
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    height: var(--app-vh, 100dvh);
     max-height: none;
-    margin-bottom: 0;
-    border-radius: 16px;
+    border-radius: 0;
+    border-width: 0;
+  }
+  .app-chat-modal > .app-modal-header {
+    padding-top: max(1rem, env(safe-area-inset-top, 0px));
   }
   .app-modal-body {
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
@@ -1157,7 +1163,8 @@ html[data-theme="dark"] .beta-badge {
   bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 .app-generation--nav {
-  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  /* Au-dessus de la navigation (≈ 4,3 rem) avec un vrai espace, pour ne pas la toucher. */
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 768px) {
   .app-generation--nav {

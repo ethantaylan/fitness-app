@@ -45,7 +45,7 @@ export default function GenerationBanner() {
   useEffect(() => {
     const root = document.documentElement;
     if (active && hasNav)
-      root.style.setProperty("--app-nav-extra", state.phase === "error" ? "7rem" : "4.5rem");
+      root.style.setProperty("--app-nav-extra", state.phase === "error" ? "8rem" : "5.75rem");
     else root.style.removeProperty("--app-nav-extra");
     return () => {
       root.style.removeProperty("--app-nav-extra");

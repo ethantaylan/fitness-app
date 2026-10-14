@@ -71,7 +71,8 @@ export default function NativeLifecycle() {
           document.documentElement.style.setProperty("--keyboard-height", `${keyboardHeight}px`);
           window.setTimeout(() => {
             const activeElement = document.activeElement;
-            if (activeElement instanceof HTMLElement) {
+            // Dans une fenêtre (assistant), le panneau suit déjà le viewport : ne pas faire défiler.
+            if (activeElement instanceof HTMLElement && !activeElement.closest("dialog")) {
               activeElement.scrollIntoView({ block: "center", behavior: "smooth" });
             }
           }, 120);

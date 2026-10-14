@@ -71,8 +71,42 @@ describe("validateObjectiveCoherence", () => {
   test("n'impose pas un volume de musculation à une sortie longue", () => {
     expect(minActivitiesForObjective(90, "running")).toBe(1);
     expect(maxActivitiesForObjective(90, "running")).toBe(6);
-    expect(minActivitiesForObjective(90, "prise-masse")).toBe(10);
+    expect(minActivitiesForObjective(90, "prise-masse")).toBe(8);
     expect(maxActivitiesForObjective(90, "prise-masse")).toBe(14);
+  });
+
+  test("les bornes de volume sont cohérentes pour toutes les disciplines et durées", () => {
+    const objectives = [
+      "perte-poids",
+      "prise-masse",
+      "entretien",
+      "competition",
+      "hyrox",
+      "crossfit",
+      "running",
+      "yoga",
+      "remise-en-forme",
+    ] as const;
+    for (const objective of objectives) {
+      for (const duration of [20, 30, 35, 45, 50, 60, 65, 75, 80, 90, 120]) {
+        const min = minActivitiesForObjective(duration, objective);
+        const max = maxActivitiesForObjective(duration, objective);
+        expect(min, `${objective} ${duration} min`).toBeGreaterThanOrEqual(1);
+        expect(min, `${objective} ${duration} min`).toBeLessThanOrEqual(max);
+      }
+    }
+  });
+
+  test("une séance de 45 min à 4 exercices est acceptée (le prompt annonce 4 à 6)", () => {
+    for (const objective of [
+      "prise-masse",
+      "perte-poids",
+      "hyrox",
+      "crossfit",
+      "competition",
+    ] as const) {
+      expect(minActivitiesForObjective(45, objective)).toBeLessThanOrEqual(4);
+    }
   });
 
   test("détecte une fréquence hebdomadaire incorrecte", () => {

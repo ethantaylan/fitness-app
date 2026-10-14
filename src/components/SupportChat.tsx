@@ -32,6 +32,37 @@ function pickSuggestions(exclude: string[], count = 3): string[] {
   return shuffled.slice(0, count);
 }
 
+/**
+ * Détecte le clavier à l'écran : le viewport visuel rétrécit (Safari), ou l'app native pose
+ * data-keyboard. Sert à libérer de la place pour les messages pendant la saisie.
+ */
+function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = document.documentElement;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const shrunk = viewport ? window.innerHeight - viewport.height > 120 : false;
+      setOpen(shrunk || root.dataset.keyboard === "open");
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    viewport?.addEventListener("resize", schedule);
+    const observer = new MutationObserver(schedule);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-keyboard"] });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      viewport?.removeEventListener("resize", schedule);
+      observer.disconnect();
+    };
+  }, []);
+  return open;
+}
+
 export default function SupportChat({ onContact }: Readonly<{ onContact: () => void }>) {
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState("");
@@ -39,11 +70,17 @@ export default function SupportChat({ onContact }: Readonly<{ onContact: () => v
   const [usedSuggestions, setUsedSuggestions] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>(() => pickSuggestions([]));
   const bottomRef = useRef<HTMLDivElement>(null);
+  const keyboardOpen = useKeyboardOpen();
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     bottomRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
   }, [messages, loading]);
+
+  // Le clavier s'ouvre ou se ferme : on recolle la conversation en bas, sans animation (pas de saut).
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [keyboardOpen]);
 
   async function send(text?: string) {
     const content = (text ?? input).trim();
@@ -83,7 +120,7 @@ export default function SupportChat({ onContact }: Readonly<{ onContact: () => v
     <div className="flex h-full min-h-0 flex-1 flex-col">
       {/* Messages : seule zone qui défile */}
       <div
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3"
         role="log"
         aria-live="polite"
         aria-label="Conversation avec l'assistant"
@@ -141,7 +178,7 @@ export default function SupportChat({ onContact }: Readonly<{ onContact: () => v
         className="shrink-0 border-t border-line bg-card"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }}
       >
-        {!loading && (
+        {!loading && !keyboardOpen && (
           <div
             className="flex gap-2 overflow-x-auto px-4 pt-2"
             role="group"
@@ -183,13 +220,15 @@ export default function SupportChat({ onContact }: Readonly<{ onContact: () => v
             <Send size={18} aria-hidden="true" />
           </button>
         </div>
-        <button
-          type="button"
-          onClick={onContact}
-          className="mx-auto mt-1 flex min-h-11 items-center px-4 text-xs font-semibold text-ink-soft underline underline-offset-2"
-        >
-          Une question pour l'équipe ? Contacter l'assistance
-        </button>
+        {!keyboardOpen && (
+          <button
+            type="button"
+            onClick={onContact}
+            className="mx-auto mt-1 flex min-h-11 items-center px-4 text-xs font-semibold text-ink-soft underline underline-offset-2"
+          >
+            Une question pour l'équipe ? Contacter l'assistance
+          </button>
+        )}
       </div>
     </div>
   );

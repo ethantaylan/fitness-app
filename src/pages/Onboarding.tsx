@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, Plus, Sparkles, UserPlus, X } from "lucide-react";
+import { ChevronLeft, Check, Sparkles, UserPlus, X } from "lucide-react";
 import { useApp } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import type {
@@ -318,7 +318,7 @@ function ChoiceCard({
 }
 
 const MIN_TARGET_MONTHS = 1;
-const MAX_TARGET_MONTHS = 24;
+const MAX_TARGET_MONTHS = 12;
 const DEFAULT_TARGET_MONTHS = 6;
 
 function toDateInputValue(date: Date): string {
@@ -334,19 +334,28 @@ function addMonthsToToday(n: number): string {
   return toDateInputValue(d);
 }
 
+/** Un brouillon enregistré avant la limite d'un an peut contenir plus : on le ramène dans la plage. */
+function clampMonths(months: number): number {
+  return Math.min(MAX_TARGET_MONTHS, Math.max(MIN_TARGET_MONTHS, months));
+}
+
+/** Date visée plafonnée à un an (un brouillon plus ancien peut en contenir une plus lointaine). */
+function cappedTargetDate(date: string): string {
+  const limit = addMonthsToToday(MAX_TARGET_MONTHS);
+  return date && date > limit ? limit : date;
+}
+
 function monthsToWeeks(months: number): number {
   return Math.max(4, Math.round(months * 4.345));
 }
 
 function formatDurationMonths(months: number): string {
   if (months === 12) return "1 an";
-  if (months === 24) return "2 ans";
-  if (months % 12 === 0 && months > 12) return `${months / 12} ans`;
   return `${months} mois`;
 }
 
 function formatSuggestedDuration(months: number): string {
-  if (months > MAX_TARGET_MONTHS) return "plus de 24 mois";
+  if (months > MAX_TARGET_MONTHS) return "plus d'un an";
   return formatDurationMonths(months);
 }
 
@@ -374,8 +383,8 @@ type TimelineAssessment = {
 
 function getTimelineAssessment(form: FormState): TimelineAssessment {
   const months = Number.parseInt(form.targetDurationMonths, 10);
-  const safeMonths = Number.isNaN(months) ? DEFAULT_TARGET_MONTHS : months;
-  const dateValue = form.targetDate || addMonthsToToday(safeMonths);
+  const safeMonths = Number.isNaN(months) ? DEFAULT_TARGET_MONTHS : clampMonths(months);
+  const dateValue = cappedTargetDate(form.targetDate) || addMonthsToToday(safeMonths);
   const goalDetail = resolveGoalDetail(form);
 
   if (!isWeightObjective(form.objective)) {
@@ -695,9 +704,10 @@ export default function Onboarding() {
     const months = Number.parseInt(monthsValue, 10);
     if (Number.isNaN(months)) return;
 
+    const safe = clampMonths(months);
     update({
-      targetDurationMonths: monthsValue,
-      targetDate: addMonthsToToday(months),
+      targetDurationMonths: String(safe),
+      targetDate: addMonthsToToday(safe),
     });
   }
 
@@ -742,7 +752,7 @@ export default function Onboarding() {
         isWeightObjective(form.objective) && form.targetWeight
           ? Number.parseFloat(form.targetWeight)
           : undefined,
-      targetDate: form.targetDate || undefined,
+      targetDate: cappedTargetDate(form.targetDate) || undefined,
     };
     dispatch({
       type: "SET_PROFILE_PARTIAL",
@@ -778,10 +788,12 @@ export default function Onboarding() {
     normalizeExerciseLabel(dislikedExerciseDraft) !== "" &&
     !hasExerciseLabel(form.dislikedExercises, dislikedExerciseDraft) &&
     !hasExerciseLabel(form.likedExercises, dislikedExerciseDraft);
-  const targetDurationMonths =
-    Number.parseInt(form.targetDurationMonths, 10) || DEFAULT_TARGET_MONTHS;
+  const targetDurationMonths = clampMonths(
+    Number.parseInt(form.targetDurationMonths, 10) || DEFAULT_TARGET_MONTHS,
+  );
   const targetTimelineAssessment = getTimelineAssessment(form);
-  const targetTimelineDate = form.targetDate || addMonthsToToday(targetDurationMonths);
+  const targetTimelineDate =
+    cappedTargetDate(form.targetDate) || addMonthsToToday(targetDurationMonths);
   const targetTimelineToneClasses = {
     neutral: "border-gray-200 bg-gray-50 text-gray-800",
     good: "border-emerald-200 bg-emerald-50 text-emerald-900",
@@ -1113,7 +1125,6 @@ export default function Onboarding() {
                         : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                     }`}
                   >
-                    {!showCustomEquipmentInput && <Plus className="w-3.5 h-3.5" />}
                     {showCustomEquipmentInput ? "Fermer" : "Ajouter"}
                   </button>
                 </div>
@@ -1216,7 +1227,6 @@ export default function Onboarding() {
                           : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                       }`}
                     >
-                      {!showLikedExerciseInput && <Plus className="w-3.5 h-3.5" />}
                       {showLikedExerciseInput ? "Fermer" : "Ajouter"}
                     </button>
                   </div>
@@ -1336,7 +1346,6 @@ export default function Onboarding() {
                         : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                     }`}
                   >
-                    {!showDislikedExerciseInput && <Plus className="w-3.5 h-3.5" />}
                     {showDislikedExerciseInput ? "Fermer" : "Ajouter"}
                   </button>
                 </div>
@@ -1501,7 +1510,7 @@ export default function Onboarding() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-bold text-gray-900">Délai visé</p>
-                      <p className="mt-1 text-xs text-gray-500">Minimum 1 mois · maximum 2 ans</p>
+                      <p className="mt-1 text-xs text-gray-500">Minimum 1 mois · maximum 1 an</p>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black text-gray-900">
@@ -1525,8 +1534,8 @@ export default function Onboarding() {
                     />
                     <div className="mt-2 flex items-center justify-between text-[11px] font-medium text-gray-400">
                       <span>1 mois</span>
+                      <span>6 mois</span>
                       <span>12 mois</span>
-                      <span>24 mois</span>
                     </div>
                   </div>
 

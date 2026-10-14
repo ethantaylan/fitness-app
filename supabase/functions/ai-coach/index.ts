@@ -439,10 +439,18 @@ function volumeRules(profile: UserProfile): string {
   if (profile.objective === "running") {
     return `VOLUME RUNNING : 1 à 3 éléments principaux détaillés suffisent pour une séance courte, 1 à 5 pour 45-60 min et 1 à 6 au-delà. Une sortie continue ou longue peut avoir un seul bloc principal. L'échauffement et le retour au calme sont comptés séparément. Ne remplis jamais avec du haut du corps.`;
   }
-  if (profile.objective === "yoga") {
-    return "VOLUME YOGA : 3 à 6 séquences cohérentes de postures, respiration ou mobilité.";
-  }
-  return `VOLUME : 30 min = 3-4 exercices ; 45 min = 4-6 ; 60 min = 6-8 ; 75 min = 8-11 ; 90 min = 10-14. La durée doit correspondre au travail, aux repos, à l'échauffement et à la récupération.`;
+  // Les bornes du prompt viennent du validateur : elles ne peuvent plus se contredire
+  // (un prompt qui accepte 4 exercices alors que la validation en exige 5 faisait échouer la génération).
+  const durations = profile.sessionDuration.length > 0 ? profile.sessionDuration : [45];
+  const bounds = durations
+    .map(
+      (duration) =>
+        `${duration} min = ${minActivitiesForObjective(duration, profile.objective)} à ${maxActivitiesForObjective(duration, profile.objective)} exercices`,
+    )
+    .join(" ; ");
+  const unit =
+    profile.objective === "yoga" ? "séquences, postures ou temps de respiration" : "exercices";
+  return `VOLUME (${unit}, échauffement et retour au calme comptés à part) : ${bounds}. Respecte ces bornes pour chaque séance, sans jamais descendre en dessous du minimum. Fixe duration_min exactement à l'une des durées préférées (${durations.join(", ")} min) : une durée plus longue exige davantage d'exercices.`;
 }
 
 function programDurationWeeks(profile: UserProfile): number {
@@ -940,6 +948,19 @@ export default {
         message,
         stack: error instanceof Error ? error.stack : undefined,
       });
+      // Quota ou crédits OpenAI épuisés : message clair côté utilisateur, détail dans les journaux.
+      const providerStatus = (error as { status?: number } | null)?.status;
+      if (providerStatus === 429 || /no credits|insufficient_quota/i.test(message)) {
+        return jsonResponse(
+          {
+            error:
+              "Le service de génération est momentanément saturé. Réessaie dans quelques minutes.",
+            requestId,
+          },
+          503,
+          corsHeaders,
+        );
+      }
       const expectedFailure = /^(Impossible de|Programme invalide|Vincere n'a pas réussi)/.test(
         message,
       );
