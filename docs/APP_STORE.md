@@ -8,13 +8,13 @@ Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du 
 
 ### Livraison 1.0.1
 
-- Version : **1.0.1**, numero de build **6**.
+- Version : **1.0.1**, numero de build **7** (le build 6, envoye plus tot le 14 octobre 2026, est remplace).
 - Bundle : `app.vincere.fitness` ; application App Store Connect `6821321431`.
-- Archive locale : `build/Vincere-1.0.1-6.xcarchive`, non suivie par Git.
+- Archive locale : `build/Vincere-1.0.1-7.xcarchive`, non suivie par Git.
 - Envoi : reussi le 14 octobre 2026 ; Xcode a confirme `Upload succeeded` et `EXPORT SUCCEEDED`. Apple a commence le traitement du package.
-- Contenu : corrections UI/UX, running, records, modales, profil, onboarding et apparences. Voir le [bilan et les captures](UI_UX_AUDIT.md).
-- Verification : 84 scenarios navigateur et 50 tests unitaires passes, controles de code et controles iOS reussis.
-- La nouvelle contrainte SQL des records est incluse dans le depot, mais n'a pas ete appliquee au serveur Supabase.
+- Contenu : refonte UI/UX ([voir le detail](UX_REVAMP.md)), notes libres, generation du programme en arriere-plan. Le builder de seance libre est masque ([voir](free-session-builder/README.md)).
+- Verification : controles de code, 57 tests unitaires et suite navigateur passes, controles iOS reussis.
+- Les migrations Supabase `20261014141541` (contrainte des records) et `20261015090000` (table `user_notes`) sont appliquees au serveur.
 
 **Envoi ne signifie pas publication publique.** La selection du build pour la version 1.0.1, sa soumission a App Review et sa disponibilite publique n'ont pas ete effectuees ni verifiees ici. L'acces a l'interface App Store Connect par l'outil de controle du navigateur etait indisponible pendant cette livraison.
 
