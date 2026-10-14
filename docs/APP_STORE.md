@@ -8,11 +8,11 @@ Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du 
 
 ### Livraison 1.0.1
 
-- Version : **1.0.1**, numero de build **7** (le build 6, envoye plus tot le 14 octobre 2026, est remplace).
+- Version : **1.0.1**, numero de build **8** (les builds 6 et 7, envoyes les 14 octobre 2026, sont remplaces).
 - Bundle : `app.vincere.fitness` ; application App Store Connect `6821321431`.
-- Archive locale : `build/Vincere-1.0.1-7.xcarchive`, non suivie par Git.
-- Envoi : reussi le 14 octobre 2026 ; Xcode a confirme `Upload succeeded` et `EXPORT SUCCEEDED`. Apple a commence le traitement du package.
-- Contenu : refonte UI/UX ([voir le detail](UX_REVAMP.md)), notes libres, generation du programme en arriere-plan. Le builder de seance libre est masque ([voir](free-session-builder/README.md)).
+- Archive locale : `build/Vincere-1.0.1-8.xcarchive`, non suivie par Git.
+- Envoi : reussi le 15 octobre 2026 ; Xcode a confirme `Upload succeeded` et `EXPORT SUCCEEDED`. Apple a commence le traitement du package.
+- Contenu : refonte UI/UX ([voir le detail](UX_REVAMP.md)), notes libres, generation du programme en arriere-plan. Le builder de seance libre et l'onglet Seances sont masques ([voir](free-session-builder/README.md)) ; un bouton Assistant est ajoute a la barre du bas.
 - Verification : controles de code, 57 tests unitaires et suite navigateur passes, controles iOS reussis.
 - Les migrations Supabase `20261014141541` (contrainte des records) et `20261015090000` (table `user_notes`) sont appliquees au serveur.
 
