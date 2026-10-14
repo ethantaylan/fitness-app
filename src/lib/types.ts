@@ -42,6 +42,8 @@ export interface Exercise {
   rest_sec?: number;
   alternative?: string;
   notes?: string;
+  /** Visuel facultatif (pictogramme, photo) : absent aujourd'hui, la mise en page n'en dépend pas. */
+  media_url?: string;
 }
 
 export interface SessionBlock {
@@ -126,4 +128,13 @@ export interface PersonalRecord {
   distance_km?: number;
   time_min?: number;
   notes?: string;
+}
+
+/** Note libre : pas rattachée à une séance, ajoutable à tout moment (comme une performance). */
+export interface UserNote {
+  id: string;
+  title?: string;
+  content: string;
+  /** AAAA-MM-JJ */
+  date: string;
 }

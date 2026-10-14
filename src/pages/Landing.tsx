@@ -122,7 +122,7 @@ export default function Landing() {
                       <p className="text-[11px] text-gray-400">Objectif : forme et endurance</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
                     Semaine 1
                   </span>
                 </div>
@@ -136,7 +136,7 @@ export default function Landing() {
                     ].map(([value, label]) => (
                       <div key={label} className="rounded-xl bg-gray-50 p-3">
                         <p className="text-base font-black">{value}</p>
-                        <p className="mt-0.5 text-[10px] font-medium text-gray-400">{label}</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-gray-400">{label}</p>
                       </div>
                     ))}
                   </div>

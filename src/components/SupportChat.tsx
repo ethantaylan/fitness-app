@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 import { chatWithSupport } from "../lib/openai";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
@@ -17,7 +17,6 @@ const INITIAL: Message[] = [
 const SUGGESTION_POOL = [
   "Comment créer un programme ?",
   "Quels sports sont disponibles ?",
-  "Comment créer une séance libre ?",
   "Combien de temps dure la génération ?",
   "Où retrouver mon programme ?",
   "Comment adapter l'intensité ?",
@@ -33,7 +32,7 @@ function pickSuggestions(exclude: string[], count = 3): string[] {
   return shuffled.slice(0, count);
 }
 
-export default function SupportChat() {
+export default function SupportChat({ onContact }: Readonly<{ onContact: () => void }>) {
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,7 +41,8 @@ export default function SupportChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
   }, [messages, loading]);
 
   async function send(text?: string) {
@@ -80,24 +80,32 @@ export default function SupportChat() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      {/* Messages : seule zone qui défile */}
+      <div
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation avec l'assistant"
+      >
         {messages.map((m) => (
           <div
             key={m.id}
             className={`flex items-end gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {m.role === "assistant" && (
-              <div className="w-6 h-6 rounded-lg bg-white/10 border border-white/8 flex items-center justify-center shrink-0 text-[11px] select-none">
-                ⚡
+              <div
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
+                aria-hidden="true"
+              >
+                <Sparkles size={14} />
               </div>
             )}
             <div
-              className={`max-w-[78%] px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+              className={`max-w-[82%] whitespace-pre-wrap px-3.5 py-2.5 text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "bg-white text-black rounded-2xl rounded-br-sm font-medium"
-                  : "bg-white/10 text-gray-200 rounded-2xl rounded-bl-sm"
+                  ? "rounded-2xl rounded-br-sm bg-ink font-medium text-paper"
+                  : "rounded-2xl rounded-bl-sm bg-card-soft text-ink"
               }`}
             >
               {m.content}
@@ -105,25 +113,22 @@ export default function SupportChat() {
           </div>
         ))}
 
-        {/* Typing indicator */}
         {loading && (
-          <div className="flex items-end gap-2 justify-start">
-            <div className="w-6 h-6 rounded-lg bg-white/10 border border-white/8 flex items-center justify-center shrink-0 text-[11px] select-none">
-              ⚡
+          <div className="flex items-end gap-2" role="status" aria-label="L'assistant écrit">
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
+              aria-hidden="true"
+            >
+              <Sparkles size={14} />
             </div>
-            <div className="bg-white/10 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
+            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-card-soft px-4 py-3">
+              {[0, 150, 300].map((delay) => (
+                <span
+                  key={delay}
+                  className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-soft"
+                  style={{ animationDelay: `${delay}ms` }}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -131,40 +136,60 @@ export default function SupportChat() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggestions — toujours visibles, se renouvellent après chaque envoi */}
-      {!loading && (
-        <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              onClick={() => send(s)}
-              className="text-[11px] font-medium bg-white/8 border border-white/10 text-gray-300 rounded-full px-3 py-1.5 hover:bg-white/15 transition-colors"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Input */}
-      <div className="px-4 pb-4 shrink-0">
-        <div className="flex items-center gap-2 bg-white/8 border border-white/12 rounded-2xl px-4 py-2.5 focus-within:border-white/25 transition-colors">
+      {/* Pied fixe : suggestions, contact humain, saisie */}
+      <div
+        className="shrink-0 border-t border-line bg-card"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }}
+      >
+        {!loading && (
+          <div
+            className="flex gap-2 overflow-x-auto px-4 pt-2"
+            role="group"
+            aria-label="Questions suggérées"
+          >
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => void send(s)}
+                className="min-h-11 shrink-0 rounded-full border border-line-strong bg-card-muted px-4 text-xs font-semibold text-ink transition-colors hover:bg-card-soft"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2 px-4 pt-2">
+          <label htmlFor="support-chat-input" className="sr-only">
+            Ta question
+          </label>
           <input
+            id="support-chat-input"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && void send()}
             placeholder="Pose ta question…"
-            className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none min-w-0"
+            enterKeyHint="send"
+            className="app-input min-w-0 flex-1"
           />
           <button
-            onClick={() => send()}
+            type="button"
+            onClick={() => void send()}
             disabled={!input.trim() || loading}
-            className="w-7 h-7 bg-white rounded-xl flex items-center justify-center hover:bg-gray-100 disabled:opacity-25 transition-all shrink-0"
+            aria-label="Envoyer la question"
+            className="app-primary h-12 w-12 shrink-0 p-0!"
           >
-            <Send className="w-3 h-3 text-black" />
+            <Send size={18} aria-hidden="true" />
           </button>
         </div>
+        <button
+          type="button"
+          onClick={onContact}
+          className="mx-auto mt-1 flex min-h-11 items-center px-4 text-xs font-semibold text-ink-soft underline underline-offset-2"
+        >
+          Une question pour l'équipe ? Contacter l'assistance
+        </button>
       </div>
     </div>
   );

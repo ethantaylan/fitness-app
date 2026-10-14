@@ -1,14 +1,13 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "../lib/auth";
-import { Mail, ArrowRight, LogOut } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import Modal from "./ui/Modal";
 import logoUrl from "../assets/logo.png";
 import { saveContactMessage } from "../lib/db";
 import { supabase } from "../lib/supabase";
 import BetaBadge from "./BetaBadge";
 import ThemeToggleButton from "./ThemeToggleButton";
-import { isNativeApp } from "../lib/native";
 
 const CONTACT_SUBJECTS = [
   { value: "programme", label: "Question sur mon programme" },
@@ -26,8 +25,7 @@ type ContactFormState = {
 };
 
 export default function Navbar() {
-  const { isSignedIn, signOut, user, userEmail, userFirstName } = useAuth();
-  const navigate = useNavigate();
+  const { isSignedIn, user, userEmail, userFirstName } = useAuth();
   const location = useLocation();
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
@@ -71,13 +69,6 @@ export default function Navbar() {
       email: current.email || userEmail || "",
     }));
   }, [inferredLastName, userEmail, userFirstName]);
-
-  function openContact(event?: { currentTarget?: HTMLElement }) {
-    event?.currentTarget?.focus();
-    setContactError("");
-    setContactSent(false);
-    setContactOpen(true);
-  }
 
   function closeContact() {
     if (contactSubmitting) return;
@@ -124,332 +115,226 @@ export default function Navbar() {
 
   return (
     <>
-      {/* The native app uses the bottom navigation and profile actions instead. */}
-      {!isNativeApp && (
-        <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 shrink-0">
-              <img src={logoUrl} alt="" className="theme-logo-adaptive h-7 w-7" />
-              <span className="text-sm font-black">Vincere</span>
-              <BetaBadge compact />
-            </Link>
+      <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-line bg-card/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
+          {/* Logo */}
+          <Link to="/" className="flex min-h-11 items-center gap-2.5 shrink-0">
+            <img src={logoUrl} alt="" className="theme-logo-adaptive h-7 w-7" />
+            <span className="text-sm font-black">Vincere</span>
+            <BetaBadge compact />
+          </Link>
 
-            {!isSignedIn && (
-              <div className="hidden items-center gap-1 lg:flex">
-                {[
-                  ["Fonctionnement", "#fonctionnement"],
-                  ["Fonctionnalités", "#fonctionnalites"],
-                  ["Tarifs", "#tarifs"],
-                  ["FAQ", "#faq"],
-                ].map(([label, href]) => (
-                  <a
-                    key={href}
-                    href={href}
-                    className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black"
-                  >
-                    {label}
-                  </a>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <div>
-                <ThemeToggleButton />
-              </div>
-              {isSignedIn ? (
-                <>
-                  {/* Mobile: contact + logout */}
-                  <button
-                    aria-label="Contact"
-                    onClick={openContact}
-                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-                  >
-                    <Mail className="w-4 h-4" />
-                  </button>
-                  <button
-                    aria-label="Se déconnecter"
-                    onClick={() => void signOut().then(() => navigate("/"))}
-                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                  {/* Desktop: nav complète */}
-                  <div className="hidden items-center gap-1 md:flex">
-                    {[
-                      { label: "Accueil", path: "/dashboard" },
-                      { label: "Programme", path: "/result" },
-                      { label: "Entraînements", path: "/session" },
-                      { label: "Suivi", path: "/records" },
-                      { label: "Profil", path: "/settings" },
-                    ].map(({ label, path }) => {
-                      const active = location.pathname === path;
-                      return (
-                        <Link
-                          key={path}
-                          to={path}
-                          aria-current={active ? "page" : undefined}
-                          className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-                            active
-                              ? "bg-gray-100 text-gray-950"
-                              : "text-gray-500 hover:bg-gray-100 hover:text-black"
-                          }`}
-                        >
-                          {label}
-                        </Link>
-                      );
-                    })}
-                    <div className="w-px h-4 bg-gray-200 mx-1" />
-                    <button
-                      aria-label="Contact"
-                      title="Contact"
-                      onClick={openContact}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-                    >
-                      <Mail className="w-4 h-4" />
-                    </button>
-                    <button
-                      aria-label="Se déconnecter"
-                      title="Se déconnecter"
-                      onClick={() => void signOut().then(() => navigate("/"))}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/sign-in"
-                    className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-black sm:inline-flex"
-                  >
-                    Connexion
-                  </Link>
-                  <Link
-                    to="/sign-up?next=%2Fonboarding"
-                    className="inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800"
-                  >
-                    Commencer
-                  </Link>
-                </>
-              )}
+          {!isSignedIn && (
+            <div className="hidden items-center gap-1 lg:flex">
+              {[
+                ["Fonctionnement", "#fonctionnement"],
+                ["Fonctionnalités", "#fonctionnalites"],
+                ["Tarifs", "#tarifs"],
+                ["FAQ", "#faq"],
+              ].map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-ink-soft transition-colors hover:bg-card-soft hover:text-ink"
+                >
+                  {label}
+                </a>
+              ))}
             </div>
-          </div>
-        </nav>
-      )}
-
-      <Modal
-        open={contactOpen}
-        title="Contactez-nous"
-        className="contact-modal"
-        onClose={closeContact}
-      >
-        <div className="flex-1 px-6 py-6">
-          {contactSent ? (
-            /* Success state */
-            <div className="flex flex-col items-center justify-center h-48 text-center">
-              <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">✓</span>
-              </div>
-              <h3 className="font-black text-lg mb-1">Message envoyé !</h3>
-              <p className="text-sm text-gray-500">On vous recontacte très bientôt.</p>
-              <button
-                onClick={() => {
-                  setContactError("");
-                  setContactSent(false);
-                  setContactForm(makeDefaultContactForm());
-                }}
-                className="mt-6 text-xs text-gray-500 underline hover:text-white transition-colors"
-              >
-                Envoyer un autre message
-              </button>
-            </div>
-          ) : (
-            /* Form */
-            <form onSubmit={handleContactSubmit} className="space-y-4 mb-8">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="c-name"
-                    className="text-[11px] font-semibold text-gray-500 mb-1.5 block uppercase tracking-wide"
-                  >
-                    Prénom
-                  </label>
-                  <input
-                    id="c-name"
-                    type="text"
-                    value={contactForm.firstName}
-                    onChange={(e) => updateContactField("firstName", e.target.value)}
-                    disabled={contactSubmitting}
-                    required
-                    placeholder="Alex"
-                    className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-all"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="c-lastname"
-                    className="text-[11px] font-semibold text-gray-500 mb-1.5 block uppercase tracking-wide"
-                  >
-                    Nom
-                  </label>
-                  <input
-                    id="c-lastname"
-                    type="text"
-                    value={contactForm.lastName}
-                    onChange={(e) => updateContactField("lastName", e.target.value)}
-                    disabled={contactSubmitting}
-                    placeholder="Dupont"
-                    className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-all"
-                  />
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="c-email"
-                  className="text-[11px] font-semibold text-gray-500 mb-1.5 block uppercase tracking-wide"
-                >
-                  Email
-                </label>
-                <input
-                  id="c-email"
-                  type="email"
-                  value={contactForm.email}
-                  onChange={(e) => updateContactField("email", e.target.value)}
-                  disabled={contactSubmitting}
-                  required
-                  placeholder="alex@email.com"
-                  className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-all"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="c-subject"
-                  className="text-[11px] font-semibold text-gray-500 mb-1.5 block uppercase tracking-wide"
-                >
-                  Sujet
-                </label>
-                <select
-                  id="c-subject"
-                  value={contactForm.subject}
-                  onChange={(e) => updateContactField("subject", e.target.value)}
-                  disabled={contactSubmitting}
-                  required
-                  className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-sm text-gray-400 focus:outline-none focus:border-white/25 transition-all appearance-none"
-                >
-                  <option value="" className="bg-[#111]">
-                    Sélectionner...
-                  </option>
-                  <option value="programme" className="bg-[#111]">
-                    Question sur mon programme
-                  </option>
-                  <option value="compte" className="bg-[#111]">
-                    Problème de compte
-                  </option>
-                  <option value="partenariat" className="bg-[#111]">
-                    Partenariat
-                  </option>
-                  <option value="autre" className="bg-[#111]">
-                    Autre
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="c-message"
-                  className="text-[11px] font-semibold text-gray-500 mb-1.5 block uppercase tracking-wide"
-                >
-                  Message
-                </label>
-                <textarea
-                  id="c-message"
-                  rows={4}
-                  value={contactForm.message}
-                  onChange={(e) => updateContactField("message", e.target.value)}
-                  disabled={contactSubmitting}
-                  required
-                  placeholder="Décris-nous ta demande..."
-                  className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-all resize-none"
-                />
-              </div>
-              {contactError && <p className="text-sm text-red-400">{contactError}</p>}
-              <button
-                type="submit"
-                disabled={
-                  contactSubmitting ||
-                  !contactForm.firstName.trim() ||
-                  !contactForm.email.trim() ||
-                  !contactForm.subject ||
-                  !contactForm.message.trim()
-                }
-                className="w-full bg-white text-black font-bold py-3.5 rounded-xl hover:bg-gray-100 active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {contactSubmitting ? "Envoi en cours..." : "Envoyer le message"}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
           )}
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-white/8" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
-              Rejoignez-nous
-            </span>
-            <div className="flex-1 h-px bg-white/8" />
-          </div>
-
-          {/* Social links */}
-          <div className="space-y-2">
-            <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3">
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Nos réseaux sociaux seront disponibles bientôt. Pour l'instant, passe par le
-                formulaire de contact ci-dessus.
-              </p>
-            </div>
-            {[
-              {
-                label: "Instagram",
-                handle: "@Vincere_app",
-                grad: "from-fuchsia-500 via-pink-500 to-orange-400",
-                letter: "IG",
-              },
-              {
-                label: "LinkedIn",
-                handle: "Vincere",
-                grad: "from-blue-700 to-blue-500",
-                letter: "in",
-              },
-              {
-                label: "Twitter / X",
-                handle: "@Vincere_app",
-                grad: "from-gray-700 to-gray-500",
-                letter: "X",
-              },
-            ].map(({ label, handle, grad, letter }) => (
-              <div
-                key={label}
-                aria-disabled="true"
-                className="flex items-center gap-3 bg-white/[0.03] border border-white/8 rounded-xl px-4 py-3 opacity-70 cursor-not-allowed select-none"
-              >
-                <div
-                  className={`w-9 h-9 rounded-xl bg-linear-to-br ${grad} flex items-center justify-center shrink-0 text-white text-[11px] font-black`}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {isSignedIn ? (
+              <>
+                {/* Desktop : navigation complète */}
+                <div className="hidden items-center gap-1 md:flex">
+                  {[
+                    { label: "Accueil", path: "/dashboard" },
+                    { label: "Programme", path: "/result" },
+                    { label: "Séances", path: "/session" },
+                    { label: "Suivi", path: "/records" },
+                    { label: "Profil", path: "/settings" },
+                  ].map(({ label, path }) => {
+                    const active =
+                      location.pathname === path ||
+                      (path === "/session" && location.pathname === "/builder");
+                    return (
+                      <Link
+                        key={path}
+                        to={path}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-bold transition-colors ${
+                          active
+                            ? "bg-card-soft text-ink underline decoration-brand decoration-2 underline-offset-8"
+                            : "text-ink-soft hover:bg-card-soft hover:text-ink"
+                        }`}
+                      >
+                        {label}
+                      </Link>
+                    );
+                  })}
+                  <div className="mx-1 h-4 w-px bg-line-strong" aria-hidden="true" />
+                </div>
+                <button
+                  type="button"
+                  aria-label="Ouvrir l'assistant"
+                  aria-haspopup="dialog"
+                  title="Assistant Vincere"
+                  onClick={(event) => {
+                    event.currentTarget.focus();
+                    globalThis.dispatchEvent(new Event("open-Vincere-chat"));
+                  }}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card-soft text-ink transition-colors hover:bg-card-strong"
                 >
-                  {letter}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold leading-none mb-0.5">{label}</p>
-                  <p className="text-xs text-gray-500 truncate">{handle}</p>
-                </div>
-                <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                  Bientôt
-                </span>
-              </div>
-            ))}
+                  <Sparkles className="h-[18px] w-[18px]" aria-hidden="true" />
+                </button>
+                <ThemeToggleButton />
+              </>
+            ) : (
+              <>
+                <ThemeToggleButton />
+                <Link
+                  to="/sign-in"
+                  className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-ink-soft transition-colors hover:bg-card-soft hover:text-ink sm:inline-flex"
+                >
+                  Connexion
+                </Link>
+                <Link
+                  to="/sign-up?next=%2Fonboarding"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-black px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800"
+                >
+                  Commencer
+                </Link>
+              </>
+            )}
           </div>
         </div>
+      </nav>
+
+      <Modal open={contactOpen} title="Contacter l'assistance" onClose={closeContact}>
+        {contactSent ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-2xl text-brand">
+              <span aria-hidden="true">✓</span>
+            </div>
+            <h3 className="mb-1 text-lg font-black">Message envoyé !</h3>
+            <p className="text-sm text-ink-soft">On te répond très bientôt par e-mail.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setContactError("");
+                setContactSent(false);
+                setContactForm(makeDefaultContactForm());
+              }}
+              className="app-secondary mt-6"
+            >
+              Envoyer un autre message
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleContactSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="c-name" className="mb-1.5 block text-sm font-semibold">
+                  Prénom
+                </label>
+                <input
+                  id="c-name"
+                  type="text"
+                  value={contactForm.firstName}
+                  onChange={(e) => updateContactField("firstName", e.target.value)}
+                  disabled={contactSubmitting}
+                  required
+                  placeholder="Alex"
+                  className="app-input"
+                />
+              </div>
+              <div>
+                <label htmlFor="c-lastname" className="mb-1.5 block text-sm font-semibold">
+                  Nom
+                </label>
+                <input
+                  id="c-lastname"
+                  type="text"
+                  value={contactForm.lastName}
+                  onChange={(e) => updateContactField("lastName", e.target.value)}
+                  disabled={contactSubmitting}
+                  placeholder="Dupont"
+                  className="app-input"
+                />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="c-email" className="mb-1.5 block text-sm font-semibold">
+                E-mail
+              </label>
+              <input
+                id="c-email"
+                type="email"
+                value={contactForm.email}
+                onChange={(e) => updateContactField("email", e.target.value)}
+                disabled={contactSubmitting}
+                required
+                placeholder="alex@email.com"
+                className="app-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="c-subject" className="mb-1.5 block text-sm font-semibold">
+                Sujet
+              </label>
+              <select
+                id="c-subject"
+                value={contactForm.subject}
+                onChange={(e) => updateContactField("subject", e.target.value)}
+                disabled={contactSubmitting}
+                required
+                className="app-input"
+              >
+                <option value="">Sélectionner…</option>
+                {CONTACT_SUBJECTS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="c-message" className="mb-1.5 block text-sm font-semibold">
+                Message
+              </label>
+              <textarea
+                id="c-message"
+                rows={4}
+                value={contactForm.message}
+                onChange={(e) => updateContactField("message", e.target.value)}
+                disabled={contactSubmitting}
+                required
+                placeholder="Décris-nous ta demande…"
+                className="app-input resize-none"
+              />
+            </div>
+            {contactError && (
+              <p role="alert" className="text-sm font-medium text-danger">
+                {contactError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={
+                contactSubmitting ||
+                !contactForm.firstName.trim() ||
+                !contactForm.email.trim() ||
+                !contactForm.subject ||
+                !contactForm.message.trim()
+              }
+              className="app-primary w-full"
+            >
+              {contactSubmitting ? "Envoi en cours…" : "Envoyer le message"}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </form>
+        )}
       </Modal>
     </>
   );

@@ -1,59 +1,38 @@
 import { useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { Calendar, Zap, Target } from "lucide-react";
+import { ArrowRight, Calendar, Gauge, Pencil, Target } from "lucide-react";
 import { useAuth } from "../lib/auth";
+import { useGeneration } from "../lib/generationContext";
+import { FREE_SESSION_BUILDER_ENABLED } from "../lib/features";
 import { useApp } from "../lib/store";
-import { OBJECTIVE_META, LEVEL_META } from "../lib/constants";
-import { programSchedule, programSessionLink } from "../lib/program";
+import { LEVEL_META } from "../lib/constants";
+import { programSchedule, programSessionLink, weekSessionStates } from "../lib/program";
+import { capitalize, whenLabel } from "../lib/sessionDisplay";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import type { UserProfile } from "../lib/types";
 import Navbar from "../components/Navbar";
-import Section from "../components/ui/Section";
-import TodayCard from "../components/dashboard/TodayCard";
-import ProgramSection from "../components/dashboard/ProgramSection";
-import WeekProgressCard from "../components/dashboard/WeekProgressCard";
+import WeekStrip from "../components/dashboard/WeekStrip";
+import FreeSessionCard from "../components/dashboard/FreeSessionCard";
+
+function Chip({
+  icon: Icon,
+  children,
+}: Readonly<{ icon: typeof Target; children: React.ReactNode }>) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-card-soft px-3 py-1.5 text-xs font-semibold">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-hidden="true" />
+      <span className="min-w-0 break-words">{children}</span>
+    </span>
+  );
+}
 
 export default function Dashboard() {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const { isSignedIn, userFirstName } = useAuth();
-
-  if (!isSignedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Connecte-toi pour accéder à ton suivi.</p>
-          <Link to="/sign-in" className="bg-black text-white px-6 py-3 rounded-xl font-bold">
-            Connexion
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const { program, sessions, profile } = state;
-  const schedule = programSchedule(program, state.programStartDate);
-  const currentProgramWeek = schedule.activeWeek;
-  const completedSessions =
-    currentProgramWeek?.sessions.filter((session) => session.completed).length ?? 0;
-  const totalSessions = currentProgramWeek?.sessions.length ?? 0;
-
-  const todayDate = new Date().toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-  const todaySessions = sessions.filter((s) => s.date === todayDate);
-
-  const objMeta = profile?.objective ? OBJECTIVE_META[profile.objective] : null;
-  const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
-  const firstName = userFirstName ?? "Athlète";
-  const heroBg = objMeta ? `${objMeta.bg} border-2 ${objMeta.border}` : "bg-black";
-  const heroChipClass = objMeta ? "theme-hero-chip" : "bg-white/10 text-white";
-  const heroActionClass = objMeta
-    ? "theme-hero-chip-action"
-    : "bg-white/15 text-white hover:bg-white/25";
+  const generating = ["running", "saving"].includes(useGeneration().state.phase);
 
   useEffect(() => {
     const shouldOpenBonus = new URLSearchParams(location.search).get("bonus") === "1";
@@ -64,193 +43,140 @@ export default function Dashboard() {
       return;
     }
 
-    void navigate("/builder", { replace: true });
+    // Builder de séance libre masqué pour le moment (voir src/lib/features.ts).
+    void navigate(FREE_SESSION_BUILDER_ENABLED ? "/builder" : "/dashboard", { replace: true });
   }, [location.search, navigate, profile?.objective]);
+
+  if (!isSignedIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <div className="text-center">
+          <p className="mb-4 text-ink-soft">Connecte-toi pour accéder à ton suivi.</p>
+          <Link to="/sign-in" className="app-primary">
+            Connexion
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const schedule = programSchedule(program, state.programStartDate);
+  const activeWeek = schedule.activeWeek;
+  const weekStates = weekSessionStates(activeWeek, state.programStartDate);
+  const next = schedule.next;
+
+  const todayDate = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const todaySessions = sessions.filter((s) => s.date === todayDate);
+  const levelMeta = profile?.level ? LEVEL_META[profile.level] : null;
+  const firstName = userFirstName ?? "Athlète";
 
   function handleGenerateSession() {
     if (!profile?.objective) {
       void navigate("/onboarding");
       return;
     }
-    void navigate("/builder");
+    // Builder de séance libre masqué pour le moment (voir src/lib/features.ts).
+    if (FREE_SESSION_BUILDER_ENABLED) void navigate("/builder");
   }
 
   return (
-    <div className="theme-app-page min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen">
       <Navbar />
 
-      <main className="app-dashboard-content mx-auto max-w-6xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
-        <div
-          className={`relative overflow-hidden rounded-3xl p-4 sm:p-6 mt-6 mb-6 ${heroBg}`}
-          role="banner"
+      <main className="app-dashboard-content mx-auto max-w-3xl space-y-4 px-4 pb-28 pt-20 sm:px-6 md:pb-24">
+        <section
+          aria-labelledby="home-title"
+          className="mt-6 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-6"
         >
-          <div className="relative flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p
-                className={`text-xs font-bold uppercase mb-1 ${objMeta ? objMeta.color : "text-white/50"}`}
-              >
-                {new Date().toLocaleDateString("fr-FR", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
-              </p>
-              <h1
-                className={`text-2xl font-black leading-tight ${objMeta ? "text-gray-900" : "text-white"}`}
-              >
-                Bonjour {firstName}
-                {objMeta?.emoji ? ` ${objMeta.emoji}` : ""}
-              </h1>
-              <p className={`mt-1 text-xs ${objMeta ? "text-gray-500" : "text-white/50"}`}>
-                Voici l’essentiel pour ton prochain entraînement.
-              </p>
-            </div>
-            <Link
-              to="/settings"
-              aria-label="Modifier mon profil"
-              className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${heroActionClass}`}
-            >
-              Modifier
-            </Link>
-          </div>
+          <p className="text-xs font-bold text-ink-soft">{capitalize(todayDate)}</p>
+          <h1 id="home-title" className="mt-1 text-2xl font-black leading-tight">
+            Bonjour {firstName}
+          </h1>
 
           {profile?.objective && (
-            <div className="relative mt-4 flex flex-wrap gap-2" aria-label="Profil sportif">
-              <span
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
-              >
-                <Target className="w-3 h-3" aria-hidden="true" />
-                {OBJECTIVE_LABELS[profile.objective]}
-              </span>
-              {profile.goalDetail && (
-                <span
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
-                >
-                  <Target className="w-3 h-3" aria-hidden="true" />
-                  {profile.goalDetail}
-                </span>
-              )}
-              {levelMeta && (
-                <span
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
-                >
-                  <span aria-hidden="true">{levelMeta.emoji}</span>
-                  {levelMeta.label}
-                </span>
-              )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Chip icon={Target}>{profile.goalDetail || OBJECTIVE_LABELS[profile.objective]}</Chip>
+              {levelMeta && <Chip icon={Gauge}>{levelMeta.label}</Chip>}
               {profile.weeklyFrequency && (
-                <span
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${heroChipClass}`}
-                >
-                  <Calendar className="w-3 h-3" aria-hidden="true" />
-                  {profile.weeklyFrequency}x / sem
-                </span>
+                <Chip icon={Calendar}>{profile.weeklyFrequency} séances / semaine</Chip>
               )}
+              <Link
+                to="/settings"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-xs font-bold underline underline-offset-2"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                Modifier mon profil
+              </Link>
             </div>
           )}
-        </div>
 
-        {program && (
-          <section className="mb-6 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
-            <p className="text-sm font-semibold text-emerald-800">Prochaine séance prévue</p>
-            {schedule.next ? (
+          <div className="mt-5 border-t border-line pt-5">
+            {!program && generating ? (
               <>
-                <h2 className="mt-2 text-xl font-bold">{schedule.next.session.type}</h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  {schedule.next.date
-                    ? schedule.next.date.toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                      })
-                    : schedule.next.session.day}{" "}
-                  · {schedule.next.session.duration_min} min · Semaine {schedule.next.weekNumber}
+                <h2 className="text-lg font-black">Ton programme est en cours de création</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Tu peux continuer à utiliser l'application : on te prévient dès qu'il est prêt.
                 </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Link
-                    className="app-primary"
-                    to={programSessionLink(
-                      schedule.next.weekNumber,
-                      schedule.next.session.session_id,
-                    )}
-                  >
-                    Consulter la séance
-                  </Link>
-                  <button
-                    type="button"
-                    className="app-secondary"
-                    onClick={() =>
-                      dispatch({
-                        type: "SET_PROGRAM_SESSION_COMPLETION",
-                        weekNumber: schedule.next!.weekNumber,
-                        sessionId: schedule.next!.session.session_id,
-                        completed: true,
-                      })
-                    }
-                  >
-                    Marquer réalisée
-                  </button>
-                </div>
+              </>
+            ) : !program ? (
+              <>
+                <h2 className="text-lg font-black">Aucun programme actif</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Réponds à quelques questions : ton plan sur mesure est prêt en 2 minutes.
+                </p>
+                <Link to="/onboarding" className="app-primary mt-4 w-full sm:w-auto">
+                  Créer mon programme
+                </Link>
+              </>
+            ) : next ? (
+              <>
+                <p className="text-xs font-bold uppercase tracking-wide text-brand">
+                  Prochaine séance · {whenLabel(next.date, next.session.day)}
+                </p>
+                <h2 className="font-display mt-1 text-2xl font-black">{next.session.type}</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Semaine {next.weekNumber} · {next.session.duration_min} min ·{" "}
+                  {next.session.intensity}
+                </p>
+                <Link
+                  className="app-primary mt-4 w-full sm:w-auto"
+                  to={programSessionLink(next.weekNumber, next.session.session_id)}
+                >
+                  Commencer la séance
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </>
             ) : (
-              <h2 className="mt-2 text-lg font-bold">Aucune séance à venir</h2>
+              <>
+                <h2 className="text-lg font-black">Aucune séance à venir</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  {schedule.overdueCount > 0
+                    ? "Il te reste des séances à rattraper dans ton programme."
+                    : "Ton programme est terminé : bravo ! Tu peux en générer un nouveau."}
+                </p>
+              </>
             )}
-            {schedule.overdueCount > 0 && (
-              <p className="mt-4 text-sm text-gray-700">
-                {schedule.overdueCount} séance
-                {schedule.overdueCount > 1 ? "s passées non cochées" : " passée non cochée"}.{" "}
-                <Link to="/result" className="font-semibold underline">
-                  Vérifier le programme
-                </Link>
-              </p>
-            )}
-          </section>
-        )}
-        <div className="grid items-start gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="space-y-4">
-            {program !== null && (
-              <WeekProgressCard
-                currentWeek={currentProgramWeek}
-                completedSessions={completedSessions}
-                totalSessions={totalSessions}
-                hasProgram={program !== null}
-                onToggleSession={(sessionId, completed) => {
-                  if (!currentProgramWeek) return;
-                  dispatch({
-                    type: "SET_PROGRAM_SESSION_COMPLETION",
-                    weekNumber: currentProgramWeek.week_number,
-                    sessionId,
-                    completed,
-                  });
-                }}
-              />
-            )}
-
-            <ProgramSection program={program} />
           </div>
+        </section>
 
-          <Section
-            icon={<Zap className="w-4 h-4" />}
-            title="Séance libre"
-            color="text-green-600"
-            bg="bg-green-50"
-            badge={
-              <span className="rounded-full border border-green-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-green-700">
-                Hors programme
-              </span>
-            }
-          >
-            <TodayCard
-              todaySessions={todaySessions}
-              profile={profile as UserProfile | null}
-              objMeta={objMeta}
-              generatingSession={false}
-              sessionError=""
-              onGenerate={handleGenerateSession}
-              onNavigate={(uid) => navigate(`/session?uid=${uid}`)}
-            />
-          </Section>
-        </div>
+        {program && activeWeek && (
+          <WeekStrip
+            weekNumber={activeWeek.week_number}
+            totalWeeks={program.weeks.length}
+            states={weekStates}
+          />
+        )}
+
+        <FreeSessionCard
+          todaySessions={todaySessions}
+          profile={profile as UserProfile | null}
+          onGenerate={handleGenerateSession}
+          onNavigate={(uid) => navigate(`/session?uid=${uid}`)}
+        />
       </main>
     </div>
   );

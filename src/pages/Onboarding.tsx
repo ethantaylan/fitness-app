@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, Plus, X } from "lucide-react";
+import { ChevronLeft, Check, Plus, Sparkles, UserPlus, X } from "lucide-react";
 import { useApp } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import type {
@@ -1603,8 +1603,11 @@ export default function Onboarding() {
                     }}
                     className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
                   >
-                    <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                      🚀
+                    <div
+                      className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0"
+                      aria-hidden="true"
+                    >
+                      <Sparkles className="h-5 w-5" />
                     </div>
                     <div>
                       <div className="font-bold text-[15px]">Générer mon programme</div>
@@ -1621,8 +1624,11 @@ export default function Onboarding() {
                     }}
                     className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
                   >
-                    <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                      🚀
+                    <div
+                      className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0"
+                      aria-hidden="true"
+                    >
+                      <UserPlus className="h-5 w-5" />
                     </div>
                     <div>
                       <div className="font-bold text-[15px]">Créer un compte et générer</div>

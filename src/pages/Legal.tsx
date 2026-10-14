@@ -13,11 +13,7 @@ export default function Legal() {
   const returnTo = fromAccount ? "/settings?tab=compte" : "/";
   const isPrivacy = pathname === "/privacy";
   const isSupport = pathname === "/support";
-  const title = isPrivacy
-    ? "Confidentialité"
-    : isSupport
-      ? "Assistance"
-      : "Conditions d'utilisation";
+  const title = isPrivacy ? "Confidentialité" : isSupport ? "Aide" : "Conditions d'utilisation";
   return (
     <main className="legal-page mx-auto max-w-2xl px-5 py-8 pb-32">
       <Link
@@ -27,7 +23,7 @@ export default function Legal() {
         <ArrowLeft size={18} /> {fromAccount ? "Retour au profil" : "Vincere"}
       </Link>
       <h1 className="text-3xl font-bold">{title}</h1>
-      <p className="mt-2 text-sm text-gray-500">Mise à jour : {LEGAL_VERSION}</p>
+      <p className="mt-2 text-sm text-ink-soft">Mise à jour : {LEGAL_VERSION}</p>
       {isPrivacy ? (
         <>
           <section>
@@ -35,8 +31,8 @@ export default function Legal() {
             <p>
               Vincere utilise ton adresse e-mail et ton identifiant de compte pour la connexion,
               ainsi que ton pseudo facultatif. Ton profil sportif, tes programmes, tes séances, tes
-              records, tes notes et ton accord pour l'IA sont enregistrés pour fournir le service et
-              synchroniser tes appareils.
+              performances, tes notes et ton accord pour l'IA sont enregistrés pour fournir le
+              service et synchroniser tes appareils.
             </p>
             <p>
               Les informations de santé, comme les limitations physiques et les restrictions
@@ -62,7 +58,7 @@ export default function Legal() {
           <section>
             <h2>Stockage sur l'appareil et partage</h2>
             <p>
-              Une copie de tes entraînements et de ton profil est conservée sur cet appareil pour
+              Une copie de tes séances et de ton profil est conservée sur cet appareil pour
               permettre leur consultation hors connexion. Elle est effacée à la déconnexion. Un
               export ou une séance que tu partages peut contenir des informations personnelles :
               vérifie le destinataire avant de confirmer le partage.
@@ -137,9 +133,9 @@ export default function Legal() {
           <section>
             <h2>Un accompagnement sportif</h2>
             <p>
-              Vincere permet de créer et suivre des entraînements, de noter ses progrès et
-              d'exporter ses programmes. Les suggestions générées par IA peuvent contenir des
-              erreurs ; vérifie leur pertinence avant de les suivre.
+              Vincere permet de créer et suivre des séances, de noter ses progrès et d'exporter ses
+              programmes. Les suggestions générées par IA peuvent contenir des erreurs ; vérifie
+              leur pertinence avant de les suivre.
             </p>
           </section>
           <section>
@@ -188,12 +184,27 @@ export default function Legal() {
         )}
       </section>
       <nav
-        className="mt-8 flex flex-wrap gap-5 text-sm underline"
+        className="mt-8 flex flex-wrap gap-x-5 text-sm underline"
         aria-label="Informations légales"
       >
-        <Link to={`/privacy${fromAccount ? "?from=account" : ""}`}>Confidentialité</Link>
-        <Link to={`/terms${fromAccount ? "?from=account" : ""}`}>Conditions</Link>
-        <Link to={`/support${fromAccount ? "?from=account" : ""}`}>Assistance</Link>
+        <Link
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          to={`/privacy${fromAccount ? "?from=account" : ""}`}
+        >
+          Confidentialité
+        </Link>
+        <Link
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          to={`/terms${fromAccount ? "?from=account" : ""}`}
+        >
+          Conditions
+        </Link>
+        <Link
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          to={`/support${fromAccount ? "?from=account" : ""}`}
+        >
+          Aide
+        </Link>
       </nav>
     </main>
   );

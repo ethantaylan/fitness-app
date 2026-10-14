@@ -19,6 +19,7 @@ import type {
   Exercise,
   WarmupItem,
   PersonalRecord,
+  UserNote,
   RecordCategory,
 } from "./types";
 
@@ -995,6 +996,61 @@ export async function getRecords(
     distance_km: row.distance_km === null ? undefined : Number(row.distance_km),
     time_min: row.time_min === null ? undefined : Number(row.time_min),
     notes: row.notes as string | undefined,
+  }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTES LIBRES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Crée ou met à jour une note libre (upsert sur l'id). */
+export async function saveNote(
+  client: SupabaseClient,
+  internalUserId: string,
+  note: UserNote,
+): Promise<void> {
+  const { error } = await client.from("user_notes").upsert(
+    {
+      id: note.id,
+      user_id: internalUserId,
+      title: note.title?.trim() || null,
+      content: note.content,
+      note_date: note.date,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw new Error(`[db/saveNote] ${error.message}`);
+}
+
+export async function deleteNote(
+  client: SupabaseClient,
+  internalUserId: string,
+  noteId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("user_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("user_id", internalUserId);
+  if (error) throw new Error(`[db/deleteNote] ${error.message}`);
+}
+
+export async function getNotes(
+  client: SupabaseClient,
+  internalUserId: string,
+): Promise<UserNote[]> {
+  const { data, error } = await client
+    .from("user_notes")
+    .select("*")
+    .eq("user_id", internalUserId)
+    .order("note_date", { ascending: false });
+  if (error) throw new Error(`[db/getNotes] ${error.message}`);
+  return ((data as Record<string, unknown>[] | null) ?? []).map((row) => ({
+    id: row.id as string,
+    title: (row.title as string | null) ?? undefined,
+    content: row.content as string,
+    date: row.note_date as string,
   }));
 }
 

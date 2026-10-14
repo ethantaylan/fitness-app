@@ -16,14 +16,14 @@ export default function ThemeToggleButton({
       aria-pressed={isDark}
       title={label}
       onClick={() => setThemeMode(isDark ? "light" : "dark")}
-      className="relative inline-flex items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-bold transition-colors"
+      className="relative inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full px-3 text-xs font-bold transition-colors"
       style={{
         backgroundColor: "var(--theme-surface-soft)",
         border: "1px solid var(--theme-border)",
         color: "var(--theme-text)",
       }}
     >
-      <Icon className="w-4 h-4 shrink-0" />
+      <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
       {showLabel && <span>{label}</span>}
     </button>
   );

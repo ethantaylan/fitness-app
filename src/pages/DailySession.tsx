@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ThumbsUp,
   ThumbsDown,
@@ -14,9 +14,8 @@ import {
   Share2,
   Check,
   Info,
+  Plus,
   Trash2,
-  BookOpen,
-  ArrowRight,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
@@ -28,19 +27,17 @@ import { replaceExercise } from "../lib/openai";
 import { FEEDBACK_META } from "../lib/constants";
 import { formatLoadValue } from "../lib/formatLoad";
 import Modal from "../components/ui/Modal";
-import { exerciseMetrics, formatSeconds, hasMeasure, workoutTitle } from "../lib/exerciseDisplay";
-import { programSchedule, programSessionLink } from "../lib/program";
-import { OBJECTIVE_LABELS } from "../lib/agents";
+import {
+  exerciseMetrics,
+  formatSeconds,
+  hasMeasure,
+  usesHolds,
+  workoutTitle,
+} from "../lib/exerciseDisplay";
+import { capitalize } from "../lib/sessionDisplay";
+import { FREE_SESSION_BUILDER_ENABLED } from "../lib/features";
+import { estimateMinutes, quickWorkoutsFor } from "../lib/quickWorkouts";
 import type { DailySession, UserProfile } from "../lib/types";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function intensityClasses(intensity: string) {
-  const i = intensity?.toLowerCase() ?? "";
-  if (i.includes("intense")) return { badge: "bg-red-100 text-red-700" };
-  if (i.includes("modér")) return { badge: "bg-yellow-100 text-yellow-700" };
-  return { badge: "bg-green-100 text-green-700" };
-}
 
 // ── Session List ──────────────────────────────────────────────────────────────
 
@@ -54,7 +51,7 @@ function SessionList({
   onCreate: () => void;
 }>) {
   const navigate = useNavigate();
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   function handleDeleteClick(uid: string) {
@@ -63,7 +60,7 @@ function SessionList({
       setPendingDelete(null);
     } else {
       setPendingDelete(uid);
-      setTimeout(() => setPendingDelete((p) => (p === uid ? null : p)), 3000);
+      setTimeout(() => setPendingDelete((p) => (p === uid ? null : p)), 4000);
     }
   }
 
@@ -72,191 +69,173 @@ function SessionList({
     acc[s.date].push(s);
     return acc;
   }, {});
-  const nextPlanned = programSchedule(state.program, state.programStartDate).next;
-  const nextProgramSession = nextPlanned
-    ? { ...nextPlanned.session, weekNumber: nextPlanned.weekNumber }
-    : null;
+  // Création de séance libre masquée pour le moment (voir src/lib/features.ts).
+  const canCreate = FREE_SESSION_BUILDER_ENABLED;
+  const templates = canCreate ? quickWorkoutsFor().slice(0, 4) : [];
 
   return (
-    <div className="theme-app-page min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen">
       <Navbar />
-      <div className="mx-auto max-w-4xl px-4 pb-28 pt-20 sm:px-6">
-        {/* Header */}
-        <div className="mt-6 mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Mon activité</p>
-          <h1 className="text-2xl font-black">Entraînements</h1>
-          {sessions.length > 0 && (
-            <p className="text-sm text-gray-400 mt-1">
-              {sessions.length} séance{sessions.length > 1 ? "s" : ""} libre
-              {sessions.length > 1 ? "s" : ""} dans l’historique
-            </p>
-          )}
-        </div>
+      <main className="mx-auto max-w-3xl px-4 pb-28 pt-20 sm:px-6">
+        <header className="mb-6 mt-6">
+          <h1 className="text-2xl font-black">Séances libres</h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            {canCreate
+              ? "Des séances ponctuelles, en plus de ton programme."
+              : "L'historique de tes séances libres."}
+          </p>
+        </header>
 
-        {nextProgramSession && (
-          <section className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700">
-                <BookOpen className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
-                  Prochaine séance du programme
-                </p>
-                <h2 className="mt-1 text-sm font-black text-gray-900">
-                  {nextProgramSession.day} · {nextProgramSession.type}
-                </h2>
-                <p className="mt-1 text-xs text-gray-500">
-                  Semaine {nextProgramSession.weekNumber} de ton plan
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  void navigate(
-                    programSessionLink(
-                      nextProgramSession.weekNumber,
-                      nextProgramSession.session_id,
-                    ),
-                  )
-                }
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white"
-                aria-label="Voir la prochaine séance dans le programme"
-              >
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+        {canCreate && sessions.length > 0 && (
+          <button
+            type="button"
+            onClick={onCreate}
+            disabled={!profile}
+            className="app-primary w-full"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            Créer une séance libre
+          </button>
+        )}
+
+        {templates.length > 0 && (
+          <section className={sessions.length > 0 ? "mt-8" : ""} aria-labelledby="quick-templates">
+            <h2 id="quick-templates" className="mb-3 text-base font-black">
+              Modèles rapides
+            </h2>
+            <ul className="grid grid-cols-2 gap-3">
+              {templates.map((template) => (
+                <li key={template.id}>
+                  <button
+                    type="button"
+                    onClick={() => void navigate("/builder", { state: { cart: template.cart } })}
+                    className="flex min-h-[4.5rem] w-full flex-col items-start justify-center gap-0.5 rounded-2xl border border-line bg-card p-3 text-left transition-colors hover:bg-card-soft"
+                  >
+                    <span className="text-sm font-bold">{template.label}</span>
+                    <span className="flex items-center gap-1 text-xs text-ink-soft">
+                      <Clock className="h-3 w-3" aria-hidden="true" />~
+                      {estimateMinutes(template.cart)} min
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 
-        <div className="mb-3">
-          <h2 className="text-sm font-black text-gray-900">Créer une séance libre</h2>
-          <p className="mt-1 text-xs text-gray-500">
-            Pour un entraînement ponctuel qui ne remplace pas ton programme.
-          </p>
-        </div>
-
-        <button
-          onClick={onCreate}
-          disabled={!profile}
-          className="theme-session-generate-card mb-7 flex w-full items-center justify-between rounded-2xl bg-black px-5 py-4 text-left text-white transition-all hover:bg-gray-900 active:scale-[0.99] disabled:opacity-50"
-        >
-          <span>
-            <span className="block text-sm font-black">Créer ma séance libre</span>
-            <span className="theme-session-generate-subtitle mt-1 block text-xs text-white/60">
-              Compose toi-même ou laisse Vincere l’adapter à ton programme
-            </span>
-          </span>
-          <ArrowRight className="h-5 w-5 shrink-0" />
-        </button>
-
-        {/* ── Session list ── */}
         {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-14 h-14 bg-white border border-gray-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-              <Dumbbell className="w-7 h-7 text-gray-300" />
+          <section
+            className="mt-8 flex flex-col items-center rounded-3xl border border-dashed border-line-strong bg-card px-6 py-10 text-center"
+            aria-labelledby="empty-title"
+          >
+            <div
+              className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand"
+              aria-hidden="true"
+            >
+              <Dumbbell className="h-8 w-8" />
             </div>
-            <p className="font-bold text-gray-700 mb-1">Aucune séance libre</p>
-            <p className="text-sm text-gray-400">Tes entraînements ponctuels apparaîtront ici.</p>
-          </div>
+            <h2 id="empty-title" className="text-lg font-black">
+              Aucune séance libre
+            </h2>
+            {canCreate ? (
+              <>
+                <p className="mt-1 max-w-xs text-sm text-ink-soft">
+                  Crée ta première séance : elle apparaîtra ici avec ton ressenti.
+                </p>
+                <button
+                  type="button"
+                  onClick={onCreate}
+                  disabled={!profile}
+                  className="app-primary mt-5"
+                >
+                  <Plus className="h-5 w-5" aria-hidden="true" />
+                  Créer une séance libre
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 max-w-xs text-sm text-ink-soft">
+                  La création de séances libres arrive bientôt. En attendant, retrouve toutes tes
+                  séances dans ton programme.
+                </p>
+                <Link to="/result" className="app-secondary mt-5">
+                  Voir mon programme
+                </Link>
+              </>
+            )}
+          </section>
         ) : (
-          <>
-            <div className="flex items-center gap-2 mb-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                Historique des séances libres
-              </p>
-              <div className="flex-1 h-px bg-gray-200" />
-            </div>
+          <section className="mt-8" aria-labelledby="free-history">
+            <h2 id="free-history" className="mb-4 text-base font-black">
+              Historique
+            </h2>
             <div className="space-y-6">
               {Object.keys(grouped).map((date) => (
                 <div key={date}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
-                      {date}
-                    </span>
-                  </div>
-                  <div className="space-y-3">
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-bold text-ink-soft">
+                    <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                    {capitalize(date)}
+                  </h3>
+                  <ul className="space-y-2">
                     {grouped[date].map((s) => {
-                      const ic = intensityClasses(s.intensity);
                       const fb = s.feedback ? FEEDBACK_META[s.feedback] : null;
                       const isConfirming = pendingDelete === s.uid;
+                      const title = workoutTitle(s);
                       return (
-                        <div
+                        <li
                           key={s.uid}
-                          className="w-full bg-white rounded-2xl p-4 border border-gray-100 hover:border-gray-300 hover:shadow-sm transition-all"
+                          className="flex items-stretch rounded-2xl border border-line bg-card transition-colors hover:bg-card-muted"
                         >
-                          <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => void navigate(`/session?uid=${s.uid}`)}
+                            className="min-w-0 flex-1 p-4 text-left"
+                          >
+                            <p className="break-words text-sm font-bold">{title}</p>
+                            {s.goal !== title && (
+                              <p className="mt-1 break-words text-sm text-ink-soft">{s.goal}</p>
+                            )}
+                            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" aria-hidden="true" />
+                                {s.duration_min} min
+                              </span>
+                              <span>{s.intensity}</span>
+                              <span className="font-semibold">
+                                {fb ? fb.label : "Sans ressenti"}
+                              </span>
+                            </p>
+                          </button>
+                          <div className="flex shrink-0 items-center pr-2">
                             <button
-                              onClick={() => void navigate(`/session?uid=${s.uid}`)}
-                              className="flex-1 min-w-0 text-left"
+                              type="button"
+                              onClick={() => handleDeleteClick(s.uid)}
+                              aria-label={
+                                isConfirming
+                                  ? `Confirmer la suppression de la séance ${title}`
+                                  : `Supprimer la séance ${title}`
+                              }
+                              className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2 text-xs font-bold ${
+                                isConfirming
+                                  ? "bg-danger text-paper"
+                                  : "text-ink-soft hover:bg-danger-soft hover:text-danger"
+                              }`}
                             >
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <span
-                                  className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${ic.badge}`}
-                                >
-                                  {s.intensity}
-                                </span>
-                                <span className="text-xs text-gray-500 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {s.duration_min} min
-                                </span>
-                              </div>
-                              <p className="text-sm font-bold text-gray-900 break-words flex items-center gap-1.5">
-                                <Flame className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                {workoutTitle(s)}
-                              </p>
-                              {s.goal !== workoutTitle(s) && (
-                                <p className="mt-1 text-sm text-gray-500 break-words">{s.goal}</p>
-                              )}
-                              {profile?.objective && (
-                                <p className="mt-1 text-xs text-gray-500">
-                                  {OBJECTIVE_LABELS[profile.objective]}
-                                </p>
-                              )}
-                              {s.blocks?.length > 0 && (
-                                <p className="text-xs text-gray-400 mt-1 truncate">
-                                  {s.blocks.map((b) => b.block_name).join(" · ")}
-                                </p>
-                              )}
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              {isConfirming && "Confirmer ?"}
                             </button>
-                            <div className="flex flex-col items-end gap-2 shrink-0">
-                              <button
-                                onClick={() => handleDeleteClick(s.uid)}
-                                title={isConfirming ? "Confirmer la suppression" : "Supprimer"}
-                                className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full transition-all ${
-                                  isConfirming
-                                    ? "bg-red-500 text-white"
-                                    : "bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-400"
-                                }`}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                {isConfirming && "Confirmer ?"}
-                              </button>
-                              {fb ? (
-                                <span
-                                  className={`text-xs font-semibold px-2.5 py-1 rounded-full ${fb.bg} ${fb.color}`}
-                                >
-                                  {fb.emoji} {fb.label}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-gray-300 font-medium">
-                                  Sans feedback
-                                </span>
-                              )}
-                              <ChevronRight className="w-4 h-4 text-gray-300" />
-                            </div>
+                            <ChevronRight className="h-5 w-5 text-ink-soft" aria-hidden="true" />
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 </div>
               ))}
             </div>
-          </>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 }
@@ -331,7 +310,7 @@ function SessionDetail({
     }
   }
 
-  const ic = intensityClasses(session.intensity);
+  const holds = usesHolds(profile?.objective, session.goal);
 
   return (
     <div className="theme-app-page min-h-screen bg-white">
@@ -339,7 +318,7 @@ function SessionDetail({
       <div className="session-page-content mx-auto max-w-4xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
         <div className="mt-6 mb-6 flex items-center justify-between gap-3">
           <button type="button" className="app-secondary" onClick={() => void navigate("/session")}>
-            Retour aux entraînements
+            Retour aux séances
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -348,13 +327,14 @@ function SessionDetail({
                 void navigate("/session");
               }}
               title="Supprimer cette séance"
+              aria-label="Supprimer cette séance"
               className="w-11 h-11 flex items-center justify-center rounded-xl bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleShare}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all ${
+              className={`flex min-h-11 items-center gap-1.5 text-xs font-bold px-3 rounded-xl transition-all ${
                 copied
                   ? "bg-green-50 text-green-600 border border-green-200"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -379,7 +359,7 @@ function SessionDetail({
           <h1 className="text-2xl sm:text-3xl font-black">{workoutTitle(session)}</h1>
           <p className="mt-2 text-sm text-gray-500">{session.date}</p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${ic.badge}`}>
+            <span className="rounded-full bg-card-soft px-3 py-1 text-xs font-semibold">
               {session.intensity}
             </span>
             <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -466,6 +446,7 @@ function SessionDetail({
                                 })
                               }
                               title="Plus d'infos"
+                              aria-label={`Plus d'infos : ${ex.name}`}
                               className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-blue-50 hover:text-blue-500 transition-all"
                             >
                               <Info className="w-3.5 h-3.5" />
@@ -478,6 +459,7 @@ function SessionDetail({
                               }}
                               disabled={isReplacing}
                               title="Remplacer cet exercice"
+                              aria-label={`Remplacer l'exercice ${ex.name}`}
                               className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-violet-100 hover:text-violet-600 transition-all disabled:opacity-40"
                             >
                               <RefreshCw
@@ -488,7 +470,7 @@ function SessionDetail({
                         </div>
                       </div>
                       <dl className="flex flex-wrap gap-2 text-sm">
-                        {exerciseMetrics(ex).map((metric) => (
+                        {exerciseMetrics(ex, { holds }).map((metric) => (
                           <div key={metric.label} className="rounded-lg bg-gray-100 px-2.5 py-1">
                             <dt className="inline text-gray-500">{metric.label} : </dt>
                             <dd className="inline font-semibold">{metric.value}</dd>

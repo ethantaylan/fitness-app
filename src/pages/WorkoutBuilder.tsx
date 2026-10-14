@@ -1,8 +1,14 @@
+/**
+ * FONCTIONNALITÉ MASQUÉE — Builder de séance libre.
+ *
+ * Cet écran n'est plus accessible pour le moment (la route /builder redirige vers /session, voir
+ * `FREE_SESSION_BUILDER_ENABLED` dans src/lib/features.ts). Le code est conservé tel quel car la
+ * fonctionnalité sera RÉACTIVÉE PLUS TARD : ne pas le supprimer.
+ * Procédure et prompt de réactivation : docs/free-session-builder/README.md
+ */
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Accessibility,
-  ArrowDownToLine,
   ArrowUpFromLine,
   BookOpen,
   Dumbbell,
@@ -10,13 +16,13 @@ import {
   Gauge,
   HeartPulse,
   Minus,
-  MousePointerClick,
   PersonStanding,
   Plus,
   RefreshCw,
   RotateCcw,
   Shield,
   Trash2,
+  UnfoldHorizontal,
   WandSparkles,
   Zap,
   type LucideIcon,
@@ -25,307 +31,112 @@ import { useApp } from "../lib/store";
 import { generateCustomSession, generateDailySession } from "../lib/openai";
 import { DURATION_OPTIONS } from "../lib/constants";
 import { programSchedule } from "../lib/program";
+import {
+  ITEM_MINUTES,
+  WARMUP_COOLDOWN_MIN,
+  estimateMinutes,
+  quickWorkoutsFor,
+} from "../lib/quickWorkouts";
 import type { UserProfile } from "../lib/types";
-import Navbar from "../components/Navbar";
+import PageHeader from "../components/ui/PageHeader";
 
 // ── Card definitions ──────────────────────────────────────────────────────────
-
-interface CardColors {
-  text: string;
-  activeBg: string;
-  activeBorder: string;
-  dot: string;
-}
 
 interface CardDef {
   id: string;
   label: string;
   icon: LucideIcon;
   markers?: { x: number; y: number }[];
-  section: "muscles" | "types";
+  section: "muscles" | "types" | "running";
   minutesPerItem: number;
-  colors: CardColors;
 }
 
 interface CartEntry extends CardDef {
   count: number;
 }
 
+const muscle = (id: string, label: string, markers: { x: number; y: number }[]): CardDef => ({
+  id,
+  label,
+  icon: PersonStanding,
+  markers,
+  section: "muscles",
+  minutesPerItem: ITEM_MINUTES[id],
+});
+const effort = (id: string, label: string, icon: LucideIcon): CardDef => ({
+  id,
+  label,
+  icon,
+  section: "types",
+  minutesPerItem: ITEM_MINUTES[id],
+});
+
 const CARDS: CardDef[] = [
   // Zones musculaires
-  {
-    id: "abdos",
-    label: "Abdos",
-    icon: PersonStanding,
-    markers: [{ x: 50, y: 50 }],
-    section: "muscles",
-    minutesPerItem: 7,
-    colors: {
-      text: "text-violet-700",
-      activeBg: "bg-violet-50",
-      activeBorder: "border-violet-300",
-      dot: "bg-violet-400",
-    },
-  },
-  {
-    id: "pectoraux",
-    label: "Pecs",
-    icon: PersonStanding,
-    markers: [
-      { x: 43, y: 38 },
-      { x: 57, y: 38 },
-    ],
-    section: "muscles",
-    minutesPerItem: 9,
-    colors: {
-      text: "text-blue-700",
-      activeBg: "bg-blue-50",
-      activeBorder: "border-blue-300",
-      dot: "bg-blue-400",
-    },
-  },
-  {
-    id: "dos",
-    label: "Dos",
-    icon: PersonStanding,
-    markers: [{ x: 50, y: 41 }],
-    section: "muscles",
-    minutesPerItem: 9,
-    colors: {
-      text: "text-indigo-700",
-      activeBg: "bg-indigo-50",
-      activeBorder: "border-indigo-300",
-      dot: "bg-indigo-400",
-    },
-  },
-  {
-    id: "epaules",
-    label: "Épaules",
-    icon: PersonStanding,
-    markers: [
-      { x: 32, y: 31 },
-      { x: 68, y: 31 },
-    ],
-    section: "muscles",
-    minutesPerItem: 8,
-    colors: {
-      text: "text-sky-700",
-      activeBg: "bg-sky-50",
-      activeBorder: "border-sky-300",
-      dot: "bg-sky-400",
-    },
-  },
-  {
-    id: "biceps",
-    label: "Biceps",
-    icon: PersonStanding,
-    markers: [
-      { x: 27, y: 43 },
-      { x: 73, y: 43 },
-    ],
-    section: "muscles",
-    minutesPerItem: 7,
-    colors: {
-      text: "text-purple-700",
-      activeBg: "bg-purple-50",
-      activeBorder: "border-purple-300",
-      dot: "bg-purple-400",
-    },
-  },
-  {
-    id: "triceps",
-    label: "Triceps",
-    icon: PersonStanding,
-    markers: [
-      { x: 24, y: 50 },
-      { x: 76, y: 50 },
-    ],
-    section: "muscles",
-    minutesPerItem: 7,
-    colors: {
-      text: "text-fuchsia-700",
-      activeBg: "bg-fuchsia-50",
-      activeBorder: "border-fuchsia-300",
-      dot: "bg-fuchsia-400",
-    },
-  },
-  {
-    id: "jambes",
-    label: "Jambes",
-    icon: PersonStanding,
-    markers: [
-      { x: 43, y: 70 },
-      { x: 57, y: 70 },
-    ],
-    section: "muscles",
-    minutesPerItem: 10,
-    colors: {
-      text: "text-rose-700",
-      activeBg: "bg-rose-50",
-      activeBorder: "border-rose-300",
-      dot: "bg-rose-400",
-    },
-  },
-  {
-    id: "fessiers",
-    label: "Fessiers",
-    icon: PersonStanding,
-    markers: [
-      { x: 43, y: 58 },
-      { x: 57, y: 58 },
-    ],
-    section: "muscles",
-    minutesPerItem: 8,
-    colors: {
-      text: "text-pink-700",
-      activeBg: "bg-pink-50",
-      activeBorder: "border-pink-300",
-      dot: "bg-pink-400",
-    },
-  },
-  {
-    id: "mollets",
-    label: "Mollets",
-    icon: PersonStanding,
-    markers: [
-      { x: 43, y: 83 },
-      { x: 57, y: 83 },
-    ],
-    section: "muscles",
-    minutesPerItem: 5,
-    colors: {
-      text: "text-orange-700",
-      activeBg: "bg-orange-50",
-      activeBorder: "border-orange-300",
-      dot: "bg-orange-400",
-    },
-  },
-  {
-    id: "lombaires",
-    label: "Lombaires",
-    icon: PersonStanding,
-    markers: [{ x: 50, y: 53 }],
-    section: "muscles",
-    minutesPerItem: 6,
-    colors: {
-      text: "text-amber-700",
-      activeBg: "bg-amber-50",
-      activeBorder: "border-amber-300",
-      dot: "bg-amber-400",
-    },
-  },
+  muscle("abdos", "Abdos", [{ x: 50, y: 50 }]),
+  muscle("pectoraux", "Pecs", [
+    { x: 43, y: 38 },
+    { x: 57, y: 38 },
+  ]),
+  muscle("dos", "Dos", [{ x: 50, y: 41 }]),
+  muscle("epaules", "Épaules", [
+    { x: 32, y: 31 },
+    { x: 68, y: 31 },
+  ]),
+  muscle("biceps", "Biceps", [
+    { x: 27, y: 43 },
+    { x: 73, y: 43 },
+  ]),
+  muscle("triceps", "Triceps", [
+    { x: 24, y: 50 },
+    { x: 76, y: 50 },
+  ]),
+  muscle("jambes", "Jambes", [
+    { x: 43, y: 70 },
+    { x: 57, y: 70 },
+  ]),
+  muscle("fessiers", "Fessiers", [
+    { x: 43, y: 58 },
+    { x: 57, y: 58 },
+  ]),
+  muscle("mollets", "Mollets", [
+    { x: 43, y: 83 },
+    { x: 57, y: 83 },
+  ]),
+  muscle("lombaires", "Lombaires", [{ x: 50, y: 53 }]),
   // Types d'effort
-  {
-    id: "cardio",
-    label: "Cardio",
-    icon: HeartPulse,
-    section: "types",
-    minutesPerItem: 10,
-    colors: {
-      text: "text-red-700",
-      activeBg: "bg-red-50",
-      activeBorder: "border-red-300",
-      dot: "bg-red-400",
-    },
-  },
-  {
-    id: "hiit",
-    label: "HIIT",
-    icon: Gauge,
-    section: "types",
-    minutesPerItem: 10,
-    colors: {
-      text: "text-yellow-700",
-      activeBg: "bg-yellow-50",
-      activeBorder: "border-yellow-300",
-      dot: "bg-yellow-400",
-    },
-  },
-  {
-    id: "gainage",
-    label: "Gainage",
-    icon: Shield,
-    section: "types",
-    minutesPerItem: 8,
-    colors: {
-      text: "text-stone-700",
-      activeBg: "bg-stone-50",
-      activeBorder: "border-stone-300",
-      dot: "bg-stone-400",
-    },
-  },
-  {
-    id: "plyo",
-    label: "Plyométrie",
-    icon: ArrowUpFromLine,
-    section: "types",
-    minutesPerItem: 8,
-    colors: {
-      text: "text-lime-700",
-      activeBg: "bg-lime-50",
-      activeBorder: "border-lime-300",
-      dot: "bg-lime-400",
-    },
-  },
-  {
-    id: "etirements",
-    label: "Étirements",
-    icon: Accessibility,
-    section: "types",
-    minutesPerItem: 6,
-    colors: {
-      text: "text-emerald-700",
-      activeBg: "bg-emerald-50",
-      activeBorder: "border-emerald-300",
-      dot: "bg-emerald-400",
-    },
-  },
-  {
-    id: "mobilite",
-    label: "Mobilité",
-    icon: RotateCcw,
-    section: "types",
-    minutesPerItem: 6,
-    colors: {
-      text: "text-teal-700",
-      activeBg: "bg-teal-50",
-      activeBorder: "border-teal-300",
-      dot: "bg-teal-400",
-    },
-  },
+  effort("cardio", "Cardio", HeartPulse),
+  effort("hiit", "HIIT", Gauge),
+  effort("gainage", "Gainage", Shield),
+  effort("plyo", "Plyométrie", ArrowUpFromLine),
+  effort("etirements", "Étirements", UnfoldHorizontal),
+  effort("mobilite", "Mobilité", RotateCcw),
 ];
 
-const RUNNING_CARDS: CardDef[] = [
-  { id: "endurance", label: "Endurance", minutesPerItem: 15 },
-  { id: "fractionne", label: "Fractionné", minutesPerItem: 10 },
-  { id: "cotes", label: "Côtes", minutesPerItem: 10 },
-  { id: "technique", label: "Technique de course", minutesPerItem: 8 },
-  { id: "renfo-running", label: "Renforcement coureur", minutesPerItem: 8 },
-  { id: "recuperation-running", label: "Course récupération", minutesPerItem: 10 },
-].map((card) => ({
-  ...card,
-  icon: Footprints,
-  section: "types",
-  colors: {
-    text: "text-sky-700",
-    activeBg: "bg-sky-50",
-    activeBorder: "border-sky-400",
-    dot: "bg-sky-400",
-  },
-}));
+const RUNNING_CARDS: CardDef[] = (
+  [
+    effort("endurance", "Endurance", Footprints),
+    effort("fractionne", "Fractionné", Footprints),
+    effort("cotes", "Côtes", Footprints),
+    effort("technique", "Technique de course", Footprints),
+    effort("renfo-running", "Renforcement coureur", Footprints),
+    effort("recuperation-running", "Course récupération", Footprints),
+  ] as CardDef[]
+).map((card) => ({ ...card, section: "running" as const }));
 const CARD_MAP = Object.fromEntries([...CARDS, ...RUNNING_CARDS].map((c) => [c.id, c]));
-const WARMUP_COOLDOWN_MIN = 10;
 
-// ── Preset suggestions ────────────────────────────────────────────────────────
-
-const PRESETS: { label: string; icon: LucideIcon; cart: Record<string, number> }[] = [
-  { label: "Full Body", icon: Dumbbell, cart: { pectoraux: 1, dos: 1, jambes: 1, abdos: 1 } },
-  { label: "Push Day", icon: ArrowUpFromLine, cart: { pectoraux: 2, epaules: 1, triceps: 1 } },
-  { label: "Pull Day", icon: ArrowDownToLine, cart: { dos: 2, biceps: 1, epaules: 1 } },
-  { label: "Jambes", icon: Footprints, cart: { jambes: 2, fessiers: 1, mollets: 1 } },
-  { label: "Cardio + Abs", icon: HeartPulse, cart: { cardio: 1, hiit: 1, abdos: 2 } },
-  { label: "Récupération", icon: RefreshCw, cart: { etirements: 2, mobilite: 1 } },
-];
+const PRESET_ICONS: Record<string, LucideIcon> = {
+  "corps-entier": Dumbbell,
+  poussee: ArrowUpFromLine,
+  tirage: Dumbbell,
+  jambes: Footprints,
+  "cardio-abdos": HeartPulse,
+  recuperation: RefreshCw,
+  "etirements-express": UnfoldHorizontal,
+  "endurance-technique": Footprints,
+  "fractionne-renfo": HeartPulse,
+  "recuperation-running": RefreshCw,
+};
 
 function CardIcon({ card, compact = false }: Readonly<{ card: CardDef; compact?: boolean }>) {
   const Icon = card.icon;
@@ -339,7 +150,7 @@ function CardIcon({ card, compact = false }: Readonly<{ card: CardDef; compact?:
       {card.markers.map((marker) => (
         <span
           key={`${marker.x}-${marker.y}`}
-          className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-white/80"
+          className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-card/80"
           style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
         />
       ))}
@@ -358,186 +169,204 @@ function WorkoutCard({
   const isActive = count > 0;
   return (
     <button
+      type="button"
       onClick={onAdd}
       data-active={isActive}
+      aria-label={`Ajouter une activité : ${card.label}, ${card.minutesPerItem} minutes${isActive ? `, ${count} déjà ajoutée${count > 1 ? "s" : ""}` : ""}`}
       style={{ touchAction: "manipulation" }}
-      className={`theme-workout-card relative flex min-h-22 select-none flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 transition-all duration-150
-        ${
-          isActive
-            ? `${card.colors.activeBg} ${card.colors.activeBorder} shadow-sm`
-            : "bg-white border-gray-100 shadow-sm hover:border-gray-200"
-        }
-        ${isJustAdded ? "scale-90" : "scale-100 active:scale-90"}`}
+      className={`relative flex min-h-24 select-none flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-2 transition-all duration-150 ${
+        isActive
+          ? "border-brand bg-brand-soft text-ink"
+          : "border-line bg-card text-ink hover:border-line-strong"
+      } ${isJustAdded ? "scale-90" : "scale-100 active:scale-90"}`}
     >
       {isActive && (
-        <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black text-white bg-black shadow-md z-10">
+        <span
+          aria-hidden="true"
+          className="absolute -right-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-black text-brand-fg shadow-md"
+        >
           {count}
         </span>
       )}
-      <span className={isActive ? card.colors.text : "text-gray-500"}>
+      <span className={isActive ? "text-brand" : "text-ink-soft"} aria-hidden="true">
         <CardIcon card={card} />
       </span>
       <span
-        className={`text-[11px] font-bold text-center leading-tight ${
-          isActive ? card.colors.text : "text-gray-700"
-        }`}
+        className="text-center text-[11px] font-bold leading-tight break-words"
+        aria-hidden="true"
       >
         {card.label}
       </span>
-      <span
-        className={`text-[9px] font-semibold ${
-          isActive ? card.colors.text : "text-gray-400"
-        } opacity-80`}
-      >
+      <span className="text-[11px] font-semibold text-ink-soft" aria-hidden="true">
         +{card.minutesPerItem} min
       </span>
     </button>
   );
 }
 
-// ── CartPanel ─────────────────────────────────────────────────────────────────
+// ── Dock : toujours au-dessus de la navigation, jamais sous elle ──────────────
 
-function CartPanel({
+function Dock({
   entries,
   totalItems,
   estimatedDuration,
+  duration,
   generating,
   error,
   onAdjust,
   onGenerate,
+  onCompose,
   onClear,
 }: Readonly<{
   entries: CartEntry[];
   totalItems: number;
   estimatedDuration: number;
+  duration: number;
   generating: boolean;
   error: string;
   onAdjust: (id: string, delta: number) => void;
   onGenerate: () => void;
+  onCompose: () => void;
   onClear: () => void;
 }>) {
-  const barColors = ["bg-emerald-400", "bg-yellow-400", "bg-orange-400", "bg-red-400"];
-  let barColorIndex = 3;
-  if (estimatedDuration < 35) barColorIndex = 0;
-  else if (estimatedDuration < 55) barColorIndex = 1;
-  else if (estimatedDuration < 70) barColorIndex = 2;
-  const barColor = barColors[barColorIndex];
   const MAX_DISPLAY = 90;
   const pct = Math.min((estimatedDuration / MAX_DISPLAY) * 100, 100);
+  const barColor = estimatedDuration >= 70 ? "bg-warn" : "bg-brand";
 
   return (
-    <div
-      className={`app-builder-cart fixed inset-x-0 z-55 transition-transform duration-300 ease-out ${
-        totalItems > 0 ? "translate-y-0" : "invisible pointer-events-none translate-y-full"
-      }`}
-      inert={totalItems === 0}
-      aria-hidden={totalItems === 0}
-    >
-      <div className="max-w-2xl mx-auto">
-        <div
-          className="theme-builder-cart overflow-hidden rounded-t-3xl border-t border-gray-100 bg-white"
-          style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.14), 0 -1px 0 rgba(0,0,0,0.05)" }}
-        >
-          {/* Drag handle */}
-          <div className="flex justify-center pt-3 pb-0">
-            <div className="w-9 h-1 bg-gray-200 rounded-full" />
-          </div>
-
-          {/* Duration bar */}
-          <div className="px-5 pt-3 pb-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-black text-gray-900">
-                {totalItems} activité{totalItems > 1 ? "s" : ""} sélectionnée
-                {totalItems > 1 ? "s" : ""}
-              </span>
-              <span className="text-sm font-black tabular-nums">~{estimatedDuration} min</span>
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-400 ${barColor}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px] text-gray-500 font-semibold mt-1 px-0.5">
-              <span>0</span>
-              <span>30</span>
-              <span>45</span>
-              <span>60</span>
-              <span>90 min</span>
-            </div>
-          </div>
-
-          {/* Cart chips */}
-          <div className="px-4 pb-3 flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-            {entries.map((entry) => (
-              <div
-                key={entry.id}
-                className={`flex items-center gap-1.5 ${entry.colors.activeBg} border ${entry.colors.activeBorder} px-3 py-1.5 rounded-full`}
-              >
-                <span className={entry.colors.text}>
-                  <CardIcon card={entry} compact />
-                </span>
-                <span className={`text-xs font-bold ${entry.colors.text}`}>{entry.label}</span>
-                <div className="flex items-center gap-0.5 ml-1">
-                  <button
-                    aria-label={`Retirer une activité : ${entry.label}`}
-                    onClick={() => onAdjust(entry.id, -1)}
-                    className={`w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/10 ${entry.colors.text}`}
-                  >
-                    <Minus className="w-3 h-3" />
-                  </button>
-                  <span
-                    className={`text-xs font-black ${entry.colors.text} w-4 text-center tabular-nums`}
-                  >
-                    {entry.count}
-                  </span>
-                  <button
-                    aria-label={`Ajouter une activité : ${entry.label}`}
-                    onClick={() => onAdjust(entry.id, 1)}
-                    className={`w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 ${entry.colors.text}`}
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="px-5 pb-2">
-              <p className="text-xs text-red-500 font-medium">{error}</p>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="px-4 pb-6 md:pb-4 pt-1 flex gap-2">
+    <div className="app-dock fixed inset-x-0 z-55">
+      <div className="mx-auto max-w-2xl">
+        {totalItems === 0 ? (
+          <div className="mx-3 rounded-2xl border border-line bg-card p-3 shadow-[0_8px_30px_rgba(2,6,23,0.18)] md:mx-0">
+            {error && (
+              <p role="alert" className="mb-2 text-sm font-medium text-danger">
+                {error}
+              </p>
+            )}
             <button
-              onClick={onClear}
-              className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 transition-colors shrink-0"
-              aria-label="Vider le panier"
-            >
-              <Trash2 className="w-4 h-4 text-gray-500" />
-            </button>
-            <button
-              onClick={onGenerate}
+              type="button"
+              onClick={onCompose}
               disabled={generating}
-              className="flex-1 bg-black text-white font-black py-3.5 rounded-2xl hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="app-primary w-full"
             >
               {generating ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Génération en cours…</span>
+                  <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Vincere compose ta séance…
                 </>
               ) : (
                 <>
-                  <Zap className="w-4 h-4" />
-                  Créer ma séance libre
+                  <WandSparkles className="h-4 w-4" aria-hidden="true" />
+                  Composer avec Vincere · {duration} min
                 </>
               )}
             </button>
           </div>
-        </div>
+        ) : (
+          <div
+            className="overflow-hidden rounded-t-3xl border border-b-0 border-line bg-card"
+            style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.14), 0 -1px 0 rgba(0,0,0,0.05)" }}
+          >
+            <div className="px-5 pb-2 pt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-black">
+                  {totalItems} activité{totalItems > 1 ? "s" : ""} sélectionnée
+                  {totalItems > 1 ? "s" : ""}
+                </span>
+                <span className="font-display text-sm font-black tabular-nums">
+                  ~{estimatedDuration} min
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-card-soft">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div
+                className="mt-1 flex justify-between px-0.5 text-[11px] font-semibold text-ink-soft"
+                aria-hidden="true"
+              >
+                <span>0</span>
+                <span>30</span>
+                <span>45</span>
+                <span>60</span>
+                <span>90 min</span>
+              </div>
+            </div>
+
+            <ul className="flex max-h-28 flex-wrap gap-2 overflow-y-auto px-4 pb-2">
+              {entries.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center rounded-full border border-brand-line bg-brand-soft pl-3"
+                >
+                  <span className="text-brand" aria-hidden="true">
+                    <CardIcon card={entry} compact />
+                  </span>
+                  <span className="ml-1.5 text-xs font-bold">{entry.label}</span>
+                  <button
+                    type="button"
+                    aria-label={`Retirer une activité : ${entry.label}`}
+                    onClick={() => onAdjust(entry.id, -1)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/10"
+                  >
+                    <Minus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <span className="w-4 text-center text-xs font-black tabular-nums">
+                    {entry.count}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Ajouter une activité : ${entry.label}`}
+                    onClick={() => onAdjust(entry.id, 1)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/10"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {error && (
+              <p role="alert" className="px-5 pb-2 text-sm font-medium text-danger">
+                {error}
+              </p>
+            )}
+
+            <div className="flex gap-2 px-4 pb-4 pt-1">
+              <button
+                type="button"
+                onClick={onClear}
+                className="app-icon-button"
+                aria-label="Vider le panier"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={onGenerate}
+                disabled={generating}
+                className="app-primary flex-1"
+              >
+                {generating ? (
+                  <>
+                    <span
+                      className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                      aria-hidden="true"
+                    />
+                    <span>Génération en cours…</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4" aria-hidden="true" />
+                    Créer ma séance libre
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -548,23 +377,23 @@ function CartPanel({
 export default function WorkoutBuilder() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const profile = state.profile as UserProfile | null;
 
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Record<string, number>>(() => {
+    const preset = (location.state as { cart?: Record<string, number> } | null)?.cart;
+    if (!preset) return {};
+    return Object.fromEntries(
+      Object.entries(preset).filter(([id, count]) => CARD_MAP[id] && count > 0),
+    );
+  });
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [lastAdded, setLastAdded] = useState<string | null>(null);
   const [aiDuration, setAiDuration] = useState(profile?.sessionDuration?.[0] ?? 45);
 
   const totalItems = useMemo(() => Object.values(cart).reduce((sum, n) => sum + n, 0), [cart]);
-
-  const estimatedDuration = useMemo(() => {
-    const body = Object.entries(cart).reduce(
-      (sum, [id, count]) => sum + count * (CARD_MAP[id]?.minutesPerItem ?? 8),
-      0,
-    );
-    return WARMUP_COOLDOWN_MIN + body;
-  }, [cart]);
+  const estimatedDuration = useMemo(() => estimateMinutes(cart), [cart]);
 
   const cartEntries = useMemo<CartEntry[]>(
     () =>
@@ -653,203 +482,167 @@ export default function WorkoutBuilder() {
 
   if (!profile) {
     return (
-      <div className="theme-app-page flex min-h-screen items-center justify-center bg-white px-4">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Complète ton profil pour construire une séance.</p>
-          <button
-            onClick={() => navigate("/onboarding")}
-            className="bg-black text-white px-6 py-3 rounded-xl font-bold"
-          >
-            Compléter le profil
-          </button>
+      <div className="theme-app-page min-h-screen">
+        <PageHeader
+          title="Nouvelle séance libre"
+          backLabel="Retour aux séances"
+          fallbackPath="/session"
+        />
+        <div className="flex items-center justify-center px-4 py-20">
+          <div className="text-center">
+            <p className="mb-4 text-ink-soft">Complète ton profil pour construire une séance.</p>
+            <button type="button" onClick={() => navigate("/onboarding")} className="app-primary">
+              Compléter le profil
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  const availableCards =
-    profile.objective === "running"
-      ? RUNNING_CARDS
-      : profile.objective === "yoga"
-        ? CARDS.filter((card) => ["mobilite", "etirements"].includes(card.id))
-        : CARDS;
-  const presets: typeof PRESETS =
-    profile.objective === "running"
-      ? [
-          {
-            label: "Endurance + technique",
-            icon: Footprints,
-            cart: { endurance: 1, technique: 1 },
-          },
-          {
-            label: "Fractionné + renforcement",
-            icon: HeartPulse,
-            cart: { fractionne: 1, "renfo-running": 1 },
-          },
-          { label: "Récupération", icon: RefreshCw, cart: { "recuperation-running": 1 } },
-        ]
-      : profile.objective === "yoga"
-        ? PRESETS.filter((preset) => preset.label === "Récupération")
-        : PRESETS;
-  const muscleCards = availableCards.filter((c) => c.section === "muscles");
-  const typeCards = availableCards.filter((c) => c.section === "types");
+  // Le choix est totalement libre : toutes les activités sont proposées à tout le monde, quelle que
+  // soit la discipline du profil (un profil yoga peut travailler les pectoraux, etc.).
+  const presets = quickWorkoutsFor();
+  const muscleCards = CARDS.filter((c) => c.section === "muscles");
+  const typeCards = CARDS.filter((c) => c.section === "types");
+  const runningCards = RUNNING_CARDS;
 
   return (
-    <div className="theme-app-page min-h-screen bg-white">
-      <Navbar />
+    <div className="theme-app-page min-h-screen">
+      <PageHeader
+        title="Nouvelle séance libre"
+        backLabel="Retour aux séances"
+        fallbackPath="/session"
+      />
 
-      {/* Hero header */}
-      <div
-        className="app-builder-hero theme-builder-hero relative overflow-hidden bg-black px-5 pb-8 text-white"
-        style={{ paddingTop: "calc(6rem + env(safe-area-inset-top, 0px))" }}
-      >
-        <div className="relative mx-auto max-w-4xl">
-          <p className="text-white/60 text-xs uppercase font-black mb-2">
-            Création de séance libre
-          </p>
-          <h1 className="mb-2 text-3xl font-black leading-tight">
-            Compose ta prochaine
-            <br />
-            séance libre
-          </h1>
-          <p className="text-white/50 text-sm leading-relaxed">
+      <div>
+        <main
+          className="mx-auto max-w-4xl px-4 pt-5 sm:px-6"
+          style={{ paddingBottom: totalItems > 0 ? "26rem" : "14rem" }}
+        >
+          <p className="text-sm leading-relaxed text-ink-soft">
             Laisse Vincere s’adapter à ton programme ou sélectionne précisément ce que tu veux
             travailler.
           </p>
-        </div>
-      </div>
 
-      <div
-        className="mx-auto max-w-4xl px-4 sm:px-6"
-        style={{ paddingBottom: totalItems > 0 ? "22rem" : "7rem" }}
-      >
-        <section className="theme-vincere-builder mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
-              <WandSparkles className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-black text-gray-900">Laisser Vincere composer</p>
-              <p className="mt-1 text-xs leading-relaxed text-gray-600">
-                {state.program
-                  ? `Vincere tient compte de ta semaine${nextProgramSession ? ` et évite de répéter ta prochaine séance ${nextProgramSession.type}` : ""}.`
-                  : "Vincere utilise ton objectif, ton niveau, ton matériel et tes derniers retours."}
-              </p>
-              {state.program && activeWeek && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-white/70 px-3 py-2 text-xs text-emerald-800">
-                  <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="font-semibold">
+          <section className="mt-5 rounded-2xl border border-brand-line bg-brand-soft p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-fg"
+                aria-hidden="true"
+              >
+                <WandSparkles className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base font-black">Laisser Vincere composer</h2>
+                <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                  {state.program
+                    ? `Vincere tient compte de ta semaine${nextProgramSession ? ` et évite de répéter ta prochaine séance ${nextProgramSession.type}` : ""}.`
+                    : "Vincere utilise ton objectif, ton niveau, ton matériel et tes derniers retours."}
+                </p>
+                {state.program && activeWeek && (
+                  <p className="mt-3 flex items-center gap-2 rounded-xl bg-card/70 px-3 py-2 text-xs font-semibold">
+                    <BookOpen className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                     Programme actif · semaine {activeWeek.week_number} ·{" "}
                     {completedProgramSessions.length}/{activeWeek.sessions.length} séances réalisées
-                  </span>
-                </div>
-              )}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          <fieldset className="mt-4">
-            <legend className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-              Durée souhaitée
-            </legend>
-            <div className="grid grid-cols-4 gap-2">
-              {DURATION_OPTIONS.map((duration) => (
-                <button
-                  key={duration}
-                  type="button"
-                  onClick={() => setAiDuration(duration)}
-                  aria-pressed={aiDuration === duration}
-                  data-active={aiDuration === duration}
-                  className={`theme-duration-option rounded-xl py-2 text-xs font-bold transition-colors ${
-                    aiDuration === duration
-                      ? "bg-black text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  {duration} min
-                </button>
-              ))}
-            </div>
-          </fieldset>
+            <fieldset className="mt-4">
+              <legend className="mb-2 text-sm font-semibold">Durée souhaitée</legend>
+              <div className="grid grid-cols-4 gap-2">
+                {DURATION_OPTIONS.map((duration) => (
+                  <button
+                    key={duration}
+                    type="button"
+                    onClick={() => setAiDuration(duration)}
+                    aria-pressed={aiDuration === duration}
+                    className={`min-h-11 rounded-xl border-2 text-sm font-bold transition-colors ${
+                      aiDuration === duration
+                        ? "border-brand bg-brand text-brand-fg"
+                        : "border-line-strong bg-card text-ink hover:bg-card-soft"
+                    }`}
+                  >
+                    {duration} min
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
-          <button
-            type="button"
-            onClick={() => void handleVincereGenerate()}
-            disabled={generating}
-            className="theme-vincere-cta mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white transition-all hover:bg-gray-900 active:scale-[0.99] disabled:opacity-50"
-          >
-            {generating ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Vincere compose ta séance…
-              </>
-            ) : (
-              <>
+            {totalItems > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleVincereGenerate()}
+                disabled={generating}
+                className="app-secondary mt-3 w-full"
+              >
                 <WandSparkles className="h-4 w-4" aria-hidden="true" />
                 Composer avec Vincere
-              </>
+              </button>
             )}
-          </button>
-          {error && totalItems === 0 && (
-            <p
-              role="alert"
-              className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600"
-            >
-              {error}
-            </p>
-          )}
-        </section>
+          </section>
 
-        <div className="mt-7 flex items-center gap-3">
-          <div className="h-px flex-1 bg-gray-200" />
-          <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">
-            Ou composer moi-même
-          </h2>
-          <div className="h-px flex-1 bg-gray-200" />
-        </div>
-
-        {/* Quick presets */}
-        <div className="pt-5 pb-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">
-            Suggestions rapides
-          </p>
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
-            {presets.map((preset) => {
-              const PresetIcon = preset.icon;
-              return (
-                <button
-                  key={preset.label}
-                  onClick={() => setCart(preset.cart)}
-                  className="theme-builder-preset flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-gray-100 bg-white px-4 py-2.5 text-xs font-bold shadow-sm transition-all hover:border-gray-300 hover:shadow-sm active:scale-95"
-                >
-                  <PresetIcon className="h-4 w-4" aria-hidden="true" />
-                  {preset.label}
-                </button>
-              );
-            })}
+          <div className="mt-8 flex items-center gap-3">
+            <div className="h-px flex-1 bg-line" />
+            <h2 className="text-sm font-bold text-ink-soft">Ou compose toi-même</h2>
+            <div className="h-px flex-1 bg-line" />
           </div>
-        </div>
 
-        {/* Hint */}
-        <div className="flex items-center gap-2 mt-5 mb-1">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[11px] font-bold text-white">
-            <MousePointerClick className="h-3.5 w-3.5" />1 ajout = 1 activité
-          </span>
-          <span className="text-[11px] text-gray-500 font-medium">
-            10 min d’échauffement et de retour au calme incluses
-          </span>
-        </div>
-
-        {/* Zones musculaires */}
-        {muscleCards.length > 0 && (
-          <section className="mt-4 mb-7">
-            <div className="flex items-center gap-2 mb-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                Zones musculaires
-              </p>
-              <div className="flex-1 h-px bg-gray-200" />
+          {/* Suggestions rapides */}
+          <section className="pb-1 pt-5" aria-labelledby="builder-presets">
+            <h3 id="builder-presets" className="mb-3 text-sm font-bold">
+              Suggestions rapides
+            </h3>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
+              {presets.map((preset) => {
+                const PresetIcon = PRESET_ICONS[preset.id] ?? Dumbbell;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setCart(preset.cart)}
+                    className="flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-line-strong bg-card px-4 text-sm font-bold transition-colors hover:bg-card-soft active:scale-95"
+                  >
+                    <PresetIcon className="h-4 w-4" aria-hidden="true" />
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
-              {muscleCards.map((card) => (
+          </section>
+
+          <p className="mt-5 text-sm text-ink-soft">
+            Un appui ajoute une activité. {WARMUP_COOLDOWN_MIN} min d’échauffement et de retour au
+            calme sont incluses.
+          </p>
+
+          {muscleCards.length > 0 && (
+            <section className="mb-8 mt-5" aria-labelledby="builder-muscles">
+              <h3 id="builder-muscles" className="mb-3 text-sm font-bold">
+                Zones musculaires
+              </h3>
+              <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-5">
+                {muscleCards.map((card) => (
+                  <WorkoutCard
+                    key={card.id}
+                    card={card}
+                    count={cart[card.id] ?? 0}
+                    isJustAdded={lastAdded === card.id}
+                    onAdd={() => addToCart(card.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="mb-8" aria-labelledby="builder-types">
+            <h3 id="builder-types" className="mb-3 text-sm font-bold">
+              Types d’effort
+            </h3>
+            <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6">
+              {typeCards.map((card) => (
                 <WorkoutCard
                   key={card.id}
                   card={card}
@@ -860,39 +653,39 @@ export default function WorkoutBuilder() {
               ))}
             </div>
           </section>
-        )}
 
-        {/* Types d'effort */}
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-              {profile.objective === "running" ? "Activités running" : "Types d’effort"}
-            </p>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-            {typeCards.map((card) => (
-              <WorkoutCard
-                key={card.id}
-                card={card}
-                count={cart[card.id] ?? 0}
-                isJustAdded={lastAdded === card.id}
-                onAdd={() => addToCart(card.id)}
-              />
-            ))}
-          </div>
-        </section>
+          <section className="mb-8" aria-labelledby="builder-running">
+            <h3 id="builder-running" className="mb-3 text-sm font-bold">
+              Course à pied
+            </h3>
+            <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6">
+              {runningCards.map((card) => (
+                <WorkoutCard
+                  key={card.id}
+                  card={card}
+                  count={cart[card.id] ?? 0}
+                  isJustAdded={lastAdded === card.id}
+                  onAdd={() => addToCart(card.id)}
+                />
+              ))}
+            </div>
+          </section>
+        </main>
       </div>
 
-      <CartPanel
+      <Dock
         entries={cartEntries}
         totalItems={totalItems}
         estimatedDuration={estimatedDuration}
+        duration={aiDuration}
         generating={generating}
         error={error}
         onAdjust={adjust}
         onGenerate={() => {
           void handleGenerate();
+        }}
+        onCompose={() => {
+          void handleVincereGenerate();
         }}
         onClear={() => setCart({})}
       />

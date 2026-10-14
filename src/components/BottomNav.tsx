@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, Dumbbell, LayoutDashboard, Trophy, UserCircle } from "lucide-react";
+import { BookOpen, Dumbbell, LayoutDashboard, TrendingUp, UserCircle } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { selectionFeedback } from "../lib/native";
 
@@ -20,8 +20,8 @@ const HIDE_ROUTES = [
 const TABS = [
   { key: "dashboard", label: "Accueil", icon: LayoutDashboard, path: "/dashboard" },
   { key: "programme", label: "Programme", icon: BookOpen, path: "/result" },
-  { key: "sessions", label: "Entraînements", icon: Dumbbell, path: "/session" },
-  { key: "records", label: "Suivi", icon: Trophy, path: "/records" },
+  { key: "sessions", label: "Séances", icon: Dumbbell, path: "/session" },
+  { key: "records", label: "Suivi", icon: TrendingUp, path: "/records" },
   { key: "settings", label: "Profil", icon: UserCircle, path: "/settings" },
 ] as const;
 
@@ -52,12 +52,12 @@ export default function BottomNav() {
       />
 
       <div
-        className="relative border-t border-gray-100 bg-white/95 backdrop-blur-2xl"
+        className="relative border-t border-line bg-card/95 backdrop-blur-2xl"
         style={{ boxShadow: "var(--theme-nav-shadow)" }}
       >
         <div
           className="grid grid-cols-5 gap-1 px-2 pt-1.5"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 9px)" }}
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}
         >
           {TABS.map(({ key, label, icon: Icon, path }) => {
             const active =
@@ -72,21 +72,23 @@ export default function BottomNav() {
                   void selectionFeedback();
                   void navigate(path);
                 }}
-                aria-label={label}
                 aria-current={active ? "page" : undefined}
-                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 transition-transform active:scale-[0.96]"
-                style={{ background: active ? "var(--theme-surface-soft)" : "transparent" }}
+                className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-1.5 transition-colors active:scale-[0.97] ${
+                  active ? "bg-brand-soft text-ink" : "text-ink-soft hover:bg-card-soft"
+                }`}
               >
-                <Icon
-                  className="h-[18px] w-[18px] transition-colors"
-                  style={{
-                    color: active ? "var(--theme-text)" : "var(--theme-text-soft)",
-                    strokeWidth: active ? 2.3 : 1.8,
-                  }}
-                />
+                {/* Indicateur d'état actif : barre de marque, pas seulement la couleur */}
                 <span
-                  className="block w-full truncate text-[9px] font-semibold leading-none"
-                  style={{ color: active ? "var(--theme-text)" : "var(--theme-text-soft)" }}
+                  aria-hidden="true"
+                  className={`absolute left-1/2 top-0 h-[3px] w-8 -translate-x-1/2 rounded-full ${
+                    active ? "bg-brand" : "bg-transparent"
+                  }`}
+                />
+                <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={active ? 2.4 : 1.9} />
+                <span
+                  className={`block whitespace-nowrap text-[11px] leading-none ${
+                    active ? "font-extrabold" : "font-semibold"
+                  }`}
                 >
                   {label}
                 </span>

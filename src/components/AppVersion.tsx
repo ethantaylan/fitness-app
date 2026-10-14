@@ -15,11 +15,11 @@ export default function AppVersion() {
         .catch(() => {});
   }, []);
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
+    <div className="mt-3 flex flex-wrap items-center gap-x-1 text-sm text-ink-soft">
       <span>Vincere {version}</span>
       <button
         type="button"
-        className="app-icon-button"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-card-soft hover:text-ink"
         aria-label="Copier la version de Vincere"
         title="Copier la version"
         onClick={() => {
@@ -32,7 +32,7 @@ export default function AppVersion() {
             .catch(() => setError(`Version à communiquer : ${version}`));
         }}
       >
-        {copied ? <Check size={18} /> : <Copy size={18} />}
+        {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
       </button>
       {copied && <span role="status">Version copiée</span>}
       {error && <span role="status">{error}</span>}

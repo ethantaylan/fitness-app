@@ -8,7 +8,14 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import type { UserProfile, Program, DailySession, Exercise, PersonalRecord } from "./types";
+import type {
+  UserProfile,
+  Program,
+  DailySession,
+  Exercise,
+  PersonalRecord,
+  UserNote,
+} from "./types";
 import { supabase } from "./supabase";
 import {
   upsertUser,
@@ -28,6 +35,9 @@ import {
   saveRecord as dbSaveRecord,
   deleteRecord as dbDeleteRecord,
   getRecords as dbGetRecords,
+  saveNote as dbSaveNote,
+  deleteNote as dbDeleteNote,
+  getNotes as dbGetNotes,
 } from "./db";
 
 interface AppState {
@@ -36,6 +46,7 @@ interface AppState {
   programStartDate: string | null;
   sessions: DailySession[];
   records: PersonalRecord[];
+  notes: UserNote[];
   onboardingStep: number;
   /** true une fois l'hydratation Supabase terminée (ou si pas de client) */
   _hydrated: boolean;
@@ -69,6 +80,9 @@ type Action =
     }
   | { type: "ADD_RECORD"; record: PersonalRecord }
   | { type: "DELETE_RECORD"; id: string }
+  | { type: "ADD_NOTE"; note: UserNote }
+  | { type: "UPDATE_NOTE"; note: UserNote }
+  | { type: "DELETE_NOTE"; id: string }
   | { type: "SET_ONBOARDING_STEP"; step: number }
   | { type: "CLEAR_PROGRAM" }
   | { type: "HYDRATE"; state: Partial<AppState> }
@@ -80,6 +94,7 @@ const initialState: AppState = {
   programStartDate: null,
   sessions: [],
   records: [],
+  notes: [],
   onboardingStep: 0,
   _hydrated: false,
 };
@@ -162,6 +177,15 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, records: [action.record, ...state.records] };
     case "DELETE_RECORD":
       return { ...state, records: state.records.filter((r) => r.id !== action.id) };
+    case "ADD_NOTE":
+      return { ...state, notes: [action.note, ...state.notes] };
+    case "UPDATE_NOTE":
+      return {
+        ...state,
+        notes: state.notes.map((n) => (n.id === action.note.id ? action.note : n)),
+      };
+    case "DELETE_NOTE":
+      return { ...state, notes: state.notes.filter((n) => n.id !== action.id) };
     case "SET_ONBOARDING_STEP":
       return { ...state, onboardingStep: action.step };
     case "CLEAR_PROGRAM":
@@ -218,7 +242,13 @@ export function AppProvider({
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved) as AppState;
-        return { ...parsed, records: parsed.records ?? [], _hydrated: false, _loadError: null };
+        return {
+          ...parsed,
+          records: parsed.records ?? [],
+          notes: parsed.notes ?? [],
+          _hydrated: false,
+          _loadError: null,
+        };
       }
     } catch {
       /* ignore */
@@ -298,6 +328,17 @@ export function AppProvider({
         dbDeleteRecord(supabase, iuid, action.id).catch(reportSyncError);
         break;
 
+      // Notes : enregistrées sur l'appareil d'abord ; la synchro échoue sans bloquer (message
+      // « sauvegarde en ligne » affiché par NativeLifecycle).
+      case "ADD_NOTE":
+      case "UPDATE_NOTE":
+        dbSaveNote(supabase, iuid, action.note).catch(reportSyncError);
+        break;
+
+      case "DELETE_NOTE":
+        dbDeleteNote(supabase, iuid, action.id).catch(reportSyncError);
+        break;
+
       case "SET_ONBOARDING_STEP":
         saveOnboardingStep(supabase, iuid, action.step).catch(reportSyncError);
         break;
@@ -373,13 +414,15 @@ export function AppProvider({
         internalIdRef.current = user.id;
 
         const current = stateRef.current;
-        const [profile, programResult, remoteSessions, onboarding, remoteRecords] =
+        const [profile, programResult, remoteSessions, onboarding, remoteRecords, remoteNotes] =
           await Promise.all([
             getProfile(supabase, user.id),
             getActiveProgram(supabase, user.id),
             getDailySessions(supabase, user.id, 30),
             getOnboardingProgress(supabase, user.id),
             dbGetRecords(supabase, user.id),
+            // Les notes ne doivent jamais empêcher le chargement du reste (table absente, réseau).
+            dbGetNotes(supabase, user.id).catch(() => null),
           ]);
 
         if (cancelled) return;
@@ -393,6 +436,7 @@ export function AppProvider({
             programStartDate: programResult?.startedAt ?? null,
             sessions: remoteSessions.length > 0 ? remoteSessions : current.sessions,
             records: remoteRecords.length > 0 ? remoteRecords : current.records,
+            notes: remoteNotes && remoteNotes.length > 0 ? remoteNotes : current.notes,
             onboardingStep:
               onboarding == null ? current.onboardingStep : (onboarding as { step: number }).step,
           },

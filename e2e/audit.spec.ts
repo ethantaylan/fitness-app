@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { FREE_SESSION_BUILDER_ENABLED } from "../src/lib/features";
 
 const id = "00000000-0000-0000-0000-000000000001";
 const user = {
@@ -226,33 +227,41 @@ for (const theme of ["light", "dark"] as const) {
     await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: "Endurance facile" })).toBeVisible();
     const edit = await page.getByRole("link", { name: "Modifier mon profil" }).boundingBox();
-    const greeting = await page.locator('[role="banner"] h1').boundingBox();
-    expect(greeting!.x + greeting!.width).toBeLessThanOrEqual(edit!.x);
+    expect(edit!.height).toBeGreaterThanOrEqual(44);
+    await expect(page.locator("#home-title")).toContainText("Bonjour");
+    // Une seule prochaine séance, un seul CTA principal.
+    await expect(page.getByRole("heading", { name: "Endurance facile" })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: "Commencer la séance" })).toHaveCount(1);
     await page.screenshot({
       path: info.outputPath(`dashboard-${theme}.png`),
       animations: "disabled",
     });
-    await page.getByRole("link", { name: "Consulter la séance", exact: true }).click();
+    await page.getByRole("link", { name: "Commencer la séance", exact: true }).click();
     await expect(page).toHaveURL(/week=1&session=W1D1/);
     await expect(page.locator("#program-session-W1D1")).toContainText("20 min");
-    await expect(page.getByRole("heading", { name: "Ton profil a évolué" })).toBeVisible();
-    await expect(page.getByText("Programme généré avec succès")).toHaveCount(0);
     await expect(page.locator("#program-session-W1D1")).not.toContainText("N/A");
     await expect(page.locator("#program-session-W1D1")).not.toContainText("300s");
-    await expect
-      .poll(async () => (await page.locator("#program-session-W1D1").boundingBox())!.y)
-      .toBeLessThan(160);
+    await noOverflow(page);
+    await page.screenshot({
+      path: info.outputPath(`program-session-${theme}.png`),
+      animations: "disabled",
+    });
+    await page.getByRole("button", { name: "Retour", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto("/result?week=1");
+    await expect(page.getByRole("heading", { name: "Ton profil a évolué" })).toBeVisible();
+    await expect(page.getByText("Programme généré avec succès")).toHaveCount(0);
     const topNavigation = await page.locator(".app-top-nav").boundingBox();
     expect(topNavigation!.y).toBeGreaterThanOrEqual(0);
-    await noOverflow(page);
     await page.screenshot({
       path: info.outputPath(`program-${theme}.png`),
       animations: "disabled",
     });
-    const contact = page.locator('button[aria-label="Contact"]:visible');
+    await page.goto("/settings?tab=compte");
+    const contact = page.getByRole("button", { name: "Contacter l'assistance", exact: true });
     await contact.focus();
     await contact.click();
-    const contactDialog = page.getByRole("dialog", { name: "Contactez-nous" });
+    const contactDialog = page.getByRole("dialog", { name: "Contacter l'assistance" });
     await expect(contactDialog).toBeVisible();
     for (let n = 0; n < 12; n++) {
       await page.keyboard.press("Tab");
@@ -294,39 +303,65 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByRole("dialog", { name: exercise.name })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByRole("button", { name: "Retour aux entraînements" }).click();
+    await page.getByRole("button", { name: "Retour aux séances" }).click();
     await expect(page).toHaveURL(/\/session$/);
-    await page.goto("/builder");
-    await expect(page.getByRole("button", { name: /Push Day/ })).toHaveCount(0);
-    await page.getByRole("button", { name: "Endurance +15 min", exact: true }).click();
-    await expect(page.locator(".app-builder-cart")).toContainText("25 min");
-    await page
-      .getByRole("button", { name: "Ajouter une activité : Endurance", exact: true })
-      .click();
-    await expect(page.locator(".app-builder-cart")).toContainText("40 min");
-    await noOverflow(page);
-    await page.screenshot({
-      path: info.outputPath(`builder-${theme}.png`),
-      animations: "disabled",
-    });
-    const nav = await page.locator(".app-bottom-nav").boundingBox();
-    const cart = await page.locator(".app-builder-cart").boundingBox();
-    if (nav && cart) expect(cart.y + cart.height).toBeLessThanOrEqual(nav.y);
-    await page.getByRole("button", { name: "Vider le panier" }).click();
-    await expect(page.locator(".app-builder-cart")).not.toBeVisible();
+    // Builder de séance libre masqué pour le moment (src/lib/features.ts) : la route redirige.
+    if (!FREE_SESSION_BUILDER_ENABLED) {
+      await page.goto("/builder");
+      await expect(page).toHaveURL(/\/session$/);
+    }
+    if (FREE_SESSION_BUILDER_ENABLED) {
+      await page.goto("/builder");
+
+      await expect(page.getByRole("button", { name: "Retour aux séances" })).toBeVisible();
+      // Le CTA « Composer avec Vincere » reste atteignable (dock fixe au-dessus de la navigation).
+      await expect(page.getByRole("button", { name: /Composer avec Vincere/ })).toBeVisible();
+      await page
+        .getByRole("button", { name: /Ajouter une activité : Endurance, 15 minutes/ })
+        .click();
+      await expect(page.locator(".app-dock")).toContainText("25 min");
+      await page
+        .getByRole("button", { name: "Ajouter une activité : Endurance", exact: true })
+        .click();
+      await expect(page.locator(".app-dock")).toContainText("40 min");
+      await noOverflow(page);
+      await page.screenshot({
+        path: info.outputPath(`builder-${theme}.png`),
+        animations: "disabled",
+      });
+      const nav = await page.locator(".app-bottom-nav").boundingBox();
+      const cart = await page.locator(".app-dock").boundingBox();
+      if (nav && cart) expect(cart.y + cart.height).toBeLessThanOrEqual(nav.y);
+      await page.getByRole("button", { name: "Vider le panier" }).click();
+      await expect(page.getByText(/activités? sélectionnées?/)).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /Composer avec Vincere/ })).toBeVisible();
+    }
 
     await page.goto("/records");
     await page.getByRole("tab", { name: "Notes", exact: true }).click();
+    // Ancienne note rattachée à une séance libre : toujours consultable et modifiable.
     await expect(page.getByRole("heading", { name: workout.goal })).toBeVisible();
-    await page.getByRole("button", { name: "Modifier", exact: true }).click();
-    await page.getByRole("textbox").fill("Une nouvelle note");
+    await page.getByRole("button", { name: /^Modifier/ }).click();
+    const noteDialog = page.getByRole("dialog", { name: "Modifier la note" });
+    await noteDialog.getByLabel("Note *").fill("Une nouvelle note");
     await expect(page.getByText("17/2000", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Annuler", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await expect(noteDialog).toHaveCount(0);
     await expect(page.getByText(workout.notes, { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Modifier", exact: true }).click();
-    await page.getByRole("textbox").fill("Note de test enregistrée");
-    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+    await page.getByRole("button", { name: /^Modifier/ }).click();
+    await noteDialog.getByLabel("Note *").fill("Note de test enregistrée");
+    await noteDialog.getByRole("button", { name: "Enregistrer la note" }).click();
     await expect(page.getByText("Note de test enregistrée", { exact: true })).toBeVisible();
+    // Une note libre peut être ajoutée à tout moment, sans séance.
+    await page.getByRole("button", { name: "Ajouter une note", exact: true }).click();
+    const newNote = page.getByRole("dialog", { name: "Nouvelle note" });
+    await newNote.getByRole("button", { name: "Enregistrer la note" }).click();
+    await expect(newNote.getByRole("alert")).toContainText("Écris le contenu");
+    await newNote.getByLabel("Titre (facultatif)").fill("Genou gauche");
+    await newNote.getByLabel("Note *").fill("Petite gêne en descente, à surveiller.");
+    await newNote.getByRole("button", { name: "Enregistrer la note" }).click();
+    await expect(page.getByRole("heading", { name: "Genou gauche" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Note enregistrée" })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`notes-${theme}.png`), animations: "disabled" });
     await page.goto("/settings");
     await expect(page.getByText("Profil à jour", { exact: true })).toBeVisible();
@@ -347,36 +382,29 @@ for (const theme of ["light", "dark"] as const) {
   test(`records validate and preserve failed saves: ${theme}`, async ({ page }, info) => {
     const writes = await setup(page, theme);
     await page.goto("/records");
+    await page.getByRole("tab", { name: "Performances", exact: true }).click();
     await expect(page.getByText("Mesure non renseignée", { exact: true }).first()).toBeVisible();
-    const add = page.getByRole("button", { name: "Ajouter un record", exact: true });
-    const assistant = await page
-      .getByRole("button", { name: "Ouvrir l'assistant", exact: true })
-      .boundingBox();
-    const action = await add.boundingBox();
-    if (assistant && action)
-      expect(
-        action.y + action.height <= assistant.y || action.x + action.width <= assistant.x,
-      ).toBe(true);
+    const add = page.getByRole("button", { name: "Ajouter une performance", exact: true });
     await add.focus();
     await add.click();
     await page.getByRole("button", { name: "Squat", exact: true }).click();
-    await page.getByRole("button", { name: "Enregistrer le record", exact: true }).click();
+    await page.getByRole("button", { name: "Enregistrer la performance", exact: true }).click();
     await expect(
       page.getByText("Indique le nombre de répétitions.", { exact: true }),
     ).toBeVisible();
     expect(writes.records).toBe(0);
     await page.getByLabel(/Charge \(kg\)/).fill("0");
     await page.getByLabel(/Répétitions/).fill("5");
-    await page.getByRole("button", { name: "Enregistrer le record", exact: true }).click();
+    await page.getByRole("button", { name: "Enregistrer la performance", exact: true }).click();
     await expect(page.getByText(/Ta saisie est conservée/)).toBeVisible();
     await expect(page.getByLabel(/Charge \(kg\)/)).toHaveValue("0");
     await page.screenshot({
       path: info.outputPath(`record-error-${theme}.png`),
       animations: "disabled",
     });
-    await page.getByRole("button", { name: "Enregistrer le record", exact: true }).click();
+    await page.getByRole("button", { name: "Enregistrer la performance", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByRole("status")).toContainText("Record enregistré");
+    await expect(page.getByRole("status")).toContainText("Performance enregistrée");
     expect(writes.records).toBe(2);
     await add.click();
     await page.keyboard.press("Escape");
@@ -391,18 +419,20 @@ for (const theme of ["light", "dark"] as const) {
     await setup(page, theme);
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("link", { name: "Consulter la séance", exact: true }),
+      page.getByRole("link", { name: "Commencer la séance", exact: true }),
     ).toBeVisible();
     const samples = [
-      await contrast(page.getByRole("link", { name: "Consulter la séance", exact: true })),
-      await contrast(
-        page.getByText("Voici l’essentiel pour ton prochain entraînement.", { exact: true }),
-      ),
+      await contrast(page.getByRole("link", { name: "Commencer la séance", exact: true })),
+      await contrast(page.getByRole("heading", { name: "Endurance facile" })),
     ];
-    await page.goto("/builder");
-    samples.push(await contrast(page.locator(".app-builder-hero > div > p").last()));
+    if (FREE_SESSION_BUILDER_ENABLED) {
+      samples.push(
+        await contrast(page.getByText("Une séance ponctuelle, adaptée à ton état du jour.")),
+      );
+    }
     await page.goto("/records");
-    await page.getByRole("button", { name: "Ajouter un record", exact: true }).click();
+    await page.getByRole("tab", { name: "Performances", exact: true }).click();
+    await page.getByRole("button", { name: "Ajouter une performance", exact: true }).click();
     samples.push(await contrast(page.getByRole("dialog").locator("label").first()));
     await info.attach(`contrast-${theme}.json`, {
       body: JSON.stringify(samples, null, 2),
@@ -412,7 +442,8 @@ for (const theme of ["light", "dark"] as const) {
     for (const sample of samples) expect(sample.ratio, sample.text).toBeGreaterThanOrEqual(4.5);
     await page.keyboard.press("Escape");
     await page.setViewportSize({ width: page.viewportSize()!.width, height: 480 });
-    await page.locator('button[aria-label="Contact"]:visible').click();
+    await page.goto("/settings?tab=compte");
+    await page.getByRole("button", { name: "Contacter l'assistance", exact: true }).click();
     const message = page.getByRole("dialog").getByRole("textbox", { name: /Message/ });
     await message.focus();
     await message.scrollIntoViewIfNeeded();
@@ -420,7 +451,7 @@ for (const theme of ["light", "dark"] as const) {
     expect(field!.y).toBeGreaterThanOrEqual(0);
     expect(field!.y + field!.height).toBeLessThanOrEqual(480);
     await expect(
-      page.getByRole("button", { name: "Fermer : Contactez-nous", exact: true }),
+      page.getByRole("button", { name: "Fermer : Contacter l'assistance", exact: true }),
     ).toBeVisible();
     await page.screenshot({
       path: info.outputPath(`contact-small-height-${theme}.png`),
@@ -464,7 +495,7 @@ test("program loading is not shown as empty and failed reads can be retried", as
   await expect(page.getByRole("alert")).toContainText("Tes données n'ont pas pu être chargées");
   await expect(page.getByText("Aucun programme actif", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Réessayer", exact: true }).click();
-  await expect(page.locator("#program-session-W1D1")).toContainText("Endurance facile");
+  await expect(page.getByRole("link", { name: /Endurance facile/ }).first()).toBeVisible();
   expect(reads).toBe(2);
 });
 

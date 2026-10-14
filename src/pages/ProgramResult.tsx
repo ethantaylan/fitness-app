@@ -1,332 +1,91 @@
-import { useEffect, useState } from "react";
-import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import {
-  ChevronDown,
-  ChevronUp,
+  ChevronRight,
   RefreshCw,
   UserPlus,
-  Check,
-  Dumbbell,
-  Clock,
   Flame,
-  Target,
   Apple,
   Droplets,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
+import { useGeneration } from "../lib/generationContext";
 import { useApp } from "../lib/store";
 import { OBJECTIVE_LABELS } from "../lib/agents";
-import { exerciseMetrics, formatSeconds } from "../lib/exerciseDisplay";
-import { programSchedule, profileDifferences } from "../lib/program";
-import type { Session, Week } from "../lib/types";
+import {
+  programSchedule,
+  programSessionLink,
+  profileDifferences,
+  weekSessionStates,
+  type SessionStatus,
+} from "../lib/program";
+import { capitalize, sessionFocus } from "../lib/sessionDisplay";
+import type { Week } from "../lib/types";
 import Navbar from "../components/Navbar";
+import Modal from "../components/ui/Modal";
+import SessionCheck from "../components/ui/SessionCheck";
+import { sessionIcon } from "../components/ui/sessionIcon";
+import ProgramSessionScreen from "../components/session/ProgramSessionScreen";
 
-function ExerciseRow({
-  ex,
-}: Readonly<{
-  ex: {
-    name: string;
-    sets: number;
-    reps: number | string;
-    load_kg?: string;
-    rest_sec?: number;
-    alternative?: string;
-    notes?: string;
-  };
-}>) {
-  return (
-    <tr className="border-b border-gray-100 last:border-0">
-      <td className="py-3 pr-4">
-        <div className="text-sm font-semibold">{ex.name}</div>
-        {ex.notes && <p className="mt-1 text-sm text-gray-500">{ex.notes}</p>}
-        {ex.alternative && (
-          <p className="mt-1 text-sm text-gray-500">Alternative : {ex.alternative}</p>
-        )}
-      </td>
-      <td className="py-3 text-sm">
-        {exerciseMetrics(ex)
-          .map((metric) => `${metric.label} : ${metric.value}`)
-          .join(" · ") || "Mesures non renseignées"}
-      </td>
-    </tr>
-  );
-}
+const STATUS_BADGE: Partial<Record<SessionStatus, { label: string; className: string }>> = {
+  done: { label: "Faite", className: "border-brand-line bg-brand-soft text-brand" },
+  overdue: { label: "À rattraper", className: "border-warn-line bg-warn-soft text-warn" },
+  today: { label: "Aujourd'hui", className: "border-brand-line bg-brand-soft text-brand" },
+};
 
-function ExerciseMobileCard({
-  ex,
+/** Sélecteur horizontal S1…S8 : semaine courante marquée, semaine choisie mise en avant. */
+function WeekPicker({
+  weeks,
+  selected,
+  current,
+  onSelect,
 }: Readonly<{
-  ex: {
-    name: string;
-    sets: number;
-    reps: number | string;
-    load_kg?: string;
-    rest_sec?: number;
-    alternative?: string;
-    notes?: string;
-  };
+  weeks: Week[];
+  selected: number;
+  current: number | null;
+  onSelect: (weekNumber: number) => void;
 }>) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
-      <div className="font-black text-gray-900">{ex.name}</div>
-      {(ex.notes || ex.alternative) && (
-        <div className="mt-1 space-y-1 text-xs leading-relaxed text-gray-500">
-          {ex.notes && <p>{ex.notes}</p>}
-          {ex.alternative && <p>Alternative : {ex.alternative}</p>}
-        </div>
-      )}
-      <dl className="mt-3 flex flex-wrap gap-2">
-        {exerciseMetrics(ex).map((metric) => (
-          <div key={metric.label} className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
-            <dt className="text-gray-500">{metric.label}</dt>
-            <dd className="font-semibold">{metric.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
-
-function SessionCard({
-  session,
-  onToggleCompletion,
-  initiallyExpanded = false,
-}: Readonly<{
-  initiallyExpanded?: boolean;
-  session: Session;
-  onToggleCompletion?: (completed: boolean) => void;
-}>) {
-  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const list = useRef<HTMLUListElement>(null);
   useEffect(() => {
-    if (initiallyExpanded) setExpanded(true);
-  }, [initiallyExpanded]);
-  const intensity = session.intensity?.toLowerCase() ?? "";
-
-  let intensityColor = "bg-green-50 text-green-600";
-  if (intensity.includes("intense")) {
-    intensityColor = "bg-red-50 text-red-500";
-  } else if (intensity.includes("moder") || intensity.includes("mod")) {
-    intensityColor = "bg-yellow-50 text-yellow-600";
-  }
-
+    const container = list.current;
+    const button = container?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!container || !button) return;
+    container.scrollLeft = button.offsetLeft - (container.clientWidth - button.clientWidth) / 2;
+  }, [selected]);
   return (
-    <div
-      id={`program-session-${session.session_id}`}
-      tabIndex={-1}
-      className={`overflow-hidden rounded-2xl border ${
-        session.completed
-          ? "theme-program-session-completed border-green-200 bg-green-50"
-          : "border-gray-200 bg-white"
-      }`}
-    >
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-sm font-black text-white">
-              {session.day?.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold">
-                {session.day} - {session.type}
-              </div>
-              <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <Clock className="h-3 w-3" /> {session.duration_min} min
-                </span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${intensityColor}`}>
-                  {session.intensity}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {session.completed && (
-            <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
-              Faite
-            </span>
-          )}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => onToggleCompletion?.(!session.completed)}
-            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-              session.completed
-                ? "border-green-200 bg-green-100 text-green-800 hover:bg-green-200"
-                : "border-gray-200 text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {session.completed ? (
-              <>
-                <Check className="h-4 w-4" />
-                Marquer non réalisée
-              </>
-            ) : (
-              <>
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] border border-current">
-                  <Check className="h-2.5 w-2.5" strokeWidth={2.8} />
-                </span>
-                Marquer réalisée
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            aria-expanded={expanded}
-            onClick={() => setExpanded((value) => !value)}
-            className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            {expanded ? "Masquer le détail" : "Voir le détail"}
-            {expanded ? (
-              <ChevronUp className="h-4 w-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-gray-100 px-4 pb-4">
-          {session.warmup?.length > 0 && (
-            <div className="mb-4 mt-3">
-              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                Échauffement
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {session.warmup.map((item) => (
-                  <span key={item.name} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs">
-                    {item.name} {item.duration_sec ? `- ${formatSeconds(item.duration_sec)}` : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {session.blocks?.map((block) => (
-            <div key={block.block_name} className="mb-4">
-              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                {block.block_name}
-              </div>
-              <div className="space-y-3 sm:hidden">
-                {block.exercises?.map((exercise) => (
-                  <ExerciseMobileCard key={exercise.name} ex={exercise} />
-                ))}
-              </div>
-              <div className="hidden overflow-x-auto sm:block">
-                <table className="min-w-full w-max">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-xs text-gray-400">
-                      <th className="py-2 pr-4 text-left font-semibold">Exercice</th>
-                      <th className="py-2 text-left font-semibold">Travail prévu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {block.exercises?.map((exercise) => (
-                      <ExerciseRow key={exercise.name} ex={exercise} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-
-          {session.cooldown?.length > 0 && (
-            <div className="mt-2">
-              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                Récupération
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {session.cooldown.map((item) => (
-                  <span key={item.name} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs">
-                    {item.name} {item.duration_sec ? `- ${formatSeconds(item.duration_sec)}` : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {session.notes && (
-            <p className="mt-3 rounded-xl bg-gray-50 p-3 text-xs italic text-gray-500">
-              {session.notes}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WeekSection({
-  week,
-  targetSession,
-  onToggleCompletion,
-}: Readonly<{
-  week: Week;
-  targetSession?: string | null;
-  onToggleCompletion?: (sessionId: string, completed: boolean) => void;
-}>) {
-  const [open, setOpen] = useState(true);
-  const sessionCount = week.sessions?.length ?? 0;
-  const completedCount = week.sessions?.filter((session) => session.completed).length ?? 0;
-  const progress = sessionCount === 0 ? 0 : Math.round((completedCount / sessionCount) * 100);
-
-  return (
-    <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
-      <button
-        type="button"
-        aria-expanded={open}
-        className="w-full text-left"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-lg font-black">Semaine {week.week_number}</span>
-              {week.focus && (
-                <span className="text-sm font-medium text-gray-500">{week.focus}</span>
-              )}
-            </div>
-
-            <div className="mt-3">
-              <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-gray-500">
-                <span>
-                  {completedCount} / {sessionCount} séances cochées
-                </span>
-                <span>{progress}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-gray-100">
-                <div
-                  className="theme-progress-fill h-full rounded-full bg-black transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center">
-            {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </div>
-        </div>
-      </button>
-
-      {open && (
-        <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
-          {week.sessions?.map((session) => (
-            <SessionCard
-              key={session.session_id}
-              session={session}
-              initiallyExpanded={session.session_id === targetSession}
-              onToggleCompletion={(completed) =>
-                onToggleCompletion?.(session.session_id, completed)
-              }
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <nav aria-label="Semaines du programme">
+      <ul ref={list} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        {weeks.map((week) => {
+          const active = week.week_number === selected;
+          const isCurrent = week.week_number === current;
+          return (
+            <li key={week.week_number} className="shrink-0">
+              <button
+                type="button"
+                aria-pressed={active}
+                aria-label={`Semaine ${week.week_number}${isCurrent ? ", semaine en cours" : ""}`}
+                onClick={() => onSelect(week.week_number)}
+                className={`relative flex h-11 min-w-14 items-center justify-center rounded-xl border-2 px-3 text-sm font-bold transition-colors ${
+                  active
+                    ? "border-ink bg-ink text-paper"
+                    : "border-line-strong bg-card text-ink hover:bg-card-soft"
+                }`}
+              >
+                S{week.week_number}
+                {isCurrent && (
+                  <span
+                    aria-hidden="true"
+                    className={`absolute bottom-1 h-1 w-1 rounded-full ${active ? "bg-paper" : "bg-brand"}`}
+                  />
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
@@ -336,46 +95,48 @@ export default function ProgramResult() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const schedule = programSchedule(state.program, state.programStartDate);
-  const selectedWeek = Number(params.get("week")) || schedule.activeWeek?.week_number || 1;
-  const targetSession = params.get("session");
-  useEffect(() => {
-    if (!targetSession) return;
-    const frame = requestAnimationFrame(() => {
-      const element = document.getElementById(`program-session-${targetSession}`);
-      element?.scrollIntoView({ block: "start", behavior: "smooth" });
-      element?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [targetSession, selectedWeek]);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const generating = ["running", "saving"].includes(useGeneration().state.phase);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [confirm, setConfirm] = useState<null | "regenerate" | "delete">(null);
   const program = state.program;
+  const schedule = programSchedule(program, state.programStartDate);
+  const currentWeekNumber = schedule.activeWeek?.week_number ?? null;
+  const selectedNumber = Number(params.get("week")) || currentWeekNumber || 1;
+  const targetSession = params.get("session");
+
+  function setCompletion(weekNumber: number, sessionId: string, completed: boolean) {
+    dispatch({ type: "SET_PROGRAM_SESSION_COMPLETION", weekNumber, sessionId, completed });
+  }
 
   if (!program) {
     return (
-      <div className="theme-app-page min-h-screen bg-white">
+      <div className="theme-app-page min-h-screen">
         <Navbar />
-        <div className="mx-auto max-w-4xl px-4 pb-28 pt-20 sm:px-6">
-          <div className="mb-6 mt-6">
-            <p className="mb-1 text-xs uppercase tracking-wider text-gray-400">Entraînement</p>
-            <h1 className="text-2xl font-black">Mon programme</h1>
-          </div>
-
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-white text-4xl shadow-sm">
-              P
-            </div>
-            <h2 className="mb-2 text-lg font-black">Aucun programme actif</h2>
-            <p className="max-w-xs text-sm leading-relaxed text-gray-400">
-              Réponds à quelques questions, ton plan sur mesure est prêt en 2 minutes.
-            </p>
-            <button
-              type="button"
-              onClick={() => void navigate("/onboarding")}
-              className="mt-6 rounded-2xl bg-black px-6 py-3 text-sm font-bold text-white transition-transform active:scale-95"
-            >
-              Créer mon programme
-            </button>
+        <div className="mx-auto max-w-3xl px-4 pb-28 pt-20 sm:px-6">
+          <h1 className="mb-6 mt-6 text-2xl font-black">Programme</h1>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            {generating ? (
+              <>
+                <h2 className="mb-2 text-lg font-black">Ton programme est en cours de création</h2>
+                <p className="max-w-xs text-sm leading-relaxed text-ink-soft">
+                  Tu peux continuer à utiliser l'application : on te prévient dès qu'il est prêt.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="mb-2 text-lg font-black">Aucun programme actif</h2>
+                <p className="max-w-xs text-sm leading-relaxed text-ink-soft">
+                  Réponds à quelques questions : ton plan sur mesure est prêt en 2 minutes.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void navigate("/onboarding")}
+                  className="app-primary mt-6"
+                >
+                  Créer mon programme
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -384,43 +145,97 @@ export default function ProgramResult() {
 
   const { program_overview, weeks, nutrition_recommendations, general_advice, user_profile } =
     program;
+  const week = weeks.find((w) => w.week_number === selectedNumber) ?? weeks[0];
+  const states = weekSessionStates(week, state.programStartDate);
+
+  // Détail d'une séance : écran dédié plutôt qu'un accordéon dans une page interminable.
+  const targeted = targetSession
+    ? states.find((entry) => entry.session.session_id === targetSession)
+    : undefined;
+  if (week && targeted)
+    return (
+      <ProgramSessionScreen
+        session={targeted.session}
+        weekNumber={week.week_number}
+        date={targeted.date}
+        status={targeted.status}
+        objective={user_profile?.objective}
+        onToggleCompletion={(completed) =>
+          setCompletion(week.week_number, targeted.session.session_id, completed)
+        }
+      />
+    );
+
   const differences = profileDifferences(user_profile, state.profile);
+  const done = states.filter((entry) => entry.status === "done").length;
+  const summary = program_overview.summary ?? "";
+  const longSummary = summary.length > 150;
   const profileDetails = [
+    user_profile?.objective && {
+      k: "Discipline",
+      v: OBJECTIVE_LABELS[user_profile.objective],
+    },
+    {
+      k: "Objectif",
+      v:
+        user_profile?.goalDetail ||
+        (user_profile?.objective
+          ? OBJECTIVE_LABELS[user_profile.objective]
+          : state.profile?.goalDetail || "Non renseigné"),
+    },
+    { k: "Durée", v: `${program_overview.duration_weeks} semaines` },
+    { k: "Fréquence", v: `${program_overview.training_days_per_week} séances / semaine` },
+    user_profile?.level && { k: "Niveau", v: user_profile.level },
     user_profile?.gender && { k: "Genre", v: user_profile.gender },
-    user_profile?.age && { k: "Age", v: `${user_profile.age} ans` },
+    user_profile?.age && { k: "Âge", v: `${user_profile.age} ans` },
     user_profile?.height && { k: "Taille", v: `${user_profile.height} cm` },
     user_profile?.weight && { k: "Poids", v: `${user_profile.weight} kg` },
   ].filter(Boolean) as { k: string; v: string }[];
 
   return (
-    <div className="theme-app-page min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen">
       <Navbar />
 
-      <div className="mx-auto max-w-5xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
-        <div className="mb-8 mt-8">
-          <div className="mb-2 flex items-center gap-2">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-            <span className="text-sm font-semibold text-green-600">
-              {(location.state as { generated?: boolean } | null)?.generated
-                ? "Programme généré avec succès"
-                : "Programme actif"}
-            </span>
-          </div>
-          <h1 className="mb-2 text-3xl font-black sm:text-4xl">Ton programme Vincere</h1>
-          <p className="text-gray-500">{program_overview.summary}</p>
-        </div>
+      <main className="mx-auto max-w-3xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
+        <header className="mb-5 mt-6">
+          <p
+            role="status"
+            className="mb-1 flex items-center gap-2 text-sm font-semibold text-brand"
+          >
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-brand" />
+            {(location.state as { generated?: boolean } | null)?.generated
+              ? "Programme généré avec succès"
+              : "Programme actif"}
+          </p>
+          <h1 className="text-3xl font-black">Programme</h1>
+          <p
+            className={`mt-2 text-sm leading-relaxed text-ink-soft ${introOpen ? "" : "line-clamp-3"}`}
+          >
+            {summary}
+          </p>
+          {longSummary && (
+            <button
+              type="button"
+              aria-expanded={introOpen}
+              onClick={() => setIntroOpen((open) => !open)}
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-bold underline underline-offset-2"
+            >
+              {introOpen ? "Voir moins" : "Voir plus"}
+            </button>
+          )}
+          <p className="text-xs text-ink-soft">
+            {program.generated_at
+              ? `Créé le ${new Date(program.generated_at).toLocaleDateString("fr-FR")}`
+              : state.programStartDate
+                ? `Démarré le ${new Date(state.programStartDate + "T12:00:00").toLocaleDateString("fr-FR")}`
+                : "Date de création non disponible"}
+          </p>
+        </header>
 
-        <p className="mb-4 text-sm text-gray-500">
-          {program.generated_at
-            ? `Créé le ${new Date(program.generated_at).toLocaleDateString("fr-FR")}`
-            : state.programStartDate
-              ? `Démarré le ${new Date(state.programStartDate + "T12:00:00").toLocaleDateString("fr-FR")}`
-              : "Date de création non disponible"}
-        </p>
         {differences.length > 0 && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="mb-5 rounded-2xl border border-warn-line bg-warn-soft p-4">
             <h2 className="font-bold">Ton profil a évolué</h2>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm">
               Différences : {differences.join(", ")}. Ce plan conserve les paramètres utilisés à sa
               création. Modifier ton profil adapte les futures séances libres ; le programme reste
               inchangé jusqu'à sa régénération.
@@ -434,207 +249,229 @@ export default function ProgramResult() {
             </button>
           </div>
         )}
-        <div className="mb-10">
-          <h2 className="mb-3 text-xl font-black">Tes séances</h2>
-          <label htmlFor="program-week" className="mb-2 block text-sm font-semibold">
-            Semaine
-          </label>
-          <select
-            id="program-week"
-            className="app-input mb-4"
-            value={selectedWeek}
-            onChange={(event) => setParams({ week: event.target.value })}
-          >
-            {weeks.map((week) => (
-              <option key={week.week_number} value={week.week_number}>
-                Semaine {week.week_number}
-                {week.focus ? ` · ${week.focus}` : ""}
-              </option>
+
+        <section aria-labelledby="program-sessions" className="mb-10">
+          <h2 id="program-sessions" className="mb-3 text-xl font-black">
+            Tes séances
+          </h2>
+          <WeekPicker
+            weeks={weeks}
+            selected={week?.week_number ?? 1}
+            current={currentWeekNumber}
+            onSelect={(weekNumber) => setParams({ week: String(weekNumber) })}
+          />
+
+          {week && (
+            <div className="mt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-lg font-black">Semaine {week.week_number}</h3>
+                <p className="font-display text-sm font-bold tabular-nums">
+                  {done}/{states.length}{" "}
+                  <span className="font-sans font-semibold text-ink-soft">faites</span>
+                </p>
+              </div>
+              {week.focus && <p className="mt-1 text-sm text-ink-soft">{week.focus}</p>}
+
+              <ul className="mt-4 space-y-3">
+                {states.map(({ session, date, status }) => {
+                  const Icon = sessionIcon(session.type);
+                  const badge = STATUS_BADGE[status];
+                  const focus = sessionFocus(session);
+                  return (
+                    <li
+                      key={session.session_id}
+                      className={`relative flex items-center gap-1 rounded-2xl border p-2 pr-3 transition-colors ${
+                        status === "done"
+                          ? "border-brand-line bg-brand-soft"
+                          : "border-line bg-card hover:bg-card-muted"
+                      }`}
+                    >
+                      <SessionCheck
+                        completed={Boolean(session.completed)}
+                        day={session.day}
+                        onChange={(completed) =>
+                          setCompletion(week.week_number, session.session_id, completed)
+                        }
+                      />
+                      <div className="min-w-0 flex-1 py-1">
+                        <p className="flex items-center gap-1.5 text-xs font-bold text-ink-soft">
+                          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                          {capitalize(session.day)}
+                          {date &&
+                            ` · ${date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`}
+                        </p>
+                        <h4 className="font-display text-base font-black leading-snug">
+                          <Link
+                            to={programSessionLink(week.week_number, session.session_id)}
+                            className="break-words after:absolute after:inset-0 after:rounded-2xl after:content-['']"
+                          >
+                            {session.type}
+                            <span className="sr-only"> du {session.day}, voir le détail</span>
+                          </Link>
+                        </h4>
+                        <p className="text-sm text-ink-soft">
+                          {session.duration_min} min · {session.intensity}
+                        </p>
+                        {focus && <p className="truncate text-xs text-ink-soft">{focus}</p>}
+                      </div>
+                      {badge && (
+                        <span
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
+                      )}
+                      <ChevronRight className="h-5 w-5 shrink-0 text-ink-soft" aria-hidden="true" />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </section>
+
+        <details className="mb-6 rounded-2xl border border-line bg-card">
+          <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 px-4 text-base font-black">
+            Paramètres du programme
+            <ChevronDown className="h-4 w-4 text-ink-soft" aria-hidden="true" />
+          </summary>
+          <dl className="divide-y divide-line border-t border-line px-4">
+            {profileDetails.map((item) => (
+              <div key={item.k} className="flex items-center justify-between gap-4 py-3 text-sm">
+                <dt className="text-ink-soft">{item.k}</dt>
+                <dd className="text-right font-semibold">{item.v}</dd>
+              </div>
             ))}
-          </select>
-          {(weeks.filter((week) => week.week_number === selectedWeek).length
-            ? weeks.filter((week) => week.week_number === selectedWeek)
-            : weeks.slice(0, 1)
-          ).map((week) => (
-            <WeekSection
-              key={week.week_number}
-              week={week}
-              targetSession={targetSession}
-              onToggleCompletion={(sessionId, completed) =>
-                dispatch({
-                  type: "SET_PROGRAM_SESSION_COMPLETION",
-                  weekNumber: week.week_number,
-                  sessionId,
-                  completed,
-                })
-              }
-            />
-          ))}
-        </div>
-
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            {
-              icon: Dumbbell,
-              label: "Discipline",
-              value: user_profile?.objective ? OBJECTIVE_LABELS[user_profile.objective] : "-",
-            },
-            {
-              icon: Target,
-              label: "Objectif",
-              value:
-                user_profile?.goalDetail ||
-                (user_profile?.objective
-                  ? OBJECTIVE_LABELS[user_profile.objective]
-                  : state.profile?.goalDetail || "Objectif non renseigné"),
-            },
-            { icon: Clock, label: "Durée", value: `${program_overview.duration_weeks} semaines` },
-            {
-              icon: Flame,
-              label: "Fréquence",
-              value: `${program_overview.training_days_per_week} x / semaine`,
-            },
-            { icon: Clock, label: "Niveau", value: user_profile?.level ?? "-" },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="rounded-2xl border border-gray-200 p-4">
-              <Icon className="mb-2 h-4 w-4 text-gray-400" />
-              <div className="text-xs text-gray-400">{label}</div>
-              <div className="text-sm font-bold">{value}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mb-10 flex flex-col gap-3 sm:flex-row">
-          {!isSignedIn && (
-            <button
-              type="button"
-              onClick={() => void navigate("/sign-up")}
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition-colors hover:bg-gray-50"
-            >
-              <UserPlus className="h-4 w-4" />
-              Créer un compte pour le suivi
-            </button>
-          )}
-
-          {isSignedIn && (
-            <button
-              type="button"
-              onClick={() => void navigate("/dashboard")}
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition-colors hover:bg-gray-50"
-            >
-              Aller à l’accueil
-            </button>
-          )}
-
-          {confirmDelete ? (
-            <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2">
-              <span className="text-sm font-medium text-red-700">Supprimer ce programme ?</span>
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch({ type: "CLEAR_PROGRAM" });
-                  void navigate("/dashboard");
-                }}
-                className="text-sm font-bold text-red-600 transition-colors hover:text-red-800"
-              >
-                Confirmer
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="text-sm text-gray-500 transition-colors hover:text-gray-700"
-              >
-                Annuler
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:border-red-200 hover:text-red-500"
-            >
-              <Trash2 className="h-4 w-4" />
-              Supprimer le programme
-            </button>
-          )}
-        </div>
-
-        {profileDetails.length > 0 && (
-          <div className="mb-8 rounded-2xl bg-gray-50 p-5">
-            <h2 className="mb-3 text-sm font-black uppercase tracking-widest text-gray-400">
-              Paramètres à la création
-            </h2>
-            <div className="rounded-xl border border-gray-200 bg-white px-4">
-              {profileDetails.map((item, index) => (
-                <div
-                  key={item.k}
-                  className={`flex items-center justify-between gap-4 py-3 text-sm ${
-                    index === 0 ? "" : "border-t border-gray-100"
-                  }`}
-                >
-                  <span className="text-gray-400">{item.k}</span>
-                  <span className="text-right font-semibold capitalize">{item.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          </dl>
+        </details>
 
         {nutrition_recommendations && (
-          <div className="mb-8 rounded-2xl border border-gray-200 p-6">
+          <section className="mb-6 rounded-2xl border border-line bg-card p-5">
             <h2 className="mb-4 font-black">Recommandations nutritionnelles</h2>
-            <div className="mb-4 grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <Flame className="mx-auto mb-1 h-5 w-5 text-orange-500" />
-                <div className="text-xl font-black">
-                  {nutrition_recommendations.daily_calories_estimate}
+            <dl className="mb-4 grid grid-cols-3 gap-3 text-center">
+              {[
+                {
+                  Icon: Flame,
+                  value: String(nutrition_recommendations.daily_calories_estimate),
+                  label: "kcal / jour",
+                },
+                {
+                  Icon: Apple,
+                  value: `${nutrition_recommendations.protein_target_g} g`,
+                  label: "protéines / jour",
+                },
+                {
+                  Icon: Droplets,
+                  value: `${nutrition_recommendations.water_intake_l} L`,
+                  label: "eau / jour",
+                },
+              ].map(({ Icon, value, label }) => (
+                <div key={label}>
+                  <Icon className="mx-auto mb-1 h-5 w-5 text-ink-soft" aria-hidden="true" />
+                  <dd className="font-display text-xl font-black">{value}</dd>
+                  <dt className="text-xs text-ink-soft">{label}</dt>
                 </div>
-                <div className="text-xs text-gray-400">kcal/jour</div>
-              </div>
-              <div className="text-center">
-                <Apple className="mx-auto mb-1 h-5 w-5 text-red-500" />
-                <div className="text-xl font-black">
-                  {nutrition_recommendations.protein_target_g} g
-                </div>
-                <div className="text-xs text-gray-400">protéines/jour</div>
-              </div>
-              <div className="text-center">
-                <Droplets className="mx-auto mb-1 h-5 w-5 text-blue-500" />
-                <div className="text-xl font-black">
-                  {nutrition_recommendations.water_intake_l} L
-                </div>
-                <div className="text-xs text-gray-400">eau/jour</div>
-              </div>
-            </div>
-            <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
-              {nutrition_recommendations.notes}
-            </p>
-          </div>
+              ))}
+            </dl>
+            <p className="rounded-xl bg-card-soft p-3 text-sm">{nutrition_recommendations.notes}</p>
+          </section>
         )}
 
         {general_advice && (
-          <div className="mb-8 border-l-4 border-black pl-5">
+          <section className="mb-6 border-l-4 border-brand pl-5">
             <h2 className="mb-2 font-black">Conseils du coach</h2>
-            <p className="text-sm leading-relaxed text-gray-600">{general_advice}</p>
-          </div>
+            <p className="text-sm leading-relaxed text-ink-soft">{general_advice}</p>
+          </section>
         )}
 
-        <div className="rounded-xl bg-gray-50 p-4 text-xs text-gray-400">
-          {program.legal_disclaimer ??
-            "Ces recommandations sont à titre informatif uniquement et ne remplacent pas l'avis d'un professionnel de santé ou d'un coach certifié."}
-        </div>
+        <p className="mb-10 rounded-2xl bg-card-soft p-4 text-xs leading-relaxed text-ink-soft">
+          Ces recommandations sont données à titre informatif et ne remplacent pas l'avis d'un
+          professionnel de santé ou d'un coach certifié. Si tu as un doute ou une douleur, demande
+          conseil à un professionnel avant de continuer.
+        </p>
 
-        <div className="mt-8 text-center">
+        {/* Zone secondaire : actions qui remplacent ou suppriment le programme */}
+        <section aria-labelledby="program-manage" className="border-t border-line pt-6">
+          <h2 id="program-manage" className="mb-3 text-sm font-bold text-ink-soft">
+            Gérer le programme
+          </h2>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {!isSignedIn && (
+              <button
+                type="button"
+                onClick={() => void navigate("/sign-up")}
+                className="app-secondary"
+              >
+                <UserPlus className="h-4 w-4" aria-hidden="true" />
+                Créer un compte pour le suivi
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setConfirm("regenerate")}
+              className="app-secondary"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Générer un nouveau programme
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirm("delete")}
+              className="app-secondary text-danger"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Supprimer le programme
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <Modal
+        open={confirm === "regenerate"}
+        title="Remplacer ton programme ?"
+        onClose={() => setConfirm(null)}
+      >
+        <p className="text-sm leading-relaxed">
+          Un nouveau programme sera généré à partir de ton profil. Il remplacera le programme actuel
+          : les séances déjà cochées ne seront plus accessibles.
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="app-secondary" onClick={() => setConfirm(null)}>
+            Garder mon programme
+          </button>
           <button
             type="button"
+            className="app-primary"
             onClick={() => void navigate("/onboarding")}
-            className="mx-auto flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-black"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
             Générer un nouveau programme
           </button>
         </div>
-      </div>
+      </Modal>
+      <Modal
+        open={confirm === "delete"}
+        title="Supprimer ce programme ?"
+        onClose={() => setConfirm(null)}
+      >
+        <p className="text-sm leading-relaxed">
+          Ton programme et ta progression seront supprimés. Cette action est irréversible.
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="app-secondary" onClick={() => setConfirm(null)}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            className="app-danger"
+            onClick={() => {
+              dispatch({ type: "CLEAR_PROGRAM" });
+              void navigate("/dashboard");
+            }}
+          >
+            Supprimer le programme
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

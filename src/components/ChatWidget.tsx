@@ -5,57 +5,88 @@ import SupportChat from "./SupportChat";
 import Modal from "./ui/Modal";
 import { useAuth } from "../lib/auth";
 
+const GUEST_HIDDEN_PATHS = [
+  "/explore",
+  "/privacy",
+  "/terms",
+  "/support",
+  "/sign-in",
+  "/sign-up",
+  "/reset-password",
+  "/onboarding",
+  "/generating",
+];
+
+/**
+ * Aligne le panneau sur le viewport visuel : avec le clavier mobile ouvert, l'en-tête reste
+ * visible et la zone de saisie reste au-dessus du clavier.
+ */
+function useVisualViewport(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const root = document.documentElement;
+    const viewport = window.visualViewport;
+    const apply = () => {
+      root.style.setProperty("--app-vh", `${viewport?.height ?? window.innerHeight}px`);
+      root.style.setProperty("--app-vv-top", `${viewport?.offsetTop ?? 0}px`);
+    };
+    apply();
+    viewport?.addEventListener("resize", apply);
+    viewport?.addEventListener("scroll", apply);
+    return () => {
+      viewport?.removeEventListener("resize", apply);
+      viewport?.removeEventListener("scroll", apply);
+      root.style.removeProperty("--app-vh");
+      root.style.removeProperty("--app-vv-top");
+    };
+  }, [active]);
+}
+
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const { isSignedIn } = useAuth();
+  useVisualViewport(open);
   useEffect(() => {
     const handleOpen = () => setOpen(true);
     globalThis.addEventListener("open-Vincere-chat", handleOpen);
     return () => globalThis.removeEventListener("open-Vincere-chat", handleOpen);
   }, []);
-  if (
-    [
-      "/explore",
-      "/privacy",
-      "/terms",
-      "/support",
-      "/sign-in",
-      "/sign-up",
-      "/reset-password",
-      "/onboarding",
-      "/builder",
-      "/generating",
-      "/settings",
-    ].includes(pathname) ||
-    (pathname === "/session" && new URLSearchParams(search).has("uid"))
-  )
-    return null;
+  // Connecté : l'assistant s'ouvre depuis l'en-tête, jamais depuis un bouton flottant qui
+  // recouvrirait le contenu. Le raccourci flottant ne reste que sur les pages publiques larges.
+  const showGuestShortcut = !isSignedIn && !GUEST_HIDDEN_PATHS.includes(pathname);
   return (
     <>
-      <div
-        className={`app-ai-trigger fixed bottom-24 right-4 z-50 md:bottom-6 md:right-6 ${isSignedIn ? "" : "hidden md:block"}`}
-      >
-        <button
-          type="button"
-          onClick={(event) => {
-            event.currentTarget.focus();
-            setOpen(true);
-          }}
-          aria-label="Ouvrir l'assistant"
-          aria-haspopup="dialog"
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black text-white shadow-lg"
-        >
-          <Sparkles size={22} />
-        </button>
-      </div>
+      {showGuestShortcut && (
+        <div className="app-ai-trigger fixed bottom-6 right-6 z-50 hidden md:block">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setOpen(true);
+            }}
+            aria-label="Ouvrir l'assistant"
+            aria-haspopup="dialog"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-line-strong bg-card text-ink shadow-lg"
+          >
+            <Sparkles size={20} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <Modal
         open={open}
         title="Assistant Vincere"
-        className="contact-modal"
+        className="app-chat-modal"
         onClose={() => setOpen(false)}
       >
-        <div className="h-[min(520px,65dvh)]">{open && <SupportChat />}</div>
+        {open && (
+          <SupportChat
+            onContact={() => {
+              setOpen(false);
+              globalThis.dispatchEvent(new Event("open-contact"));
+            }}
+          />
+        )}
       </Modal>
     </>
   );

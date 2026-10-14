@@ -1,3 +1,4 @@
+import { FREE_SESSION_BUILDER_ENABLED } from "../src/lib/features";
 import { expect, test, type Page } from "@playwright/test";
 
 const id = "00000000-0000-0000-0000-000000000001";
@@ -173,35 +174,40 @@ for (const theme of ["light", "dark"] as const) {
     await setup(page, theme, true);
     for (const path of [
       "/dashboard",
-      "/builder",
+      // Builder masqué pour le moment (src/lib/features.ts) : réactiver avec le drapeau.
+      ...(FREE_SESSION_BUILDER_ENABLED ? ["/builder"] : []),
       "/session?uid=fixture",
       "/result",
       "/records",
       "/settings",
     ]) {
       await page.goto(path);
-      await expect(page.locator(".app-top-nav")).toBeVisible();
       if (path === "/builder") {
-        await page.getByRole("button", { name: "Endurance +15 min", exact: true }).click();
-        await expect(page.locator(".app-builder-cart")).toBeVisible();
+        // Écran plein page : retour visible plutôt que l'en-tête de l'application.
+        await expect(page.getByRole("button", { name: "Retour aux séances" })).toBeVisible();
+        await page.getByRole("button", { name: /Ajouter une activité : Endurance/ }).click();
+        await expect(page.locator(".app-dock")).toBeVisible();
         const bottomNav = await page.locator(".app-bottom-nav").isVisible();
         if (bottomNav) {
           const navigation = await page.locator(".app-bottom-nav").boundingBox();
           if (navigation)
             await expect
               .poll(async () => {
-                const panel = await page.locator(".app-builder-cart").boundingBox();
+                const panel = await page.locator(".app-dock").boundingBox();
                 return panel ? panel.y + panel.height : Infinity;
               })
               .toBeLessThanOrEqual(navigation.y);
         }
+      } else {
+        await expect(page.locator(".app-top-nav")).toBeVisible();
       }
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
       await noOverflow(page);
       const heading = await page.locator("h1").first().boundingBox();
-      const nav = await page.locator(".app-top-nav").boundingBox();
+      const nav = path === "/builder" ? null : await page.locator(".app-top-nav").boundingBox();
       if (heading && nav) expect(heading.y).toBeGreaterThanOrEqual(nav.y + nav.height);
+      if (path === "/builder") await expect(page.locator("h1").first()).toBeVisible();
       await page.screenshot({
         path: info.outputPath(`${path.split("?")[0].slice(1)}-${theme}.png`),
         fullPage: true,
@@ -330,10 +336,16 @@ test("program generation displays errors and retries without losing the profile"
     });
   });
 
+  // La génération tourne en arrière-plan : on arrive sur l'accueil, un bandeau signale l'erreur.
   await page.goto("/generating", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("alert")).toContainText("Service momentanément indisponible.");
-  await expect(page.getByRole("button", { name: "Réessayer" })).toBeVisible();
   await page.getByRole("button", { name: "Réessayer" }).click();
-  await expect(page.getByRole("heading", { name: "Ton programme Vincere" })).toBeVisible();
+  // Fin de génération : toast avec accès au programme, sans avoir quitté l'application.
+  await expect(
+    page.getByRole("status").filter({ hasText: "Ton programme est prêt" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Voir", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Programme", exact: true })).toBeVisible();
   expect(calls).toBe(2);
 });

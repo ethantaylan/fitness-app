@@ -12,6 +12,7 @@ export default function AccountPrivacy() {
   const { state } = useApp();
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
+  const [revoking, setRevoking] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,27 +50,22 @@ export default function AccountPrivacy() {
   }
 
   return (
-    <section
-      className="space-y-5 border-t border-gray-200 pt-6"
-      aria-labelledby="account-privacy-title"
-    >
-      <h2 id="account-privacy-title" className="font-bold text-lg">
+    <section className="space-y-4" aria-labelledby="account-privacy-title">
+      <h2 id="account-privacy-title" className="text-lg font-bold">
         Données et confidentialité
       </h2>
-      <div className="flex flex-col gap-3">
+
+      {/* Niveau 1 : actions sans risque */}
+      <div className="space-y-3 rounded-2xl border border-line bg-card p-5">
+        <h3 className="text-sm font-bold">Mes données et mon compte</h3>
         <button
-          className="app-secondary justify-start"
-          disabled={busy}
-          onClick={() => globalThis.dispatchEvent(new Event("open-contact"))}
-        >
-          <Mail size={18} /> Contacter l'assistance
-        </button>
-        <button
-          className="app-secondary justify-start"
+          type="button"
+          className="app-secondary w-full justify-start"
           disabled={busy}
           onClick={() =>
             void run(async () => {
-              const { _hydrated: _ignored, ...saved } = state;
+              const { _hydrated, ...saved } = state;
+              void _hydrated;
               await shareFile(
                 new Blob(
                   [
@@ -87,22 +83,26 @@ export default function AccountPrivacy() {
             })
           }
         >
-          <Download size={18} /> Exporter mes données disponibles
+          <Download size={18} aria-hidden="true" /> Exporter mes données
         </button>
+        <p className="text-sm text-ink-soft">
+          Un fichier avec ton profil, tes programmes, tes séances et tes performances.
+        </p>
         <button
-          className="app-secondary justify-start"
+          type="button"
+          className="app-secondary w-full justify-start"
           disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              await revokeAIConsent();
-              setMessage("Accord retiré. Aucun nouvel envoi à OpenAI sans ton autorisation.");
-            })
-          }
+          onClick={(event) => {
+            // Safari ne donne pas le focus au clic : on le fixe pour que la fenêtre le restitue.
+            event.currentTarget.focus();
+            globalThis.dispatchEvent(new Event("open-contact"));
+          }}
         >
-          <ShieldCheck size={18} /> Retirer mon accord pour l'IA
+          <Mail size={18} aria-hidden="true" /> Contacter l'assistance
         </button>
         <button
-          className="app-secondary justify-start"
+          type="button"
+          className="app-secondary w-full justify-start"
           disabled={busy}
           onClick={() =>
             void run(async () => {
@@ -111,44 +111,114 @@ export default function AccountPrivacy() {
             })
           }
         >
-          <LogOut size={18} /> Me déconnecter
+          <LogOut size={18} aria-hidden="true" /> Me déconnecter
         </button>
       </div>
-      <nav className="flex flex-wrap gap-4 text-sm underline" aria-label="Données et assistance">
-        <Link to="/privacy?from=account">Confidentialité</Link>
-        <Link to="/terms?from=account">Conditions</Link>
-        <Link to="/support?from=account">Assistance</Link>
+
+      {/* Niveau 2 : retirer l'accord IA, réversible mais bloquant pour la génération */}
+      <div className="rounded-2xl border border-line bg-card p-5">
+        <h3 className="text-sm font-bold">Intelligence artificielle</h3>
+        <p className="mt-1 text-sm text-ink-soft">
+          Avec ton accord, tes informations sportives sont envoyées à OpenAI pour générer tes
+          programmes et tes séances.
+        </p>
+        {revoking ? (
+          <div className="mt-3 rounded-xl border border-warn-line bg-warn-soft p-4">
+            <p className="text-sm">
+              Sans cet accord, tu ne pourras plus générer de programme ni de séance, ni utiliser
+              l'assistant. Tu pourras le redonner à tout moment.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="app-secondary" onClick={() => setRevoking(false)}>
+                Garder mon accord
+              </button>
+              <button
+                type="button"
+                className="app-primary"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    await revokeAIConsent();
+                    setRevoking(false);
+                    setMessage("Accord retiré. Aucun nouvel envoi à OpenAI sans ton autorisation.");
+                  })
+                }
+              >
+                Retirer mon accord
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="app-secondary mt-3 w-full justify-start"
+            disabled={busy}
+            onClick={() => setRevoking(true)}
+          >
+            <ShieldCheck size={18} aria-hidden="true" /> Retirer mon accord pour l'IA
+          </button>
+        )}
+      </div>
+
+      <nav className="flex flex-wrap gap-x-5 text-sm underline" aria-label="Informations légales">
+        <Link
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          to="/privacy?from=account"
+        >
+          Confidentialité
+        </Link>
+        <Link
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          to="/terms?from=account"
+        >
+          Conditions
+        </Link>
+        <Link
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          to="/support?from=account"
+        >
+          Aide
+        </Link>
       </nav>
+
       {message && (
-        <p className="text-sm text-emerald-600" role="status">
+        <p className="text-sm font-semibold text-brand" role="status">
           {message}
         </p>
       )}
       {error && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm font-medium text-danger" role="alert">
           {error}
         </p>
       )}
-      <div className="border-t border-gray-200 pt-5">
+
+      {/* Niveau 3 : zone de danger, séparée, avec confirmation forte */}
+      <div className="rounded-2xl border-2 border-danger-line bg-danger-soft p-5">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-danger">
+          <Trash2 size={16} aria-hidden="true" /> Zone de danger
+        </h3>
         {!deleting ? (
-          <button
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-red-600"
-            onClick={() => setDeleting(true)}
-          >
-            <Trash2 size={18} /> Supprimer mon compte
-          </button>
+          <>
+            <p className="mt-1 text-sm">
+              Supprimer ton compte efface définitivement ton profil, tes programmes, tes séances et
+              tes performances.
+            </p>
+            <button type="button" className="app-danger mt-3" onClick={() => setDeleting(true)}>
+              <Trash2 size={18} aria-hidden="true" /> Supprimer mon compte
+            </button>
+          </>
         ) : (
           <form
-            className="space-y-4"
+            className="mt-3 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
               void run(deleteAccount);
             }}
           >
-            <h3 className="font-bold">Supprimer définitivement mon compte</h3>
-            <p className="text-sm leading-relaxed text-gray-500">
-              Ton compte, ton profil, tes programmes, tes séances et tes records seront effacés.
-              Cette action est irréversible. Les fichiers déjà exportés ne sont pas supprimés.
+            <p className="text-sm leading-relaxed">
+              Ton compte, ton profil, tes programmes, tes séances et tes performances seront
+              effacés. Cette action est irréversible. Les fichiers déjà exportés ne sont pas
+              supprimés.
             </p>
             <label className="block text-sm font-semibold" htmlFor="delete-password">
               Ton mot de passe
@@ -162,9 +232,9 @@ export default function AccountPrivacy() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
-            <p className="text-xs text-gray-500">
-              Compte créé avec Google ? Définis un mot de passe avec le lien de réinitialisation
-              ci-dessus.
+            <p className="text-xs text-ink-soft">
+              Compte créé avec Google ? Définis d'abord un mot de passe avec le lien de
+              réinitialisation de l'onglet Compte.
             </p>
             <label className="block text-sm font-semibold" htmlFor="delete-confirmation">
               Écris SUPPRIMER pour confirmer

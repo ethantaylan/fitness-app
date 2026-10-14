@@ -41,7 +41,7 @@ export default function AIConsentDialog() {
         Autoriser les fonctions IA
       </h2>
       <p className="mt-3 text-sm leading-relaxed">
-        Pour personnaliser tes entraînements, Vincere transmet ton profil sportif à{" "}
+        Pour personnaliser tes séances, Vincere transmet ton profil sportif à{" "}
         <strong>OpenAI</strong> via son serveur Supabase.
       </p>
       <p className="mt-3 text-sm leading-relaxed">

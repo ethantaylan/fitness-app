@@ -18,6 +18,9 @@ const SharedSession = lazy(() => import("./pages/SharedSession"));
 const Records = lazy(() => import("./pages/Records"));
 
 import ChatWidget from "./components/ChatWidget";
+import Toaster from "./components/Toaster";
+import GenerationProvider from "./components/GenerationProvider";
+import GenerationBanner from "./components/GenerationBanner";
 import BottomNav from "./components/BottomNav";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NativeLifecycle from "./components/NativeLifecycle";
@@ -25,6 +28,7 @@ import AIConsentDialog from "./components/AIConsentDialog";
 const Legal = lazy(() => import("./pages/Legal"));
 const Explore = lazy(() => import("./pages/Explore"));
 import { isNativeApp } from "./lib/native";
+import { FREE_SESSION_BUILDER_ENABLED } from "./lib/features";
 
 function HomeRoute() {
   const { isSignedIn } = useAuth();
@@ -81,106 +85,116 @@ export default function App() {
       <NativeLifecycle />
       <AIConsentDialog />
       <AppWithProvider>
-        <Suspense
-          fallback={
-            <div className="min-h-screen flex items-center justify-center text-sm" role="status">
-              Chargement...
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<HomeRoute />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/privacy" element={<Legal />} />
-            <Route path="/terms" element={<Legal />} />
-            <Route path="/support" element={<Legal />} />
-            <Route
-              path="/onboarding"
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/generating"
-              element={
-                <ProtectedRoute>
-                  <Generating />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sign-in/*"
-              element={
-                <PublicOnlyRoute>
-                  <Login />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path="/sign-up/*"
-              element={
-                <PublicOnlyRoute>
-                  <Register />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/s" element={<SharedSession />} />
-            <Route
-              path="/builder"
-              element={
-                <ProtectedRoute>
-                  <WorkoutBuilder />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/session"
-              element={
-                <ProtectedRoute>
-                  <DailySession />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/result"
-              element={
-                <ProtectedRoute>
-                  <ProgramResult />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/records"
-              element={
-                <ProtectedRoute>
-                  <Records />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-        <ChatWidget />
-        <BottomNav />
+        <GenerationProvider>
+          <Suspense
+            fallback={
+              <div className="min-h-screen flex items-center justify-center text-sm" role="status">
+                Chargement...
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<HomeRoute />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/privacy" element={<Legal />} />
+              <Route path="/terms" element={<Legal />} />
+              <Route path="/support" element={<Legal />} />
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/generating"
+                element={
+                  <ProtectedRoute>
+                    <Generating />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sign-in/*"
+                element={
+                  <PublicOnlyRoute>
+                    <Login />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path="/sign-up/*"
+                element={
+                  <PublicOnlyRoute>
+                    <Register />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/s" element={<SharedSession />} />
+              {/* Builder de séance libre masqué pour le moment : voir src/lib/features.ts et
+                docs/free-session-builder/README.md pour le réactiver. */}
+              <Route
+                path="/builder"
+                element={
+                  FREE_SESSION_BUILDER_ENABLED ? (
+                    <ProtectedRoute>
+                      <WorkoutBuilder />
+                    </ProtectedRoute>
+                  ) : (
+                    <Navigate to="/session" replace />
+                  )
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/session"
+                element={
+                  <ProtectedRoute>
+                    <DailySession />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/result"
+                element={
+                  <ProtectedRoute>
+                    <ProgramResult />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/records"
+                element={
+                  <ProtectedRoute>
+                    <Records />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+          <ChatWidget />
+          <Toaster />
+          <BottomNav />
+          <GenerationBanner />
+        </GenerationProvider>
       </AppWithProvider>
     </BrowserRouter>
   );

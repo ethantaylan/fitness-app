@@ -1,10 +1,15 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import { Plus, Trash2, Trophy, NotebookPen } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Plus, Trash2, Trophy, NotebookPen, CalendarCheck, Flame } from "lucide-react";
 import { useApp } from "../lib/store";
 import Navbar from "../components/Navbar";
 import Modal from "../components/ui/Modal";
-import SessionNotes from "../components/tracking/SessionNotes";
+import NotesPanel from "../components/tracking/NotesPanel";
+import NoteDialog, { type NoteDraft } from "../components/tracking/NoteDialog";
+import { collectNotes, type NoteItem } from "../lib/notes";
+import { showToast } from "../lib/toast";
 import { validateRecord, type RecordErrors } from "../lib/records";
+import { practiceDays, practiceStats } from "../lib/practice";
 import type { PersonalRecord, RecordCategory } from "../lib/types";
 
 const CATEGORIES: Record<RecordCategory, string> = {
@@ -84,10 +89,95 @@ function comparison(latest: PersonalRecord, previous?: PersonalRecord) {
     : `${change > 0 ? "+" : ""}${Number(change.toFixed(2))} ${unit} depuis la précédente entrée`;
 }
 
+const WEEKDAY_LETTERS = ["L", "M", "M", "J", "V", "S", "D"];
+
+function Regularity() {
+  const { state } = useApp();
+  const stats = useMemo(
+    () => practiceStats(practiceDays(state.program, state.sessions)),
+    [state.program, state.sessions],
+  );
+  const goal =
+    state.profile?.weeklyFrequency ?? state.program?.program_overview.training_days_per_week;
+  const tiles = [
+    {
+      Icon: CalendarCheck,
+      value: goal ? `${stats.thisWeek}/${goal}` : String(stats.thisWeek),
+      label: "séances cette semaine",
+    },
+    {
+      Icon: Flame,
+      value: String(stats.weekStreak),
+      label: `semaine${stats.weekStreak > 1 ? "s" : ""} d'affilée`,
+    },
+    {
+      Icon: Flame,
+      value: String(stats.dayStreak),
+      label: `jour${stats.dayStreak > 1 ? "s" : ""} d'affilée`,
+    },
+  ];
+  const practicedDays = stats.calendar.flat().filter((cell) => cell.practiced).length;
+  return (
+    <section aria-label="Régularité">
+      <dl className="grid grid-cols-3 gap-3">
+        {tiles.map(({ Icon, value, label }) => (
+          <div key={label} className="rounded-2xl border border-line bg-card p-3 text-center">
+            <Icon className="mx-auto mb-1 h-5 w-5 text-brand" aria-hidden="true" />
+            <dd className="font-display text-2xl font-black tabular-nums">{value}</dd>
+            <dt className="text-xs leading-tight text-ink-soft">{label}</dt>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-5 rounded-2xl border border-line bg-card p-4">
+        <h2 className="text-base font-black">Calendrier de pratique</h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          {practicedDays} jour{practicedDays > 1 ? "s" : ""} de pratique sur les 5 dernières
+          semaines.
+        </p>
+        <div className="mt-4 grid grid-cols-7 gap-1.5 text-center" aria-hidden="true">
+          {WEEKDAY_LETTERS.map((letter, index) => (
+            <span key={`${letter}-${index}`} className="text-xs font-semibold text-ink-soft">
+              {letter}
+            </span>
+          ))}
+          {stats.calendar.flat().map((cell) => (
+            <span
+              key={cell.key}
+              className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
+                cell.practiced
+                  ? "bg-brand text-brand-fg"
+                  : cell.future
+                    ? "text-ink-soft opacity-50"
+                    : "bg-card-soft text-ink-soft"
+              } ${cell.today ? "ring-2 ring-ink ring-offset-2 ring-offset-card" : ""}`}
+            >
+              {cell.day}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {stats.total === 0 && (
+        <div className="mt-5 rounded-2xl border border-dashed border-line-strong p-5 text-center">
+          <p className="text-sm text-ink-soft">
+            Pas encore de séance réalisée. Coche une séance de ton programme pour lancer ta série.
+          </p>
+          <Link to="/result" className="app-secondary mt-3">
+            Voir mon programme
+          </Link>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Records() {
   const { state, dispatch, addRecord } = useApp();
-  const [tab, setTab] = useState<"records" | "notes">("records");
+  const [tab, setTab] = useState<"regularite" | "performances" | "notes">("regularite");
   const [showAdd, setShowAdd] = useState(false);
+  /** `undefined` : fermé · `null` : nouvelle note · élément : modification. */
+  const [noteEditor, setNoteEditor] = useState<NoteItem | null | undefined>(undefined);
   const [form, setForm] = useState<RecordForm>(emptyForm);
   const [errors, setErrors] = useState<RecordErrors>({});
   const [saving, setSaving] = useState(false);
@@ -104,6 +194,49 @@ export default function Records() {
       .map((entries) => entries.sort((a, b) => b.date.localeCompare(a.date)))
       .sort((a, b) => b[0].date.localeCompare(a[0].date));
   }, [state.records]);
+
+  const noteItems = useMemo(
+    () => collectNotes(state.notes, state.sessions),
+    [state.notes, state.sessions],
+  );
+  function saveNoteDraft(draft: NoteDraft) {
+    const editing = noteEditor;
+    if (editing?.kind === "session")
+      dispatch({ type: "UPDATE_SESSION_NOTES", uid: editing.id, notes: draft.content });
+    else {
+      const note = {
+        id: editing?.id ?? crypto.randomUUID(),
+        title: draft.title || undefined,
+        content: draft.content,
+        date: draft.date,
+      };
+      dispatch({ type: editing ? "UPDATE_NOTE" : "ADD_NOTE", note });
+    }
+    setNoteEditor(undefined);
+    setStatus("Note enregistrée.");
+  }
+  function deleteNote(item: NoteItem) {
+    if (item.kind === "session") {
+      dispatch({ type: "UPDATE_SESSION_NOTES", uid: item.id, notes: undefined });
+      showToast({
+        message: "Note supprimée.",
+        actionLabel: "Annuler",
+        onAction: () =>
+          dispatch({ type: "UPDATE_SESSION_NOTES", uid: item.id, notes: item.content }),
+      });
+      return;
+    }
+    dispatch({ type: "DELETE_NOTE", id: item.id });
+    showToast({
+      message: "Note supprimée.",
+      actionLabel: "Annuler",
+      onAction: () =>
+        dispatch({
+          type: "ADD_NOTE",
+          note: { id: item.id, title: item.title, content: item.content, date: item.date },
+        }),
+    });
+  }
 
   function openAdd(record?: PersonalRecord) {
     setForm({ ...emptyForm(), name: record?.name ?? "", category: record?.category ?? "force" });
@@ -140,9 +273,11 @@ export default function Records() {
     try {
       await addRecord(record);
       setShowAdd(false);
-      setStatus("Record enregistré.");
+      setStatus("Performance enregistrée.");
     } catch {
-      setSaveError("Le record n'a pas pu être enregistré. Ta saisie est conservée. Réessaie.");
+      setSaveError(
+        "La performance n'a pas pu être enregistrée. Ta saisie est conservée. Réessaie.",
+      );
     } finally {
       submitting.current = false;
       setSaving(false);
@@ -173,60 +308,92 @@ export default function Records() {
         aria-describedby={errors[key as keyof RecordErrors] ? `error-${key}` : undefined}
       />
       {errors[key as keyof RecordErrors] && (
-        <p id={`error-${key}`} className="mt-1 text-sm text-red-600" role="alert">
+        <p id={`error-${key}`} className="mt-1 text-sm text-danger" role="alert">
           {errors[key as keyof RecordErrors]}
         </p>
       )}
     </div>
   );
   return (
-    <div className="theme-app-page min-h-screen bg-white">
+    <div className="theme-app-page min-h-screen">
       <Navbar />
-      <main className="mx-auto max-w-4xl px-4 pb-36 pt-20 sm:px-6">
+      <main className="mx-auto max-w-3xl px-4 pb-36 pt-20 sm:px-6">
         <div className="mb-6 mt-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black">Progression</h1>
-            <p className="mt-1 text-sm text-gray-500">Performances et notes de séance</p>
+            <h1 className="text-2xl font-black">Suivi</h1>
+            <p className="mt-1 text-sm text-ink-soft">
+              Régularité, performances et notes de séance
+            </p>
           </div>
-          {tab === "records" && (
+          {tab === "performances" && (
             <button type="button" className="app-primary" onClick={() => openAdd()}>
-              <Plus size={18} /> Ajouter un record
+              <Plus size={18} aria-hidden="true" /> Ajouter une performance
+            </button>
+          )}
+          {tab === "notes" && (
+            <button type="button" className="app-primary" onClick={() => setNoteEditor(null)}>
+              <Plus size={18} aria-hidden="true" /> Ajouter une note
             </button>
           )}
         </div>
         {status && (
-          <p role="status" className="mb-4 text-sm text-emerald-700">
+          <p role="status" className="mb-4 text-sm font-semibold text-brand">
             {status}
           </p>
         )}
         <div
-          className="mb-6 grid grid-cols-2 rounded-2xl bg-gray-100 p-1"
+          className="mb-6 grid grid-cols-3 rounded-2xl bg-card-soft p-1"
           role="tablist"
           aria-label="Suivi"
         >
-          {(["records", "notes"] as const).map((value) => (
+          {(
+            [
+              ["regularite", "Régularité", CalendarCheck],
+              ["performances", "Performances", Trophy],
+              ["notes", "Notes", NotebookPen],
+            ] as const
+          ).map(([value, label, Icon]) => (
             <button
               key={value}
               type="button"
               role="tab"
               aria-selected={tab === value}
-              className={`theme-segment-tab flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold ${tab === value ? "bg-white text-gray-900" : "text-gray-500"}`}
+              data-active={tab === value}
+              className={`theme-segment-tab flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-bold sm:text-sm ${
+                tab === value ? "bg-card text-ink shadow-sm" : "text-ink-soft"
+              }`}
               onClick={() => setTab(value)}
             >
-              {value === "records" ? <Trophy size={18} /> : <NotebookPen size={18} />}
-              {value === "records" ? "Records" : "Notes"}
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {label}
             </button>
           ))}
         </div>
-        {tab === "notes" ? (
-          <SessionNotes />
+        {tab === "regularite" ? (
+          <Regularity />
+        ) : tab === "notes" ? (
+          <NotesPanel
+            items={noteItems}
+            onAdd={() => setNoteEditor(null)}
+            onEdit={setNoteEditor}
+            onDelete={deleteNote}
+          />
         ) : grouped.length === 0 ? (
-          <div className="py-16 text-center">
-            <Trophy className="mx-auto mb-4 text-amber-600" size={32} />
-            <h2 className="text-lg font-bold">Aucun record encore</h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Enregistre ta première performance pour suivre son évolution.
+          <div className="rounded-2xl border border-dashed border-line-strong px-6 py-12 text-center">
+            <div
+              className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand"
+              aria-hidden="true"
+            >
+              <Trophy size={30} />
+            </div>
+            <h2 className="text-lg font-bold">Aucune performance enregistrée</h2>
+            <p className="mx-auto mt-2 max-w-xs text-sm text-ink-soft">
+              Note ta meilleure charge, ton meilleur temps ou ton nombre de répétitions pour suivre
+              ta progression.
             </p>
+            <button type="button" className="app-primary mt-5" onClick={() => openAdd()}>
+              <Plus size={18} aria-hidden="true" /> Ajouter ma première performance
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -236,37 +403,39 @@ export default function Records() {
               return (
                 <article
                   key={`${latest.category}:${latest.name}`}
-                  className="rounded-2xl border border-gray-200 p-4"
+                  className="rounded-2xl border border-line bg-card p-4"
                 >
-                  <p className="mb-1 text-xs font-semibold text-gray-500">
+                  <p className="mb-1 text-xs font-semibold text-ink-soft">
                     {CATEGORIES[latest.category]}
                   </p>
                   <h2 className="text-lg font-bold break-words">{latest.name}</h2>
-                  <p className="mt-2 font-semibold">{formatRecord(latest)}</p>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="font-display mt-2 text-xl font-bold">{formatRecord(latest)}</p>
+                  <p className="mt-1 text-sm text-ink-soft">
                     Dernière entrée ·{" "}
                     {new Date(`${latest.date}T12:00:00`).toLocaleDateString("fr-FR")}
                   </p>
-                  {delta && <p className="mt-2 text-sm text-gray-600">{delta}</p>}
+                  {delta && <p className="mt-2 text-sm font-semibold text-brand">{delta}</p>}
                   <button
                     type="button"
                     className="app-secondary mt-3"
                     onClick={() => openAdd(latest)}
                   >
-                    <Plus size={16} /> Nouvelle entrée
+                    <Plus size={16} aria-hidden="true" /> Nouvelle entrée
                   </button>
-                  <details className="mt-4 border-t border-gray-100 pt-3">
-                    <summary className="cursor-pointer text-sm font-semibold">
+                  <details className="mt-4 border-t border-line pt-1">
+                    <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">
                       Historique ({entries.length})
                     </summary>
-                    <ul className="mt-3 space-y-3">
+                    <ul className="mt-2 space-y-3">
                       {entries.map((record) => (
                         <li key={record.id} className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold">{formatRecord(record)}</p>
-                            <p className="text-xs text-gray-500">{record.date}</p>
+                            <p className="text-xs text-ink-soft">
+                              {new Date(`${record.date}T12:00:00`).toLocaleDateString("fr-FR")}
+                            </p>
                             {record.notes && (
-                              <p className="mt-1 text-sm text-gray-600 break-words">
+                              <p className="mt-1 text-sm break-words text-ink-soft">
                                 {record.notes}
                               </p>
                             )}
@@ -277,7 +446,7 @@ export default function Records() {
                             aria-label={`Supprimer l'entrée du ${record.date}`}
                             onClick={() => dispatch({ type: "DELETE_RECORD", id: record.id })}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} aria-hidden="true" />
                           </button>
                         </li>
                       ))}
@@ -289,9 +458,17 @@ export default function Records() {
           </div>
         )}
       </main>
+      {noteEditor !== undefined && (
+        <NoteDialog
+          key={noteEditor?.id ?? "new"}
+          item={noteEditor}
+          onClose={() => setNoteEditor(undefined)}
+          onSave={saveNoteDraft}
+        />
+      )}
       <Modal
         open={showAdd}
-        title="Nouveau record"
+        title="Nouvelle performance"
         onClose={() => {
           if (!saving) setShowAdd(false);
         }}
@@ -305,7 +482,7 @@ export default function Records() {
                   key={category}
                   type="button"
                   aria-pressed={form.category === category}
-                  className={`min-h-11 rounded-xl border-2 p-2 text-sm font-semibold ${form.category === category ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-gray-200"}`}
+                  className={`min-h-11 rounded-xl border-2 p-2 text-sm font-semibold ${form.category === category ? "border-brand bg-brand-soft text-ink" : "border-line-strong"}`}
                   onClick={() => {
                     setForm((current) => ({
                       ...current,
@@ -331,7 +508,7 @@ export default function Records() {
                 key={name}
                 disabled={saving}
                 onClick={() => update("name", name)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="min-h-11 rounded-lg border border-line-strong px-3 text-sm"
               >
                 {name}
               </button>
@@ -356,17 +533,17 @@ export default function Records() {
             )}
           </div>
           {form.category !== "force" && (
-            <p className="text-sm text-gray-500">Renseigne au moins une des deux mesures.</p>
+            <p className="text-sm text-ink-soft">Renseigne au moins une des deux mesures.</p>
           )}
           {field("date", "Date", "date", true)}
           {field("notes", "Note (facultatif)", "text")}
           {saveError && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-danger">
               {saveError}
             </p>
           )}
           <button type="submit" className="app-primary w-full" disabled={saving}>
-            {saving ? "Enregistrement…" : "Enregistrer le record"}
+            {saving ? "Enregistrement…" : "Enregistrer la performance"}
           </button>
         </form>
       </Modal>
