@@ -43,12 +43,14 @@ const workout = {
   ],
 };
 
-async function setup(page: Page, theme: "light" | "dark", signedIn = false) {
+async function setup(page: Page, theme: "light" | "dark", signedIn = false, aiConsent = false) {
   await page.route("https://vincere-test.supabase.co/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     let body: unknown = [];
     if (path.startsWith("/auth/v1/user")) body = user;
+    else if (path.endsWith("/rpc/upsert_user"))
+      body = { id, email: user.email, first_name: "Test", subscription: "free" };
     else if (path.endsWith("/users")) body = { ...user, first_name: "Test", subscription: "free" };
     else if (path.endsWith("/user_profiles"))
       body = {
@@ -64,7 +66,22 @@ async function setup(page: Page, theme: "light" | "dark", signedIn = false) {
         equipment: [],
         availability: ["soir"],
       };
-    else if (path.endsWith("/programs") || path.endsWith("/onboarding_progress")) body = null;
+    else if (path.endsWith("/programs"))
+      body =
+        request.method() === "POST"
+          ? { id: "fixture-program" }
+          : request.method() === "GET"
+            ? new URL(request.url()).searchParams.get("select") === "id"
+              ? []
+              : null
+            : {};
+    else if (
+      path.endsWith("/program_weeks") ||
+      path.endsWith("/program_sessions") ||
+      path.endsWith("/program_session_blocks")
+    )
+      body = { id: "fixture-child" };
+    else if (path.endsWith("/onboarding_progress")) body = null;
     else if (path.endsWith("/recover")) body = {};
     else if (path.endsWith("/logout")) {
       await route.fulfill({ status: 204 });
@@ -76,7 +93,7 @@ async function setup(page: Page, theme: "light" | "dark", signedIn = false) {
     await route.fulfill({ json: body });
   });
   await page.addInitScript(
-    ({ theme, signedIn, user, profile, workout }) => {
+    ({ theme, signedIn, aiConsent, user, profile, workout }) => {
       localStorage.setItem("vincere-theme-mode", theme);
       if (signedIn) {
         localStorage.setItem(
@@ -87,7 +104,9 @@ async function setup(page: Page, theme: "light" | "dark", signedIn = false) {
             expires_at: 4102444800,
             expires_in: 3600,
             token_type: "bearer",
-            user,
+            user: aiConsent
+              ? { ...user, user_metadata: { ai_consent_version: "2026-10-08" } }
+              : user,
           }),
         );
         localStorage.setItem(
@@ -103,7 +122,7 @@ async function setup(page: Page, theme: "light" | "dark", signedIn = false) {
         );
       }
     },
-    { theme, signedIn, user, profile, workout },
+    { theme, signedIn, aiConsent, user, profile, workout },
   );
 }
 
@@ -163,7 +182,7 @@ for (const theme of ["light", "dark"] as const) {
       await page.goto(path);
       await expect(page.locator(".app-top-nav")).toBeVisible();
       if (path === "/builder") {
-        await page.getByRole("button", { name: "Jambes +10 min", exact: true }).click();
+        await page.getByRole("button", { name: "Endurance +15 min", exact: true }).click();
         await expect(page.locator(".app-builder-cart")).toBeVisible();
         const bottomNav = await page.locator(".app-bottom-nav").isVisible();
         if (bottomNav) {
@@ -178,6 +197,7 @@ for (const theme of ["light", "dark"] as const) {
         }
       }
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
       await noOverflow(page);
       const heading = await page.locator("h1").first().boundingBox();
       const nav = await page.locator(".app-top-nav").boundingBox();
@@ -219,4 +239,101 @@ test("password recovery sends an email request instead of waiting forever", asyn
   await page.getByLabel("Adresse e-mail").fill("fixture@example.test");
   await page.getByRole("button", { name: "Envoyer le lien" }).click();
   await expect(page.getByRole("status")).toContainText("Si un compte correspond");
+});
+
+for (const theme of ["light", "dark"] as const) {
+  test(`the last onboarding step clearly starts program generation: ${theme}`, async ({
+    page,
+  }, info) => {
+    await setup(page, theme, true);
+    await page.goto("/onboarding");
+    const advanceTo = async (heading: RegExp) => {
+      await page.getByRole("button", { name: /Continuer|Finaliser/ }).click();
+      await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+    };
+    await page.getByRole("button", { name: /Running/ }).click();
+    await expect(page.getByText("Choisis aussi un objectif précis pour continuer.")).toBeVisible();
+    await page.getByRole("button", { name: /Programme running régulier/ }).click();
+    await advanceTo(/Comment te définis-tu/);
+    await page.getByRole("button", { name: /Homme/ }).click();
+    await page.getByRole("button", { name: "Revenir à l’étape précédente" }).click();
+    await expect(page.getByRole("button", { name: /Programme running régulier/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await advanceTo(/Comment te définis-tu/);
+    await expect(page.getByRole("button", { name: /Homme/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await advanceTo(/Ton niveau/);
+    await page.getByRole("button", { name: /Débutant/ }).click();
+    await advanceTo(/Ton corps/);
+    await page.getByLabel("Âge").fill("30");
+    await page.getByLabel("Taille").fill("180");
+    await page.getByLabel("Poids actuel").fill("75");
+    await advanceTo(/Combien de séances/);
+    await advanceTo(/Durée par séance/);
+    await page.getByRole("button", { name: /30 minutes/ }).click();
+    await advanceTo(/Ton équipement/);
+    await advanceTo(/Exercices que tu kiffes/);
+    await advanceTo(/Exercices à éviter/);
+    await advanceTo(/Tu préfères t'entraîner/);
+    await page.getByRole("button", { name: /Indifférent/ }).click();
+    await expect(page.getByRole("button", { name: /Indifférent/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await advanceTo(/Contraintes/);
+    await advanceTo(/Ton échéance/);
+    await advanceTo(/C'est parti/);
+    await expect(page.getByRole("button", { name: /Générer mon programme/ })).toBeVisible();
+    await expect(page.getByText(/PDF/i)).toHaveCount(0);
+    await page.screenshot({
+      path: info.outputPath("onboarding-final.png"),
+      animations: "disabled",
+    });
+  });
+}
+
+test("program generation displays errors and retries without losing the profile", async ({
+  page,
+}) => {
+  await setup(page, "light", true, true);
+  let calls = 0;
+  await page.route("**/functions/v1/ai-coach", async (route) => {
+    calls += 1;
+    const requestBody = route.request().postDataJSON() as {
+      action?: string;
+      payload?: { profile?: { objective?: string } };
+    };
+    expect(requestBody.action).toBe("program");
+    expect(requestBody.payload?.profile?.objective).toBe("running");
+
+    if (calls === 1) {
+      await route.fulfill({ status: 500, json: { error: "Service momentanément indisponible." } });
+      return;
+    }
+
+    await route.fulfill({
+      json: {
+        result: {
+          user_profile: profile,
+          program_overview: {
+            duration_weeks: 1,
+            training_days_per_week: 3,
+            summary: "Reprise progressive du running.",
+          },
+          weeks: [{ week_number: 1, focus: "Endurance", sessions: [] }],
+        },
+      },
+    });
+  });
+
+  await page.goto("/generating", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("alert")).toContainText("Service momentanément indisponible.");
+  await expect(page.getByRole("button", { name: "Réessayer" })).toBeVisible();
+  await page.getByRole("button", { name: "Réessayer" }).click();
+  await expect(page.getByRole("heading", { name: "Ton programme Vincere" })).toBeVisible();
+  expect(calls).toBe(2);
 });

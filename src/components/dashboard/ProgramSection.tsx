@@ -52,11 +52,10 @@ export default function ProgramSection({ program }: Props) {
       bg="bg-indigo-50"
       noPad
     >
-      <div className="grid grid-cols-3 divide-x divide-gray-50 border-b border-gray-50">
+      <div className="grid grid-cols-2 divide-x divide-gray-50 border-b border-gray-50">
         {[
           { value: program.program_overview.duration_weeks, label: "semaines" },
           { value: program.program_overview.training_days_per_week, label: "séances / sem" },
-          { value: program.weeks?.length ?? 0, label: "semaines planif." },
         ].map(({ value, label }) => (
           <div key={label} className="py-4 text-center">
             <div className="text-xl font-black text-gray-900">{value}</div>

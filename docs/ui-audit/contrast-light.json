@@ -1,0 +1,26 @@
+[
+  {
+    "text": "Consulter la séance",
+    "foreground": [255, 255, 255],
+    "background": [15, 23, 42],
+    "ratio": 17.85253496299567
+  },
+  {
+    "text": "Voici l’essentiel pour ton prochain entraînement.",
+    "foreground": [82, 97, 118],
+    "background": [240, 249, 255],
+    "ratio": 5.915275559031613
+  },
+  {
+    "text": "Laisse Vincere s’adapter à ton programme ou sélectionne précisément ce que tu veux travailler.",
+    "foreground": [136.46666666666667, 139.95294117647057, 147.42352941176472],
+    "background": [17, 24, 39],
+    "ratio": 5.260370829673328
+  },
+  {
+    "text": "Exercice *",
+    "foreground": [15, 23, 42],
+    "background": [255, 255, 255],
+    "ratio": 17.85253496299567
+  }
+]

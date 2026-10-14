@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useApp } from "../../lib/store";
+import Modal from "../ui/Modal";
 import type { DailySession } from "../../lib/types";
 
 const MAX_NOTE_LENGTH = 2000;
@@ -61,93 +62,68 @@ export default function SessionNotes() {
     closeAdd();
   }
 
-  const addNoteSheet = showAdd && (
-    <>
-      <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-sm" onClick={closeAdd} />
-      <div
-        className="fixed inset-x-0 bottom-0 z-60 max-h-[92dvh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-note-title"
-      >
-        <div className="p-5 pb-8">
-          <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-gray-200" />
-          <div className="mb-5 flex items-center justify-between">
-            <h2 id="new-note-title" className="text-lg font-black">
-              Nouvelle note
-            </h2>
-            <button
-              type="button"
-              onClick={closeAdd}
-              aria-label="Fermer"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {sessions.length > 0 ? (
-            <>
-              <label
-                htmlFor="new-note-session"
-                className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400"
-              >
-                Séance
-              </label>
-              <select
-                id="new-note-session"
-                value={selectedUid}
-                onChange={(event) => {
-                  const uid = event.target.value;
-                  setSelectedUid(uid);
-                  setNewNote(sessions.find((session) => session.uid === uid)?.notes ?? "");
-                }}
-                className="mb-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-black"
-              >
-                {sessions.map((session) => (
-                  <option key={session.uid} value={session.uid}>
-                    {sessionTitle(session)} · {session.date}
-                  </option>
-                ))}
-              </select>
-
-              <label
-                htmlFor="new-note-content"
-                className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400"
-              >
-                Note
-              </label>
-              <textarea
-                id="new-note-content"
-                autoFocus
-                rows={5}
-                maxLength={MAX_NOTE_LENGTH}
-                value={newNote}
-                onChange={(event) => setNewNote(event.target.value)}
-                placeholder="Ressenti, charges utilisées, douleur éventuelle, objectif pour la prochaine séance…"
-                className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-black"
-              />
-              <p className="mt-2 text-right text-[11px] text-gray-400">
-                {newNote.length}/{MAX_NOTE_LENGTH}
-              </p>
-            </>
-          ) : (
-            <div className="rounded-2xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
-              Termine d'abord une séance pour pouvoir lui associer une note.
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={saveNewNote}
-            disabled={!selectedUid || !newNote.trim()}
-            className="mt-5 w-full rounded-2xl bg-black py-4 text-base font-black text-white transition-all active:scale-[0.98] disabled:opacity-40"
+  const addNoteSheet = (
+    <Modal open={showAdd} title="Nouvelle note" onClose={closeAdd}>
+      {sessions.length > 0 ? (
+        <>
+          <label
+            htmlFor="new-note-session"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400"
           >
-            Enregistrer la note
-          </button>
+            Séance
+          </label>
+          <select
+            id="new-note-session"
+            value={selectedUid}
+            onChange={(event) => {
+              const uid = event.target.value;
+              setSelectedUid(uid);
+              setNewNote(sessions.find((session) => session.uid === uid)?.notes ?? "");
+            }}
+            className="mb-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-black"
+          >
+            {sessions.map((session) => (
+              <option key={session.uid} value={session.uid}>
+                {sessionTitle(session)} · {session.date}
+              </option>
+            ))}
+          </select>
+
+          <label
+            htmlFor="new-note-content"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400"
+          >
+            Note
+          </label>
+          <textarea
+            id="new-note-content"
+            autoFocus
+            rows={5}
+            maxLength={MAX_NOTE_LENGTH}
+            value={newNote}
+            onChange={(event) => setNewNote(event.target.value)}
+            placeholder="Ressenti, charges utilisées, douleur éventuelle, objectif pour la prochaine séance…"
+            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-black"
+          />
+          <p className="mt-2 text-right text-[11px] text-gray-400">
+            {newNote.length}/{MAX_NOTE_LENGTH}
+          </p>
+        </>
+      ) : (
+        <div className="rounded-2xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+          Termine d'abord une séance pour pouvoir lui associer une note.
         </div>
-      </div>
-    </>
+      )}
+
+      <button
+        type="button"
+        onClick={saveNewNote}
+        disabled={!selectedUid || !newNote.trim()}
+        className="mt-5 w-full rounded-2xl bg-black py-4 text-base font-black text-white transition-all active:scale-[0.98] disabled:opacity-40"
+      >
+        Enregistrer la note
+      </button>
+    </Modal>
   );
 
   if (sessions.length === 0) {
@@ -206,9 +182,9 @@ export default function SessionNotes() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
                     {session.date}
                   </p>
-                  <h3 className="mt-1 truncate text-base font-black text-gray-900">
+                  <h2 className="mt-1 break-words text-base font-black text-gray-900">
                     {sessionTitle(session)}
-                  </h3>
+                  </h2>
                   <p className="mt-0.5 text-xs text-gray-400">
                     {session.duration_min} min · {session.intensity}
                   </p>

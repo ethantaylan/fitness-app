@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { Clock, Flame, Zap, ChevronLeft } from "lucide-react";
+import { exerciseMetrics, formatSeconds, hasMeasure, workoutTitle } from "../lib/exerciseDisplay";
 import { formatLoadValue } from "../lib/formatLoad";
 import type { DailySession } from "../lib/types";
 import { parseSharedSession } from "../lib/sharedSession";
@@ -58,7 +59,8 @@ export default function SharedSession() {
         {/* Header */}
         <div className="mb-6">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Séance partagée</p>
-          <h1 className="text-2xl sm:text-3xl font-black capitalize">{session.date}</h1>
+          <h1 className="text-2xl sm:text-3xl font-black capitalize">{workoutTitle(session)}</h1>
+          <p className="mt-2 text-sm text-gray-500">{session.date}</p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${badgeClass}`}>
               {session.intensity}
@@ -85,7 +87,11 @@ export default function SharedSession() {
                 <div key={w.name} className="flex items-center justify-between text-sm">
                   <span className="font-medium">{w.name}</span>
                   <span className="text-gray-400">
-                    {w.duration_sec ? `${w.duration_sec}s` : w.reps ? `${w.reps} reps` : ""}
+                    {w.duration_sec
+                      ? formatSeconds(w.duration_sec)
+                      : w.reps
+                        ? `${w.reps} reps`
+                        : ""}
                   </span>
                 </div>
               ))}
@@ -108,25 +114,20 @@ export default function SharedSession() {
                         <div className="font-bold">{ex.name}</div>
                         {ex.notes && <div className="text-xs text-gray-500 mt-0.5">{ex.notes}</div>}
                       </div>
-                      {ex.load_kg && (
+                      {hasMeasure(ex.load_kg) && (
                         <div className="shrink-0 bg-black text-white text-xs font-black px-2.5 py-1 rounded-lg">
                           {formatLoadValue(ex.load_kg, "")}
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                        {ex.sets} séries
-                      </span>
-                      <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                        {ex.reps} reps
-                      </span>
-                      {ex.rest_sec && (
-                        <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                          {ex.rest_sec}s repos
-                        </span>
-                      )}
-                    </div>
+                    <dl className="flex flex-wrap gap-2 text-sm">
+                      {exerciseMetrics(ex).map((metric) => (
+                        <div key={metric.label} className="rounded-lg bg-gray-100 px-3 py-1">
+                          <dt className="inline text-gray-500">{metric.label} : </dt>
+                          <dd className="inline font-semibold">{metric.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
                     {ex.alternative && (
                       <div className="mt-2 text-xs text-gray-400 flex items-center gap-1">
                         <Zap className="w-3 h-3" />
@@ -152,7 +153,11 @@ export default function SharedSession() {
                 <div key={c.name} className="flex items-center justify-between text-sm">
                   <span className="font-medium">{c.name}</span>
                   <span className="text-gray-400">
-                    {c.duration_sec ? `${c.duration_sec}s` : c.reps ? `${c.reps} reps` : ""}
+                    {c.duration_sec
+                      ? formatSeconds(c.duration_sec)
+                      : c.reps
+                        ? `${c.reps} reps`
+                        : ""}
                   </span>
                 </div>
               ))}

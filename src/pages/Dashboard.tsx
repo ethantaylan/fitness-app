@@ -4,6 +4,7 @@ import { Calendar, Zap, Target } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
 import { OBJECTIVE_META, LEVEL_META } from "../lib/constants";
+import { programSchedule, programSessionLink } from "../lib/program";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import type { UserProfile } from "../lib/types";
 import Navbar from "../components/Navbar";
@@ -32,11 +33,8 @@ export default function Dashboard() {
   }
 
   const { program, sessions, profile } = state;
-  const weeksWithSessions = program?.weeks.filter((week) => (week.sessions?.length ?? 0) > 0) ?? [];
-  const currentProgramWeek =
-    weeksWithSessions.find((week) => week.sessions.some((session) => !session.completed)) ??
-    weeksWithSessions[weeksWithSessions.length - 1] ??
-    null;
+  const schedule = programSchedule(program, state.programStartDate);
+  const currentProgramWeek = schedule.activeWeek;
   const completedSessions =
     currentProgramWeek?.sessions.filter((session) => session.completed).length ?? 0;
   const totalSessions = currentProgramWeek?.sessions.length ?? 0;
@@ -83,13 +81,13 @@ export default function Dashboard() {
 
       <main className="app-dashboard-content mx-auto max-w-6xl px-4 pb-28 pt-20 sm:px-6 md:pb-24">
         <div
-          className={`relative overflow-hidden rounded-3xl p-6 mt-6 mb-6 ${heroBg}`}
+          className={`relative overflow-hidden rounded-3xl p-4 sm:p-6 mt-6 mb-6 ${heroBg}`}
           role="banner"
         >
-          <div className="relative flex items-start justify-between">
-            <div>
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p
-                className={`text-xs font-bold uppercase tracking-widest mb-1 ${objMeta ? objMeta.color : "text-white/50"}`}
+                className={`text-xs font-bold uppercase mb-1 ${objMeta ? objMeta.color : "text-white/50"}`}
               >
                 {new Date().toLocaleDateString("fr-FR", {
                   weekday: "long",
@@ -110,7 +108,7 @@ export default function Dashboard() {
             <Link
               to="/settings"
               aria-label="Modifier mon profil"
-              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${heroActionClass}`}
+              className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${heroActionClass}`}
             >
               Modifier
             </Link>
@@ -152,6 +150,62 @@ export default function Dashboard() {
           )}
         </div>
 
+        {program && (
+          <section className="mb-6 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+            <p className="text-sm font-semibold text-emerald-800">Prochaine séance prévue</p>
+            {schedule.next ? (
+              <>
+                <h2 className="mt-2 text-xl font-bold">{schedule.next.session.type}</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  {schedule.next.date
+                    ? schedule.next.date.toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })
+                    : schedule.next.session.day}{" "}
+                  · {schedule.next.session.duration_min} min · Semaine {schedule.next.weekNumber}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link
+                    className="app-primary"
+                    to={programSessionLink(
+                      schedule.next.weekNumber,
+                      schedule.next.session.session_id,
+                    )}
+                  >
+                    Consulter la séance
+                  </Link>
+                  <button
+                    type="button"
+                    className="app-secondary"
+                    onClick={() =>
+                      dispatch({
+                        type: "SET_PROGRAM_SESSION_COMPLETION",
+                        weekNumber: schedule.next!.weekNumber,
+                        sessionId: schedule.next!.session.session_id,
+                        completed: true,
+                      })
+                    }
+                  >
+                    Marquer réalisée
+                  </button>
+                </div>
+              </>
+            ) : (
+              <h2 className="mt-2 text-lg font-bold">Aucune séance à venir</h2>
+            )}
+            {schedule.overdueCount > 0 && (
+              <p className="mt-4 text-sm text-gray-700">
+                {schedule.overdueCount} séance
+                {schedule.overdueCount > 1 ? "s passées non cochées" : " passée non cochée"}.{" "}
+                <Link to="/result" className="font-semibold underline">
+                  Vérifier le programme
+                </Link>
+              </p>
+            )}
+          </section>
+        )}
         <div className="grid items-start gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="space-y-4">
             {program !== null && (

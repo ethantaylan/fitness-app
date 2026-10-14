@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Mail } from "lucide-react";
 import { publisherName, supportEmail, LEGAL_VERSION } from "../lib/legal";
 import { revokeAIConsent } from "../lib/aiConsent";
+import AppVersion from "../components/AppVersion";
 
 export default function Legal() {
   const [consentMessage, setConsentMessage] = useState("");
@@ -109,6 +110,7 @@ export default function Legal() {
         <>
           <section>
             <h2>Besoin d'aide ?</h2>
+            <AppVersion />
             <p>
               Décris le problème, la version de Vincere et le modèle de ton appareil. N'envoie
               jamais ton mot de passe ni d'informations médicales par e-mail.

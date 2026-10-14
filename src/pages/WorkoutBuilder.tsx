@@ -24,6 +24,7 @@ import {
 import { useApp } from "../lib/store";
 import { generateCustomSession, generateDailySession } from "../lib/openai";
 import { DURATION_OPTIONS } from "../lib/constants";
+import { programSchedule } from "../lib/program";
 import type { UserProfile } from "../lib/types";
 import Navbar from "../components/Navbar";
 
@@ -294,7 +295,25 @@ const CARDS: CardDef[] = [
   },
 ];
 
-const CARD_MAP = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+const RUNNING_CARDS: CardDef[] = [
+  { id: "endurance", label: "Endurance", minutesPerItem: 15 },
+  { id: "fractionne", label: "Fractionné", minutesPerItem: 10 },
+  { id: "cotes", label: "Côtes", minutesPerItem: 10 },
+  { id: "technique", label: "Technique de course", minutesPerItem: 8 },
+  { id: "renfo-running", label: "Renforcement coureur", minutesPerItem: 8 },
+  { id: "recuperation-running", label: "Course récupération", minutesPerItem: 10 },
+].map((card) => ({
+  ...card,
+  icon: Footprints,
+  section: "types",
+  colors: {
+    text: "text-sky-700",
+    activeBg: "bg-sky-50",
+    activeBorder: "border-sky-400",
+    dot: "bg-sky-400",
+  },
+}));
+const CARD_MAP = Object.fromEntries([...CARDS, ...RUNNING_CARDS].map((c) => [c.id, c]));
 const WARMUP_COOLDOWN_MIN = 10;
 
 // ── Preset suggestions ────────────────────────────────────────────────────────
@@ -428,7 +447,8 @@ function CartPanel({
           <div className="px-5 pt-3 pb-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-black text-gray-900">
-                {totalItems} zone{totalItems > 1 ? "s" : ""} sélectionnée{totalItems > 1 ? "s" : ""}
+                {totalItems} activité{totalItems > 1 ? "s" : ""} sélectionnée
+                {totalItems > 1 ? "s" : ""}
               </span>
               <span className="text-sm font-black tabular-nums">~{estimatedDuration} min</span>
             </div>
@@ -438,7 +458,7 @@ function CartPanel({
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <div className="flex justify-between text-[9px] text-gray-300 font-semibold mt-1 px-0.5">
+            <div className="flex justify-between text-[11px] text-gray-500 font-semibold mt-1 px-0.5">
               <span>0</span>
               <span>30</span>
               <span>45</span>
@@ -460,8 +480,9 @@ function CartPanel({
                 <span className={`text-xs font-bold ${entry.colors.text}`}>{entry.label}</span>
                 <div className="flex items-center gap-0.5 ml-1">
                   <button
+                    aria-label={`Retirer une activité : ${entry.label}`}
                     onClick={() => onAdjust(entry.id, -1)}
-                    className={`w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 ${entry.colors.text}`}
+                    className={`w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/10 ${entry.colors.text}`}
                   >
                     <Minus className="w-3 h-3" />
                   </button>
@@ -471,6 +492,7 @@ function CartPanel({
                     {entry.count}
                   </span>
                   <button
+                    aria-label={`Ajouter une activité : ${entry.label}`}
                     onClick={() => onAdjust(entry.id, 1)}
                     className={`w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 ${entry.colors.text}`}
                   >
@@ -552,10 +574,9 @@ export default function WorkoutBuilder() {
     [cart],
   );
 
-  const activeWeek =
-    state.program?.weeks.find((week) => week.sessions.some((session) => !session.completed)) ??
-    null;
-  const nextProgramSession = activeWeek?.sessions.find((session) => !session.completed) ?? null;
+  const schedule = programSchedule(state.program, state.programStartDate);
+  const activeWeek = schedule.activeWeek;
+  const nextProgramSession = schedule.next?.session ?? null;
   const completedProgramSessions =
     activeWeek?.sessions.filter((session) => session.completed) ?? [];
 
@@ -646,8 +667,32 @@ export default function WorkoutBuilder() {
     );
   }
 
-  const muscleCards = CARDS.filter((c) => c.section === "muscles");
-  const typeCards = CARDS.filter((c) => c.section === "types");
+  const availableCards =
+    profile.objective === "running"
+      ? RUNNING_CARDS
+      : profile.objective === "yoga"
+        ? CARDS.filter((card) => ["mobilite", "etirements"].includes(card.id))
+        : CARDS;
+  const presets: typeof PRESETS =
+    profile.objective === "running"
+      ? [
+          {
+            label: "Endurance + technique",
+            icon: Footprints,
+            cart: { endurance: 1, technique: 1 },
+          },
+          {
+            label: "Fractionné + renforcement",
+            icon: HeartPulse,
+            cart: { fractionne: 1, "renfo-running": 1 },
+          },
+          { label: "Récupération", icon: RefreshCw, cart: { "recuperation-running": 1 } },
+        ]
+      : profile.objective === "yoga"
+        ? PRESETS.filter((preset) => preset.label === "Récupération")
+        : PRESETS;
+  const muscleCards = availableCards.filter((c) => c.section === "muscles");
+  const typeCards = availableCards.filter((c) => c.section === "types");
 
   return (
     <div className="theme-app-page min-h-screen bg-white">
@@ -659,7 +704,7 @@ export default function WorkoutBuilder() {
         style={{ paddingTop: "calc(6rem + env(safe-area-inset-top, 0px))" }}
       >
         <div className="relative mx-auto max-w-4xl">
-          <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-black mb-2">
+          <p className="text-white/60 text-xs uppercase font-black mb-2">
             Création de séance libre
           </p>
           <h1 className="mb-2 text-3xl font-black leading-tight">
@@ -768,7 +813,7 @@ export default function WorkoutBuilder() {
             Suggestions rapides
           </p>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
-            {PRESETS.map((preset) => {
+            {presets.map((preset) => {
               const PresetIcon = preset.icon;
               return (
                 <button
@@ -787,39 +832,41 @@ export default function WorkoutBuilder() {
         {/* Hint */}
         <div className="flex items-center gap-2 mt-5 mb-1">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[11px] font-bold text-white">
-            <MousePointerClick className="h-3.5 w-3.5" />1 clic = 1 exercice
+            <MousePointerClick className="h-3.5 w-3.5" />1 ajout = 1 activité
           </span>
           <span className="text-[11px] text-gray-500 font-medium">
-            Ajoute autant d'exercices que tu veux
+            10 min d’échauffement et de retour au calme incluses
           </span>
         </div>
 
         {/* Zones musculaires */}
-        <section className="mt-4 mb-7">
-          <div className="flex items-center gap-2 mb-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-              Zones musculaires
-            </p>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
-            {muscleCards.map((card) => (
-              <WorkoutCard
-                key={card.id}
-                card={card}
-                count={cart[card.id] ?? 0}
-                isJustAdded={lastAdded === card.id}
-                onAdd={() => addToCart(card.id)}
-              />
-            ))}
-          </div>
-        </section>
+        {muscleCards.length > 0 && (
+          <section className="mt-4 mb-7">
+            <div className="flex items-center gap-2 mb-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                Zones musculaires
+              </p>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
+              {muscleCards.map((card) => (
+                <WorkoutCard
+                  key={card.id}
+                  card={card}
+                  count={cart[card.id] ?? 0}
+                  isJustAdded={lastAdded === card.id}
+                  onAdd={() => addToCart(card.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Types d'effort */}
         <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-              Types d'effort
+              {profile.objective === "running" ? "Activités running" : "Types d’effort"}
             </p>
             <div className="flex-1 h-px bg-gray-200" />
           </div>

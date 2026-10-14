@@ -18,6 +18,7 @@ import {
   Moon,
   Monitor,
   Plus,
+  ChevronDown,
 } from "lucide-react";
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "../lib/auth";
@@ -37,15 +38,18 @@ import {
 } from "../lib/equipment";
 import Navbar from "../components/Navbar";
 import AccountPrivacy from "../components/AccountPrivacy";
+import AppVersion from "../components/AppVersion";
 
 export default function Settings() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, persistProfile } = useApp();
   const { userEmail, userFirstName, updateUserDisplayName } = useAuth();
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const profile = state.profile;
   const [saved, setSaved] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [resetPending, setResetPending] = useState(false);
   const [resetError, setResetError] = useState("");
@@ -135,6 +139,9 @@ export default function Settings() {
     availability: profile?.availability ?? [],
   });
 
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(form));
+  const hasChanges = JSON.stringify(form) !== savedSnapshot;
+
   function update(data: Partial<typeof form>) {
     setForm((f) => ({ ...f, ...data }));
   }
@@ -174,10 +181,28 @@ export default function Settings() {
     }));
   }
 
-  function handleSave() {
-    dispatch({
-      type: "SET_PROFILE_PARTIAL",
-      data: {
+  async function handleSave() {
+    if (savingProfile) return;
+    if (
+      !form.objective ||
+      !form.gender ||
+      !form.level ||
+      Number(form.age) < 13 ||
+      Number(form.age) > 100 ||
+      Number(form.height) < 100 ||
+      Number(form.height) > 250 ||
+      Number(form.weight) < 30 ||
+      Number(form.weight) > 300
+    ) {
+      setProfileError(
+        "Vérifie tes informations : âge 13–100 ans, taille 100–250 cm, poids 30–300 kg.",
+      );
+      return;
+    }
+    setSavingProfile(true);
+    setProfileError("");
+    try {
+      await persistProfile({
         objective: form.objective as ObjectiveType,
         goalDetail: form.goalDetail.trim() || undefined,
         gender: form.gender as GenderType,
@@ -191,10 +216,15 @@ export default function Settings() {
         injuries: form.injuries,
         nutritionRestrictions: form.nutritionRestrictions,
         availability: form.availability,
-      },
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+      });
+      setSavedSnapshot(JSON.stringify(form));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setProfileError("Le profil n'a pas pu être enregistré. Tes modifications sont conservées.");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   const objMeta = form.objective ? OBJECTIVE_META[form.objective as ObjectiveType] : null;
@@ -356,10 +386,27 @@ export default function Settings() {
         {/* ── Tab Entraînement ── */}
         {tab === "entrainement" && (
           <div className="grid gap-4 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+              <p role="status" className="text-sm font-semibold">
+                {hasChanges
+                  ? "Modifications non enregistrées"
+                  : saved
+                    ? "Profil enregistré"
+                    : "Profil à jour"}
+              </p>
+              <p className="mt-2 text-sm text-gray-500">
+                Les changements s'appliquent aux prochaines séances libres. Ton programme conserve
+                son profil de création ; tu peux le régénérer depuis Programme.
+              </p>
+            </div>
             {/* Objectif */}
             <Section
               icon={<Target className="w-4 h-4" />}
-              title="Objectif principal"
+              title="Discipline et objectif"
+              summary={
+                form.goalDetail ||
+                (form.objective ? OBJECTIVE_LABELS[form.objective as ObjectiveType] : "À compléter")
+              }
               color="text-violet-600"
               bg="bg-violet-50"
             >
@@ -370,6 +417,7 @@ export default function Settings() {
                   return (
                     <button
                       key={id}
+                      aria-pressed={active}
                       onClick={() => update({ objective: id, goalDetail: "" })}
                       className={`relative flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 text-left transition-all active:scale-[0.97] ${
                         active
@@ -399,6 +447,7 @@ export default function Settings() {
                       return (
                         <button
                           key={label}
+                          aria-pressed={active}
                           onClick={() => update({ goalDetail: label })}
                           className={`rounded-xl border-2 p-3 text-left transition-all active:scale-[0.97] ${
                             active
@@ -418,7 +467,11 @@ export default function Settings() {
                       );
                     })}
                   </div>
+                  <label htmlFor="s-goal-detail" className="mt-3 block text-sm font-semibold">
+                    Objectif personnalisé
+                  </label>
                   <textarea
+                    id="s-goal-detail"
                     value={form.goalDetail}
                     onChange={(e) => update({ goalDetail: e.target.value.slice(0, 300) })}
                     placeholder="Ou formule ta cible exacte : 5 km en 25 min, grand écart, HYROX duo..."
@@ -433,6 +486,7 @@ export default function Settings() {
             <Section
               icon={<User className="w-4 h-4" />}
               title="Infos corporelles"
+              summary={`${form.age || "—"} ans · ${form.height || "—"} cm · ${form.weight || "—"} kg`}
               color="text-blue-600"
               bg="bg-blue-50"
             >
@@ -455,7 +509,7 @@ export default function Settings() {
                 </div>
                 {(
                   [
-                    { id: "s-age", label: "Âge", key: "age", unit: "ans", min: 12, max: 99 },
+                    { id: "s-age", label: "Âge", key: "age", unit: "ans", min: 13, max: 100 },
                     {
                       id: "s-height",
                       label: "Taille",
@@ -502,6 +556,7 @@ export default function Settings() {
             <Section
               icon={<Flame className="w-4 h-4" />}
               title="Niveau sportif"
+              summary={form.level || "À compléter"}
               color="text-orange-600"
               bg="bg-orange-50"
             >
@@ -569,6 +624,7 @@ export default function Settings() {
             <Section
               icon={<Calendar className="w-4 h-4" />}
               title="Fréquence d'entraînement"
+              summary={`${form.weeklyFrequency} séances / semaine`}
               color="text-indigo-600"
               bg="bg-indigo-50"
             >
@@ -584,6 +640,7 @@ export default function Settings() {
                   return (
                     <button
                       key={n}
+                      aria-pressed={active}
                       onClick={() => update({ weeklyFrequency: n })}
                       className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 transition-all active:scale-[0.96] ${
                         active
@@ -607,6 +664,7 @@ export default function Settings() {
             <Section
               icon={<Clock className="w-4 h-4" />}
               title="Durée par séance"
+              summary={`${form.sessionDuration} min`}
               color="text-teal-600"
               bg="bg-teal-50"
             >
@@ -623,17 +681,16 @@ export default function Settings() {
                   return (
                     <button
                       key={val}
+                      aria-pressed={active}
                       onClick={() => update({ sessionDuration: val })}
                       className={`flex flex-col items-center py-3.5 rounded-xl border-2 transition-all active:scale-[0.96] ${
                         active
-                          ? "bg-teal-600 border-teal-600 text-white"
+                          ? "bg-teal-700 border-teal-700 text-white"
                           : "border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-300"
                       }`}
                     >
                       <span className="text-sm font-black">{label}</span>
-                      <span
-                        className={`text-[10px] mt-0.5 ${active ? "text-teal-200" : "text-gray-400"}`}
-                      >
+                      <span className={`text-xs mt-0.5 ${active ? "text-white" : "text-gray-400"}`}>
                         {sub}
                       </span>
                     </button>
@@ -646,6 +703,7 @@ export default function Settings() {
             <Section
               icon={<Activity className="w-4 h-4" />}
               title="Créneau préféré"
+              summary={form.availability.join(", ") || "À choisir"}
               color="text-amber-600"
               bg="bg-amber-50"
             >
@@ -695,6 +753,7 @@ export default function Settings() {
                   return (
                     <button
                       key={value}
+                      aria-pressed={active}
                       onClick={() => toggleAvailability(value as AvailabilityType)}
                       className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all active:scale-[0.97] ${
                         active
@@ -720,6 +779,11 @@ export default function Settings() {
             <Section
               icon={<Dumbbell className="w-4 h-4" />}
               title="Matériel disponible"
+              summary={
+                form.equipment.length
+                  ? `${form.equipment.length} équipements sélectionnés`
+                  : "Sans matériel"
+              }
               color="text-gray-700"
               bg="bg-gray-100"
             >
@@ -729,6 +793,7 @@ export default function Settings() {
                   return (
                     <button
                       key={label}
+                      aria-pressed={active}
                       onClick={() => toggleEquipment(label)}
                       className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-xs font-semibold transition-all active:scale-[0.96] ${
                         active
@@ -808,6 +873,7 @@ export default function Settings() {
                       {customEquipment.map((label) => (
                         <button
                           key={label}
+                          aria-pressed={hasEquipmentLabel(form.equipment, label)}
                           onClick={() => toggleEquipment(label)}
                           className="flex items-center gap-1.5 rounded-full border-2 border-black bg-black px-3.5 py-2 text-xs font-semibold text-white transition-all active:scale-[0.96]"
                         >
@@ -825,6 +891,11 @@ export default function Settings() {
             <Section
               icon={<Heart className="w-4 h-4" />}
               title="Santé & Nutrition"
+              summary={
+                form.injuries || form.nutritionRestrictions
+                  ? "Contraintes renseignées"
+                  : "Aucune contrainte renseignée"
+              }
               color="text-rose-600"
               bg="bg-rose-50"
             >
@@ -864,14 +935,22 @@ export default function Settings() {
               </div>
             </Section>
 
+            {profileError && (
+              <p className="text-sm text-red-600 lg:col-span-2" role="alert">
+                {profileError}
+              </p>
+            )}
             {/* Save */}
             <button
-              onClick={handleSave}
+              onClick={() => void handleSave()}
+              disabled={savingProfile || !hasChanges}
               className={`theme-profile-save flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold shadow-sm transition-colors active:scale-[0.99] lg:col-span-2 ${
                 saved ? "bg-green-500 text-white" : "bg-black text-white hover:bg-gray-900"
               }`}
             >
-              {saved ? (
+              {savingProfile ? (
+                "Enregistrement…"
+              ) : saved ? (
                 <>
                   <Check className="w-5 h-5" /> Profil enregistré !
                 </>
@@ -1022,6 +1101,7 @@ export default function Settings() {
               )}
             </div>
             <AccountPrivacy />
+            <AppVersion />
           </div>
         )}
       </div>
@@ -1033,12 +1113,14 @@ export default function Settings() {
 function Section({
   icon,
   title,
+  summary,
   color,
   bg,
   children,
 }: Readonly<{
   icon: React.ReactNode;
   title: string;
+  summary?: string;
   color: string;
   bg: string;
   children: React.ReactNode;
@@ -1046,14 +1128,18 @@ function Section({
   return (
     <details
       className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
-      open
+      open={title === "Discipline et objectif"}
     >
       <summary className={`flex cursor-pointer list-none items-center gap-2.5 px-5 py-4 ${bg}`}>
         <div className={`${color}`}>{icon}</div>
-        <h2 className={`flex-1 text-xs font-black uppercase tracking-wider ${color}`}>{title}</h2>
-        <span className="text-lg leading-none text-gray-400 transition-transform group-open:rotate-45">
-          +
-        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className={`text-sm font-bold ${color}`}>{title}</h2>
+          {summary && <p className="mt-1 text-sm text-gray-500 break-words">{summary}</p>}
+        </div>
+        <ChevronDown
+          aria-hidden="true"
+          className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+        />
       </summary>
       <div className="border-t border-gray-50 p-5">{children}</div>
     </details>

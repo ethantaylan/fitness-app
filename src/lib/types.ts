@@ -83,6 +83,7 @@ export interface NutritionRecommendations {
 }
 
 export interface Program {
+  generated_at?: string;
   user_profile?: Partial<UserProfile>;
   program_overview: {
     duration_weeks: number;

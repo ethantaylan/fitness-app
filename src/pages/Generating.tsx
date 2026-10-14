@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { useApp } from "../lib/store";
 import { generateProgram } from "../lib/openai";
-import type { UserProfile } from "../lib/types";
+import type { Program, UserProfile } from "../lib/types";
 
 const MESSAGES = [
   "Analyse de ton profil en cours…",
@@ -16,11 +16,15 @@ const MESSAGES = [
 ];
 
 export default function Generating() {
-  const { state, dispatch } = useApp();
+  const { state, persistProgram } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [messageIdx, setMessageIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const hasStarted = useRef(false);
+  const [attempt, setAttempt] = useState(0);
+  const request = useRef<Promise<Program> | null>(null);
+  const [savingProgram, setSavingProgram] = useState(false);
+  const profile = (location.state as { profile?: UserProfile } | null)?.profile ?? state.profile;
   const [logoVisible, setLogoVisible] = useState(true);
 
   useEffect(() => {
@@ -31,34 +35,54 @@ export default function Generating() {
   }, []);
 
   useEffect(() => {
-    if (hasStarted.current) return;
-    hasStarted.current = true;
-
-    // Cycle through loading messages
+    let cancelled = false;
+    let generated = false;
+    setError(null);
+    setMessageIdx(0);
     const interval = setInterval(() => {
       setMessageIdx((i) => (i + 1) % MESSAGES.length);
     }, 1800);
 
-    // Launch generation
     void (async () => {
       try {
-        if (!state.profile?.objective) {
+        if (!profile?.objective) {
           void navigate("/onboarding");
           return;
         }
-        const program = await generateProgram(state.profile as UserProfile);
-        dispatch({ type: "SET_PROGRAM", program });
+        request.current ??= generateProgram(profile as UserProfile).catch((error) => {
+          request.current = null;
+          throw error;
+        });
+        const program = await request.current;
+        generated = true;
+        if (cancelled) return;
+        setSavingProgram(true);
+        await persistProgram({
+          ...program,
+          user_profile: program.user_profile ?? profile,
+          generated_at: new Date().toISOString(),
+        });
+        if (cancelled) return;
         clearInterval(interval);
-        void navigate("/result");
+        void navigate("/result", { state: { generated: true } });
       } catch (err) {
+        if (cancelled) return;
         clearInterval(interval);
-        const message = err instanceof Error ? err.message : "Erreur inconnue";
+        const message = generated
+          ? "Ton programme a été créé, mais son enregistrement a échoué. Réessaie : la génération est conservée."
+          : err instanceof Error
+            ? err.message
+            : "La génération n'a pas abouti. Réessaie.";
+        setSavingProgram(false);
         setError(message);
       }
     })();
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [attempt, persistProgram, navigate, profile]);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
@@ -68,9 +92,11 @@ export default function Generating() {
             <span className="text-2xl">⚠️</span>
           </div>
           <h1 className="text-2xl font-black mb-4">Oups, une erreur s'est produite</h1>
-          <p className="text-gray-400 text-sm mb-2">{error}</p>
+          <p className="text-gray-400 text-sm mb-2" role="alert">
+            {error}
+          </p>
           <button
-            onClick={() => navigate("/onboarding")}
+            onClick={() => setAttempt((current) => current + 1)}
             className="mt-6 border border-white text-white font-bold px-6 py-3 rounded-xl hover:bg-white hover:text-black transition-colors"
           >
             Réessayer
@@ -94,7 +120,7 @@ export default function Generating() {
 
           <h1 className="text-2xl font-black mb-4">Création de ton programme</h1>
           <p className="text-gray-400 text-sm mb-8 min-h-6 transition-all duration-300">
-            {MESSAGES[messageIdx]}
+            {savingProgram ? "Enregistrement de ton programme…" : MESSAGES[messageIdx]}
           </p>
 
           {/* Animated dots */}

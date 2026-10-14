@@ -7,9 +7,30 @@ export default defineConfig({
   workers: 2,
   use: { baseURL: "http://127.0.0.1:4175", trace: "retain-on-failure" },
   projects: [
-    { name: "iphone-small", use: { ...devices["iPhone SE"], browserName: "webkit" } },
-    { name: "ipad-webkit", use: { ...devices["iPad Mini"], browserName: "webkit" } },
-    { name: "iphone-webkit", use: { ...devices["iPhone 13"], browserName: "webkit" } },
+    {
+      name: "iphone-small",
+      use: {
+        ...devices["iPhone SE"],
+        viewport: { width: 320, height: 720 },
+        browserName: "webkit",
+      },
+    },
+    {
+      name: "ipad-webkit",
+      use: {
+        ...devices["iPad Mini"],
+        viewport: { width: 1024, height: 768 },
+        browserName: "webkit",
+      },
+    },
+    {
+      name: "iphone-webkit",
+      use: {
+        ...devices["iPhone 13"],
+        viewport: { width: 390, height: 844 },
+        browserName: "webkit",
+      },
+    },
     {
       name: "desktop-chromium",
       use: { browserName: "chromium", viewport: { width: 1440, height: 900 } },

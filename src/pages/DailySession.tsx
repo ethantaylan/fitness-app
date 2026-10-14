@@ -14,7 +14,6 @@ import {
   Share2,
   Check,
   Info,
-  X,
   Trash2,
   BookOpen,
   ArrowRight,
@@ -28,6 +27,10 @@ import { encodeSharedSession } from "../lib/sharedSession";
 import { replaceExercise } from "../lib/openai";
 import { FEEDBACK_META } from "../lib/constants";
 import { formatLoadValue } from "../lib/formatLoad";
+import Modal from "../components/ui/Modal";
+import { exerciseMetrics, formatSeconds, hasMeasure, workoutTitle } from "../lib/exerciseDisplay";
+import { programSchedule, programSessionLink } from "../lib/program";
+import { OBJECTIVE_LABELS } from "../lib/agents";
 import type { DailySession, UserProfile } from "../lib/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,12 +72,10 @@ function SessionList({
     acc[s.date].push(s);
     return acc;
   }, {});
-  const nextProgramSession =
-    state.program?.weeks
-      .flatMap((week) =>
-        week.sessions.map((session) => ({ ...session, weekNumber: week.week_number })),
-      )
-      .find((session) => !session.completed) ?? null;
+  const nextPlanned = programSchedule(state.program, state.programStartDate).next;
+  const nextProgramSession = nextPlanned
+    ? { ...nextPlanned.session, weekNumber: nextPlanned.weekNumber }
+    : null;
 
   return (
     <div className="theme-app-page min-h-screen bg-white">
@@ -111,7 +112,14 @@ function SessionList({
               </div>
               <button
                 type="button"
-                onClick={() => void navigate("/result")}
+                onClick={() =>
+                  void navigate(
+                    programSessionLink(
+                      nextProgramSession.weekNumber,
+                      nextProgramSession.session_id,
+                    ),
+                  )
+                }
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white"
                 aria-label="Voir la prochaine séance dans le programme"
               >
@@ -194,10 +202,18 @@ function SessionList({
                                   {s.duration_min} min
                                 </span>
                               </div>
-                              <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1.5">
+                              <p className="text-sm font-bold text-gray-900 break-words flex items-center gap-1.5">
                                 <Flame className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                {s.goal}
+                                {workoutTitle(s)}
                               </p>
+                              {s.goal !== workoutTitle(s) && (
+                                <p className="mt-1 text-sm text-gray-500 break-words">{s.goal}</p>
+                              )}
+                              {profile?.objective && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                  {OBJECTIVE_LABELS[profile.objective]}
+                                </p>
+                              )}
                               {s.blocks?.length > 0 && (
                                 <p className="text-xs text-gray-400 mt-1 truncate">
                                   {s.blocks.map((b) => b.block_name).join(" · ")}
@@ -321,7 +337,10 @@ function SessionDetail({
     <div className="theme-app-page min-h-screen bg-white">
       <Navbar />
       <div className="session-page-content mx-auto max-w-4xl px-4 pb-24 pt-20 sm:px-6 md:pb-16">
-        <div className="mt-6 mb-6 flex justify-end">
+        <div className="mt-6 mb-6 flex items-center justify-between gap-3">
+          <button type="button" className="app-secondary" onClick={() => void navigate("/session")}>
+            Retour aux entraînements
+          </button>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -329,7 +348,7 @@ function SessionDetail({
                 void navigate("/session");
               }}
               title="Supprimer cette séance"
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+              className="w-11 h-11 flex items-center justify-center rounded-xl bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -357,7 +376,8 @@ function SessionDetail({
         {/* Header */}
         <div className="mb-6">
           <p className="text-xs text-gray-400 mb-1 uppercase tracking-wider">Séance libre</p>
-          <h1 className="text-2xl sm:text-3xl font-black capitalize">{session.date}</h1>
+          <h1 className="text-2xl sm:text-3xl font-black">{workoutTitle(session)}</h1>
+          <p className="mt-2 text-sm text-gray-500">{session.date}</p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${ic.badge}`}>
               {session.intensity}
@@ -389,7 +409,7 @@ function SessionDetail({
               <div className="space-y-2">
                 {session.warmup.map((w) => {
                   let display = "";
-                  if (w.duration_sec) display = `${w.duration_sec}s`;
+                  if (w.duration_sec) display = formatSeconds(w.duration_sec);
                   else if (w.reps) display = `${w.reps} reps`;
                   return (
                     <div key={w.name} className="flex items-center justify-between text-sm">
@@ -430,7 +450,7 @@ function SessionDetail({
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {ex.load_kg && (
+                          {hasMeasure(ex.load_kg) && (
                             <div className="bg-black text-white text-xs font-black px-2.5 py-1 rounded-lg max-w-[80px] truncate">
                               {formatLoadValue(ex.load_kg, "")}
                             </div>
@@ -446,7 +466,7 @@ function SessionDetail({
                                 })
                               }
                               title="Plus d'infos"
-                              className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-blue-50 hover:text-blue-500 transition-all"
+                              className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-blue-50 hover:text-blue-500 transition-all"
                             >
                               <Info className="w-3.5 h-3.5" />
                             </button>
@@ -458,7 +478,7 @@ function SessionDetail({
                               }}
                               disabled={isReplacing}
                               title="Remplacer cet exercice"
-                              className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-violet-100 hover:text-violet-600 transition-all disabled:opacity-40"
+                              className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-violet-100 hover:text-violet-600 transition-all disabled:opacity-40"
                             >
                               <RefreshCw
                                 className={`w-3.5 h-3.5 ${isReplacing ? "animate-spin text-violet-500" : ""}`}
@@ -467,24 +487,14 @@ function SessionDetail({
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                          {ex.sets} séries
-                        </span>
-                        <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                          {ex.reps} reps
-                        </span>
-                        {ex.rest_sec && (
-                          <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                            {ex.rest_sec}s repos
-                          </span>
-                        )}
-                        {ex.tempo && (
-                          <span className="bg-gray-100 rounded-full px-2.5 py-1 font-medium">
-                            Tempo {ex.tempo}
-                          </span>
-                        )}
-                      </div>
+                      <dl className="flex flex-wrap gap-2 text-sm">
+                        {exerciseMetrics(ex).map((metric) => (
+                          <div key={metric.label} className="rounded-lg bg-gray-100 px-2.5 py-1">
+                            <dt className="inline text-gray-500">{metric.label} : </dt>
+                            <dd className="inline font-semibold">{metric.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
                       {isReplaced && (
                         <p className="mt-2 text-xs text-green-600 font-semibold flex items-center gap-1">
                           <Check className="w-3 h-3" /> Exercice remplacé
@@ -508,7 +518,7 @@ function SessionDetail({
               <div className="space-y-2">
                 {session.cooldown.map((c) => {
                   let display = "";
-                  if (c.duration_sec) display = `${c.duration_sec}s`;
+                  if (c.duration_sec) display = formatSeconds(c.duration_sec);
                   else if (c.reps) display = `${c.reps} reps`;
                   return (
                     <div key={c.name} className="flex items-center justify-between text-sm">
@@ -554,6 +564,7 @@ function SessionDetail({
             ].map(({ value, icon: Icon, label, color, activeColor }) => (
               <button
                 key={value}
+                aria-pressed={session.feedback === value}
                 onClick={() => giveFeedback(value)}
                 className={`flex flex-col items-center gap-2 border-2 rounded-2xl p-4 transition-all ${
                   session.feedback === value ? activeColor : `border-gray-200 ${color}`
@@ -572,59 +583,38 @@ function SessionDetail({
         </div>
       </div>
 
-      {/* Modal infos exercice */}
       {infoModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-          onClick={() => setInfoModal(null)}
-        >
-          <div
-            className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-4 gap-3">
+        <Modal open title={infoModal.name} onClose={() => setInfoModal(null)}>
+          <div className="space-y-3 text-sm">
+            {hasMeasure(infoModal.load_kg) && (
               <div>
-                <h3 className="font-black text-lg leading-tight">{infoModal.name}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Détails de l'exercice</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                  Charge
+                </p>
+                <p className="text-gray-700">{formatLoadValue(infoModal.load_kg, "")}</p>
               </div>
-              <button
-                onClick={() => setInfoModal(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-3 text-sm">
-              {infoModal.load_kg && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                    Charge
-                  </p>
-                  <p className="text-gray-700">{formatLoadValue(infoModal.load_kg, "")}</p>
-                </div>
-              )}
-              {infoModal.notes && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                    Conseils
-                  </p>
-                  <p className="text-gray-700 leading-relaxed">{infoModal.notes}</p>
-                </div>
-              )}
-              {infoModal.alternative && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                    Alternative
-                  </p>
-                  <p className="text-gray-700 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
-                    {infoModal.alternative}
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
+            {infoModal.notes && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                  Conseils
+                </p>
+                <p className="text-gray-700 leading-relaxed">{infoModal.notes}</p>
+              </div>
+            )}
+            {infoModal.alternative && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                  Alternative
+                </p>
+                <p className="text-gray-700 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                  {infoModal.alternative}
+                </p>
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

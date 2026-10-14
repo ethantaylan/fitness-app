@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, Check, Plus, X } from "lucide-react";
 import { useApp } from "../lib/store";
 import { useAuth } from "../lib/auth";
@@ -285,6 +285,7 @@ function ChoiceCard({
   return (
     <button
       onClick={onClick}
+      aria-pressed={selected}
       className={`w-full flex items-center gap-4 px-5 py-4 border-2 rounded-2xl text-left transition-all duration-150 active:scale-[0.97] ${
         selected
           ? "border-black bg-black text-white"
@@ -479,6 +480,7 @@ function ChipToggle({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={selected}
       className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all duration-150 ${
         disabled
           ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
@@ -538,17 +540,45 @@ function BigNumberInput({
 }
 
 export default function Onboarding() {
+  const { state, dispatch } = useApp();
+  const location = useLocation();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(defaultForm);
+  const [form, setForm] = useState<FormState>(() => {
+    const p = (location.state as { prefill?: boolean } | null)?.prefill ? state.profile : null;
+    return p
+      ? {
+          ...defaultForm,
+          objective: p.objective ?? "",
+          customGoalDetail: p.goalDetail ?? "",
+          gender: p.gender ?? "",
+          level: p.level ?? "",
+          age: String(p.age ?? ""),
+          height: String(p.height ?? ""),
+          weight: String(p.weight ?? ""),
+          weeklyFrequency: String(p.weeklyFrequency ?? 3),
+          sessionDuration: (p.sessionDuration ?? []).map(String),
+          equipment: p.equipment ?? [],
+          likedExercises: p.likedExercises ?? [],
+          dislikedExercises: p.dislikedExercises ?? [],
+          availability: p.availability ?? [],
+          injuries: p.injuries ?? "",
+          nutritionRestrictions: p.nutritionRestrictions ?? "",
+          targetDate: p.targetDate ?? defaultForm.targetDate,
+          targetWeight: String(p.targetWeight ?? ""),
+        }
+      : defaultForm;
+  });
   const [showCustomEquipmentInput, setShowCustomEquipmentInput] = useState(false);
   const [customEquipmentDraft, setCustomEquipmentDraft] = useState("");
   const [showLikedExerciseInput, setShowLikedExerciseInput] = useState(false);
   const [likedExerciseDraft, setLikedExerciseDraft] = useState("");
   const [showDislikedExerciseInput, setShowDislikedExerciseInput] = useState(false);
   const [dislikedExerciseDraft, setDislikedExerciseDraft] = useState("");
-  const { dispatch } = useApp();
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [step]);
 
   function update(data: Partial<FormState>) {
     setForm((f) => ({ ...f, ...data }));
@@ -562,6 +592,11 @@ export default function Onboarding() {
       customGoalDetail: "",
       targetWeight: isWeightObjective(objective) ? f.targetWeight : "",
     }));
+    requestAnimationFrame(() =>
+      document
+        .getElementById("onboarding-goal-detail")
+        ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+    );
   }
 
   function toggleList(
@@ -670,7 +705,15 @@ export default function Onboarding() {
     if (step === 0) return form.objective !== "" && resolveGoalDetail(form) !== "";
     if (step === 1) return form.gender !== "";
     if (step === 2) return form.level !== "";
-    if (step === 3) return form.age !== "" && form.height !== "" && form.weight !== "";
+    if (step === 3)
+      return (
+        Number(form.age) >= 13 &&
+        Number(form.age) <= 100 &&
+        Number(form.height) >= 100 &&
+        Number(form.height) <= 250 &&
+        Number(form.weight) >= 30 &&
+        Number(form.weight) <= 300
+      );
     if (step === 4) return form.weeklyFrequency !== "";
     if (step === 5) return form.sessionDuration.length > 0;
     if (step === 9) return form.availability.length > 0;
@@ -678,34 +721,48 @@ export default function Onboarding() {
     return true;
   }
 
-  function saveProfile() {
+  function saveProfile(): UserProfile {
+    const profile: UserProfile = {
+      objective: form.objective as ObjectiveType,
+      goalDetail: resolveGoalDetail(form),
+      gender: form.gender as GenderType,
+      level: form.level as LevelType,
+      age: Number.parseInt(form.age),
+      height: Number.parseInt(form.height),
+      weight: Number.parseFloat(form.weight),
+      equipment: form.equipment,
+      sessionDuration: form.sessionDuration.map((v) => Number.parseInt(v)),
+      weeklyFrequency: Number.parseInt(form.weeklyFrequency),
+      likedExercises: form.likedExercises,
+      dislikedExercises: form.dislikedExercises,
+      injuries: form.injuries,
+      nutritionRestrictions: form.nutritionRestrictions,
+      availability: form.availability,
+      targetWeight:
+        isWeightObjective(form.objective) && form.targetWeight
+          ? Number.parseFloat(form.targetWeight)
+          : undefined,
+      targetDate: form.targetDate || undefined,
+    };
     dispatch({
       type: "SET_PROFILE_PARTIAL",
-      data: {
-        objective: form.objective as ObjectiveType,
-        goalDetail: resolveGoalDetail(form),
-        gender: form.gender as GenderType,
-        level: form.level as LevelType,
-        age: Number.parseInt(form.age),
-        height: Number.parseInt(form.height),
-        weight: Number.parseFloat(form.weight),
-        equipment: form.equipment,
-        sessionDuration: form.sessionDuration.map((v) => Number.parseInt(v)),
-        weeklyFrequency: Number.parseInt(form.weeklyFrequency),
-        likedExercises: form.likedExercises,
-        dislikedExercises: form.dislikedExercises,
-        injuries: form.injuries,
-        nutritionRestrictions: form.nutritionRestrictions,
-        availability: form.availability,
-        targetWeight:
-          isWeightObjective(form.objective) && form.targetWeight
-            ? Number.parseFloat(form.targetWeight)
-            : undefined,
-        targetDate: form.targetDate || undefined,
-      } as Partial<UserProfile>,
+      data: profile,
     });
+    return profile;
   }
 
+  const optionalStep = [6, 7, 8, 10].includes(step);
+  const requirement = canProceed()
+    ? optionalStep
+      ? "Cette étape est facultative."
+      : ""
+    : step === 0
+      ? form.objective
+        ? "Choisis aussi un objectif précis pour continuer."
+        : "Choisis ta discipline ou ton objectif."
+      : step === 3
+        ? "Âge : 13–100 ans, taille : 100–250 cm, poids : 30–300 kg."
+        : "Choisis une réponse pour continuer.";
   const showFooter = step < TOTAL_STEPS - 1;
   const customEquipment = getCustomEquipment(form.equipment);
   const canAddCustomEquipment =
@@ -738,7 +795,7 @@ export default function Onboarding() {
 
   return (
     <div
-      className="min-h-screen bg-white flex flex-col"
+      className="theme-onboarding-page min-h-screen bg-white flex flex-col"
       style={{ maxWidth: 480, margin: "0 auto" }}
     >
       {/* Header / progress bar */}
@@ -754,6 +811,7 @@ export default function Onboarding() {
             </button>
           ) : (
             <button
+              aria-label="Revenir à l’étape précédente"
               onClick={() => setStep((s) => s - 1)}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors shrink-0 -ml-1"
             >
@@ -791,6 +849,7 @@ export default function Onboarding() {
                 {OBJECTIVES.map(({ id, emoji }) => (
                   <button
                     key={id}
+                    aria-pressed={form.objective === id}
                     onClick={() => selectObjective(id)}
                     className={`flex flex-col items-start p-4 border-2 rounded-2xl text-left transition-all duration-150 active:scale-[0.96] ${
                       form.objective === id
@@ -809,8 +868,13 @@ export default function Onboarding() {
               </div>
 
               {form.objective && (
-                <div className="mt-7 border-t border-gray-100 pt-6">
-                  <h2 className="text-lg font-black mb-1">Quel résultat tu veux vraiment ?</h2>
+                <div
+                  id="onboarding-goal-detail"
+                  className="mt-7 border-t border-gray-100 pt-6 scroll-mt-24"
+                >
+                  <h2 className="text-lg font-black mb-1">
+                    Quel résultat tu veux vraiment ? (obligatoire)
+                  </h2>
                   <p className="text-gray-500 text-sm mb-4">
                     Choisis une cible concrète pour que le coach calibre le programme.
                   </p>
@@ -1430,7 +1494,7 @@ export default function Onboarding() {
               <p className="text-gray-500 text-sm mb-6">
                 {hasWeightTarget
                   ? "Définis ton délai avec le curseur. On vérifie aussi si le rythme reste crédible par rapport à ton objectif."
-                  : "Choisis l'horizon du programme. Le coach périodisera la progression autour de ta cible précise."}
+                  : "Ton échéance sert de repère. Le premier programme couvre 4 à 8 semaines de progression."}
               </p>
               <div className="space-y-4">
                 <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
@@ -1477,10 +1541,10 @@ export default function Onboarding() {
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-white p-3">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        Durée estimée
+                        Premier programme
                       </p>
                       <p className="mt-1 text-sm font-bold text-gray-900">
-                        {monthsToWeeks(targetDurationMonths)} semaines
+                        {Math.min(8, Math.max(4, monthsToWeeks(targetDurationMonths)))} semaines
                       </p>
                     </div>
                   </div>
@@ -1534,8 +1598,8 @@ export default function Onboarding() {
                 {isSignedIn ? (
                   <button
                     onClick={() => {
-                      saveProfile();
-                      void navigate("/generating");
+                      const profile = saveProfile();
+                      void navigate("/generating", { state: { profile } });
                     }}
                     className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
                   >
@@ -1577,15 +1641,21 @@ export default function Onboarding() {
       {/* Footer CTA */}
       {showFooter && (
         <div
-          className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full bg-white/95 backdrop-blur-sm border-t border-gray-100 px-4 pt-3"
+          className="app-onboarding-footer fixed inset-x-0 bottom-0 z-40 mx-auto w-full bg-white/95 backdrop-blur-sm border-t border-gray-100 px-4 pt-3"
           style={{ maxWidth: 480, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
         >
+          {requirement && (
+            <p id="onboarding-requirement" role="status" className="mb-2 text-sm text-gray-600">
+              {requirement}
+            </p>
+          )}
           <button
+            aria-describedby={requirement ? "onboarding-requirement" : undefined}
             onClick={() => setStep((s) => s + 1)}
             disabled={!canProceed()}
             className="w-full bg-black text-white font-bold py-4 rounded-2xl text-[15px] disabled:opacity-25 disabled:cursor-not-allowed hover:bg-gray-900 transition-colors active:scale-[0.98]"
           >
-            {step === 11 ? "Finaliser" : "Continuer →"}
+            {step === 11 ? "Finaliser" : optionalStep ? "Continuer ou passer" : "Continuer →"}
           </button>
         </div>
       )}

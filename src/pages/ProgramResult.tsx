@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ChevronUp,
@@ -17,7 +17,8 @@ import {
 import { useAuth } from "../lib/auth";
 import { useApp } from "../lib/store";
 import { OBJECTIVE_LABELS } from "../lib/agents";
-import { formatLoadValue } from "../lib/formatLoad";
+import { exerciseMetrics, formatSeconds } from "../lib/exerciseDisplay";
+import { programSchedule, profileDifferences } from "../lib/program";
 import type { Session, Week } from "../lib/types";
 import Navbar from "../components/Navbar";
 
@@ -34,22 +35,19 @@ function ExerciseRow({
     notes?: string;
   };
 }>) {
-  const loadDisplay = formatLoadValue(ex.load_kg);
-
   return (
     <tr className="border-b border-gray-100 last:border-0">
       <td className="py-3 pr-4">
-        <div className="text-sm font-medium">{ex.name}</div>
-        {ex.notes && <div className="mt-0.5 text-xs text-gray-400">{ex.notes}</div>}
+        <div className="text-sm font-semibold">{ex.name}</div>
+        {ex.notes && <p className="mt-1 text-sm text-gray-500">{ex.notes}</p>}
         {ex.alternative && (
-          <div className="mt-0.5 text-xs text-gray-400">Alternative : {ex.alternative}</div>
+          <p className="mt-1 text-sm text-gray-500">Alternative : {ex.alternative}</p>
         )}
       </td>
-      <td className="whitespace-nowrap py-3 text-center text-sm font-mono">{ex.sets}</td>
-      <td className="whitespace-nowrap py-3 text-center text-sm font-mono">{ex.reps}</td>
-      <td className="whitespace-nowrap py-3 text-center text-sm font-semibold">{loadDisplay}</td>
-      <td className="whitespace-nowrap py-3 text-center text-sm text-gray-500">
-        {ex.rest_sec ? `${ex.rest_sec}s` : "-"}
+      <td className="py-3 text-sm">
+        {exerciseMetrics(ex)
+          .map((metric) => `${metric.label} : ${metric.value}`)
+          .join(" · ") || "Mesures non renseignées"}
       </td>
     </tr>
   );
@@ -68,8 +66,6 @@ function ExerciseMobileCard({
     notes?: string;
   };
 }>) {
-  const loadDisplay = formatLoadValue(ex.load_kg);
-
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
       <div className="font-black text-gray-900">{ex.name}</div>
@@ -79,21 +75,14 @@ function ExerciseMobileCard({
           {ex.alternative && <p>Alternative : {ex.alternative}</p>}
         </div>
       )}
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {[
-          ["Séries", ex.sets],
-          ["Reps", ex.reps],
-          ["Charge", loadDisplay],
-          ["Repos", ex.rest_sec ? `${ex.rest_sec}s` : "-"],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-gray-50 px-2 py-2 text-center">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-              {label}
-            </div>
-            <div className="mt-1 text-sm font-black text-gray-900">{value}</div>
+      <dl className="mt-3 flex flex-wrap gap-2">
+        {exerciseMetrics(ex).map((metric) => (
+          <div key={metric.label} className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
+            <dt className="text-gray-500">{metric.label}</dt>
+            <dd className="font-semibold">{metric.value}</dd>
           </div>
         ))}
-      </div>
+      </dl>
     </div>
   );
 }
@@ -101,11 +90,16 @@ function ExerciseMobileCard({
 function SessionCard({
   session,
   onToggleCompletion,
+  initiallyExpanded = false,
 }: Readonly<{
+  initiallyExpanded?: boolean;
   session: Session;
   onToggleCompletion?: (completed: boolean) => void;
 }>) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  useEffect(() => {
+    if (initiallyExpanded) setExpanded(true);
+  }, [initiallyExpanded]);
   const intensity = session.intensity?.toLowerCase() ?? "";
 
   let intensityColor = "bg-green-50 text-green-600";
@@ -117,6 +111,8 @@ function SessionCard({
 
   return (
     <div
+      id={`program-session-${session.session_id}`}
+      tabIndex={-1}
       className={`overflow-hidden rounded-2xl border ${
         session.completed
           ? "theme-program-session-completed border-green-200 bg-green-50"
@@ -164,20 +160,21 @@ function SessionCard({
             {session.completed ? (
               <>
                 <Check className="h-4 w-4" />
-                Décocher la séance
+                Marquer non réalisée
               </>
             ) : (
               <>
                 <span className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] border border-current">
                   <Check className="h-2.5 w-2.5" strokeWidth={2.8} />
                 </span>
-                Cocher la séance
+                Marquer réalisée
               </>
             )}
           </button>
 
           <button
             type="button"
+            aria-expanded={expanded}
             onClick={() => setExpanded((value) => !value)}
             className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
           >
@@ -201,7 +198,7 @@ function SessionCard({
               <div className="flex flex-wrap gap-2">
                 {session.warmup.map((item) => (
                   <span key={item.name} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs">
-                    {item.name} {item.duration_sec ? `- ${item.duration_sec}s` : ""}
+                    {item.name} {item.duration_sec ? `- ${formatSeconds(item.duration_sec)}` : ""}
                   </span>
                 ))}
               </div>
@@ -223,10 +220,7 @@ function SessionCard({
                   <thead>
                     <tr className="border-b border-gray-100 text-xs text-gray-400">
                       <th className="py-2 pr-4 text-left font-semibold">Exercice</th>
-                      <th className="whitespace-nowrap py-2 text-center font-semibold">Séries</th>
-                      <th className="whitespace-nowrap py-2 text-center font-semibold">Reps</th>
-                      <th className="whitespace-nowrap py-2 text-center font-semibold">Charge</th>
-                      <th className="whitespace-nowrap py-2 text-center font-semibold">Repos</th>
+                      <th className="py-2 text-left font-semibold">Travail prévu</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -247,7 +241,7 @@ function SessionCard({
               <div className="flex flex-wrap gap-2">
                 {session.cooldown.map((item) => (
                   <span key={item.name} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs">
-                    {item.name} {item.duration_sec ? `- ${item.duration_sec}s` : ""}
+                    {item.name} {item.duration_sec ? `- ${formatSeconds(item.duration_sec)}` : ""}
                   </span>
                 ))}
               </div>
@@ -267,19 +261,26 @@ function SessionCard({
 
 function WeekSection({
   week,
+  targetSession,
   onToggleCompletion,
 }: Readonly<{
   week: Week;
+  targetSession?: string | null;
   onToggleCompletion?: (sessionId: string, completed: boolean) => void;
 }>) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const sessionCount = week.sessions?.length ?? 0;
   const completedCount = week.sessions?.filter((session) => session.completed).length ?? 0;
   const progress = sessionCount === 0 ? 0 : Math.round((completedCount / sessionCount) * 100);
 
   return (
     <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
-      <button type="button" className="w-full text-left" onClick={() => setOpen((value) => !value)}>
+      <button
+        type="button"
+        aria-expanded={open}
+        className="w-full text-left"
+        onClick={() => setOpen((value) => !value)}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -317,6 +318,7 @@ function WeekSection({
             <SessionCard
               key={session.session_id}
               session={session}
+              initiallyExpanded={session.session_id === targetSession}
               onToggleCompletion={(completed) =>
                 onToggleCompletion?.(session.session_id, completed)
               }
@@ -332,6 +334,20 @@ export default function ProgramResult() {
   const { state, dispatch } = useApp();
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const schedule = programSchedule(state.program, state.programStartDate);
+  const selectedWeek = Number(params.get("week")) || schedule.activeWeek?.week_number || 1;
+  const targetSession = params.get("session");
+  useEffect(() => {
+    if (!targetSession) return;
+    const frame = requestAnimationFrame(() => {
+      const element = document.getElementById(`program-session-${targetSession}`);
+      element?.scrollIntoView({ block: "start", behavior: "smooth" });
+      element?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [targetSession, selectedWeek]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const program = state.program;
 
@@ -368,6 +384,7 @@ export default function ProgramResult() {
 
   const { program_overview, weeks, nutrition_recommendations, general_advice, user_profile } =
     program;
+  const differences = profileDifferences(user_profile, state.profile);
   const profileDetails = [
     user_profile?.gender && { k: "Genre", v: user_profile.gender },
     user_profile?.age && { k: "Age", v: `${user_profile.age} ans` },
@@ -384,11 +401,75 @@ export default function ProgramResult() {
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
             <span className="text-sm font-semibold text-green-600">
-              Programme généré avec succès
+              {(location.state as { generated?: boolean } | null)?.generated
+                ? "Programme généré avec succès"
+                : "Programme actif"}
             </span>
           </div>
           <h1 className="mb-2 text-3xl font-black sm:text-4xl">Ton programme Vincere</h1>
           <p className="text-gray-500">{program_overview.summary}</p>
+        </div>
+
+        <p className="mb-4 text-sm text-gray-500">
+          {program.generated_at
+            ? `Créé le ${new Date(program.generated_at).toLocaleDateString("fr-FR")}`
+            : state.programStartDate
+              ? `Démarré le ${new Date(state.programStartDate + "T12:00:00").toLocaleDateString("fr-FR")}`
+              : "Date de création non disponible"}
+        </p>
+        {differences.length > 0 && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <h2 className="font-bold">Ton profil a évolué</h2>
+            <p className="mt-1 text-sm text-gray-700">
+              Différences : {differences.join(", ")}. Ce plan conserve les paramètres utilisés à sa
+              création. Modifier ton profil adapte les futures séances libres ; le programme reste
+              inchangé jusqu'à sa régénération.
+            </p>
+            <button
+              type="button"
+              className="app-secondary mt-3"
+              onClick={() => void navigate("/onboarding", { state: { prefill: true } })}
+            >
+              Mettre à jour mon programme
+            </button>
+          </div>
+        )}
+        <div className="mb-10">
+          <h2 className="mb-3 text-xl font-black">Tes séances</h2>
+          <label htmlFor="program-week" className="mb-2 block text-sm font-semibold">
+            Semaine
+          </label>
+          <select
+            id="program-week"
+            className="app-input mb-4"
+            value={selectedWeek}
+            onChange={(event) => setParams({ week: event.target.value })}
+          >
+            {weeks.map((week) => (
+              <option key={week.week_number} value={week.week_number}>
+                Semaine {week.week_number}
+                {week.focus ? ` · ${week.focus}` : ""}
+              </option>
+            ))}
+          </select>
+          {(weeks.filter((week) => week.week_number === selectedWeek).length
+            ? weeks.filter((week) => week.week_number === selectedWeek)
+            : weeks.slice(0, 1)
+          ).map((week) => (
+            <WeekSection
+              key={week.week_number}
+              week={week}
+              targetSession={targetSession}
+              onToggleCompletion={(sessionId, completed) =>
+                dispatch({
+                  type: "SET_PROGRAM_SESSION_COMPLETION",
+                  weekNumber: week.week_number,
+                  sessionId,
+                  completed,
+                })
+              }
+            />
+          ))}
         </div>
 
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -398,7 +479,15 @@ export default function ProgramResult() {
               label: "Discipline",
               value: user_profile?.objective ? OBJECTIVE_LABELS[user_profile.objective] : "-",
             },
-            { icon: Target, label: "Objectif", value: user_profile?.goalDetail ?? "-" },
+            {
+              icon: Target,
+              label: "Objectif",
+              value:
+                user_profile?.goalDetail ||
+                (user_profile?.objective
+                  ? OBJECTIVE_LABELS[user_profile.objective]
+                  : state.profile?.goalDetail || "Objectif non renseigné"),
+            },
             { icon: Clock, label: "Durée", value: `${program_overview.duration_weeks} semaines` },
             {
               icon: Flame,
@@ -410,7 +499,7 @@ export default function ProgramResult() {
             <div key={label} className="rounded-2xl border border-gray-200 p-4">
               <Icon className="mb-2 h-4 w-4 text-gray-400" />
               <div className="text-xs text-gray-400">{label}</div>
-              <div className="text-sm font-bold capitalize">{value}</div>
+              <div className="text-sm font-bold">{value}</div>
             </div>
           ))}
         </div>
@@ -433,7 +522,7 @@ export default function ProgramResult() {
               onClick={() => void navigate("/dashboard")}
               className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition-colors hover:bg-gray-50"
             >
-              Voir mon dashboard
+              Aller à l’accueil
             </button>
           )}
 
@@ -473,7 +562,7 @@ export default function ProgramResult() {
         {profileDetails.length > 0 && (
           <div className="mb-8 rounded-2xl bg-gray-50 p-5">
             <h2 className="mb-3 text-sm font-black uppercase tracking-widest text-gray-400">
-              Profil analysé
+              Paramètres à la création
             </h2>
             <div className="rounded-xl border border-gray-200 bg-white px-4">
               {profileDetails.map((item, index) => (
@@ -490,24 +579,6 @@ export default function ProgramResult() {
             </div>
           </div>
         )}
-
-        <div className="mb-10">
-          <h2 className="mb-6 text-2xl font-black">Programme semaine par semaine</h2>
-          {weeks?.map((week) => (
-            <WeekSection
-              key={week.week_number}
-              week={week}
-              onToggleCompletion={(sessionId, completed) =>
-                dispatch({
-                  type: "SET_PROGRAM_SESSION_COMPLETION",
-                  weekNumber: week.week_number,
-                  sessionId,
-                  completed,
-                })
-              }
-            />
-          ))}
-        </div>
 
         {nutrition_recommendations && (
           <div className="mb-8 rounded-2xl border border-gray-200 p-6">

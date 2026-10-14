@@ -20,7 +20,7 @@ signee.
 | Confidentialite    | https://vincere-fitness.netlify.app/privacy |
 | Conditions         | https://vincere-fitness.netlify.app/terms   |
 | Bundle ID          | `app.vincere.fitness`                       |
-| Version initiale   | `1.0.0` (`build 1`)                         |
+| Version courante   | `1.0.1` (`build 6`)                         |
 | Plateformes        | iPhone et iPad, iOS 17+                     |
 | Langue principale  | Francais                                    |
 | Categorie proposee | Forme et sante                              |
@@ -37,8 +37,10 @@ nom legal du titulaire si le compte Apple Developer est un compte individuel.
   bancaires acceptes lorsque necessaire.
 - Les acces aux projets Supabase et Netlify de production.
 
-La machine ayant servi a preparer ce depot utilise Xcode 14.3.1. Elle peut
-generer le bundle web, mais pas compiler ni soumettre la version iOS actuelle.
+La livraison du 14 octobre 2026 utilise Xcode 27 et le SDK iOS 27. L'archive
+signee **1.0.1 (build 6)** a ete envoyee avec succes a App Store Connect.
+Cet envoi ne constitue pas une validation Apple ni une publication publique.
+Voir le [statut de livraison](docs/APP_STORE.md).
 
 ## 2. Installer et verifier le projet
 
@@ -57,6 +59,9 @@ vp run build
 
 Les tests Playwright couvrent les modes clair et sombre, les ecrans publics et
 connectes, le consentement IA et plusieurs formats iPhone, iPad et desktop.
+
+Le [bilan UI/UX et ses captures](docs/UI_UX_AUDIT.md) detaille les corrections,
+les parcours verifies et les limites des tests.
 
 ## 3. Preparer le backend Supabase
 

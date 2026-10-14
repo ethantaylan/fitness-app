@@ -2,9 +2,21 @@
 
 ## Etat de livraison
 
-Le depot contient maintenant le projet iOS Capacitor, les adaptations mobiles et les parcours de confidentialite. **Ce n'est pas encore une archive signee ni une application validee par Apple.** Aucun deploiement Supabase, Netlify ou App Store n'est effectue par les scripts de preparation.
+Le depot contient le projet iOS Capacitor, les adaptations mobiles et les parcours de confidentialite. Les scripts de preparation ne deploient pas automatiquement Supabase, Netlify ou App Store Connect.
 
-Le Mac utilise pour cette preparation dispose de Xcode 14.3.1. Il ne peut pas compiler cette version. Apple exige le SDK iOS 26 pour les soumissions depuis le 28 avril 2026. Utiliser Xcode 26+ sur un Mac compatible, ou le workflow manuel GitHub Actions `iOS validation` pour une compilation non signee.
+Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du SDK iOS 27**. Les controles natifs, la compilation et la signature ont reussi.
+
+### Livraison 1.0.1
+
+- Version : **1.0.1**, numero de build **6**.
+- Bundle : `app.vincere.fitness` ; application App Store Connect `6821321431`.
+- Archive locale : `build/Vincere-1.0.1-6.xcarchive`, non suivie par Git.
+- Envoi : reussi le 14 octobre 2026 ; Xcode a confirme `Upload succeeded` et `EXPORT SUCCEEDED`. Apple a commence le traitement du package.
+- Contenu : corrections UI/UX, running, records, modales, profil, onboarding et apparences. Voir le [bilan et les captures](UI_UX_AUDIT.md).
+- Verification : 84 scenarios navigateur et 50 tests unitaires passes, controles de code et controles iOS reussis.
+- La nouvelle contrainte SQL des records est incluse dans le depot, mais n'a pas ete appliquee au serveur Supabase.
+
+**Envoi ne signifie pas publication publique.** La selection du build pour la version 1.0.1, sa soumission a App Review et sa disponibilite publique n'ont pas ete effectuees ni verifiees ici. L'acces a l'interface App Store Connect par l'outil de controle du navigateur etait indisponible pendant cette livraison.
 
 ## Identite
 

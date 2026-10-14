@@ -39,6 +39,7 @@ interface AppState {
   onboardingStep: number;
   /** true une fois l'hydratation Supabase terminée (ou si pas de client) */
   _hydrated: boolean;
+  _loadError?: string | null;
 }
 
 function reportSyncError(error?: unknown) {
@@ -91,7 +92,7 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         program: action.program,
-        programStartDate: state.programStartDate ?? new Date().toISOString().split("T")[0],
+        programStartDate: new Date().toLocaleDateString("en-CA"),
       };
     case "SET_PROGRAM_SESSION_COMPLETION":
       if (!state.program) return state;
@@ -166,7 +167,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "CLEAR_PROGRAM":
       return { ...state, program: null, programStartDate: null };
     case "HYDRATE":
-      return { ...state, ...action.state, _hydrated: true };
+      return { ...state, ...action.state, _hydrated: action.state._hydrated ?? true };
     case "RESET":
       return { ...initialState, _hydrated: true };
     default:
@@ -177,6 +178,10 @@ function reducer(state: AppState, action: Action): AppState {
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<Action>;
+  addRecord: (record: PersonalRecord) => Promise<void>;
+  persistProfile: (data: Partial<UserProfile>) => Promise<void>;
+  persistProgram: (program: Program) => Promise<void>;
+  retryHydration: () => void;
 } | null>(null);
 
 function storageKey(userId?: string | null) {
@@ -200,6 +205,7 @@ export function AppProvider({
   userFirstName?: string | null;
 }>) {
   const key = storageKey(userId);
+  const [reload, reloadDispatch] = useReducer((value: number) => value + 1, 0);
 
   /** ID interne Supabase (UUID), différent du Clerk userId */
   const internalIdRef = useRef<string | null>(null);
@@ -212,7 +218,7 @@ export function AppProvider({
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved) as AppState;
-        return { ...parsed, records: parsed.records ?? [], _hydrated: false };
+        return { ...parsed, records: parsed.records ?? [], _hydrated: false, _loadError: null };
       }
     } catch {
       /* ignore */
@@ -224,10 +230,9 @@ export function AppProvider({
 
   // ── Persistance localStorage ────────────────────────────────────────────────
   useEffect(() => {
-    const { _hydrated: _h, ...toSave } = state;
-    const compactState = userId ? { ...toSave, program: null } : toSave;
+    const { _hydrated: _h, _loadError: _e, ...toSave } = state;
     try {
-      localStorage.setItem(key, JSON.stringify(compactState));
+      localStorage.setItem(key, JSON.stringify(toSave));
     } catch (error) {
       console.warn("[store] Stockage local saturé, état conservé en mémoire", error);
     }
@@ -307,6 +312,47 @@ export function AppProvider({
     }
   }, []);
 
+  const addRecord = useCallback(
+    async (record: PersonalRecord) => {
+      if (userId) {
+        if (!internalIdRef.current) throw new Error("Le compte est encore en cours de chargement.");
+        await dbSaveRecord(supabase, internalIdRef.current, record);
+      }
+      rawDispatch({ type: "ADD_RECORD", record });
+    },
+    [userId],
+  );
+
+  const persistProfile = useCallback(
+    async (data: Partial<UserProfile>) => {
+      const merged = { ...stateRef.current.profile, ...data };
+      if (!isProfileSaveable(merged))
+        throw new Error("Complète ton profil avant de l'enregistrer.");
+      if (userId) {
+        if (!internalIdRef.current) throw new Error("Le compte est en cours de chargement.");
+        await saveProfile(supabase, internalIdRef.current, merged);
+      }
+      rawDispatch({ type: "SET_PROFILE_PARTIAL", data });
+    },
+    [userId],
+  );
+
+  const retryHydration = useCallback(() => {
+    rawDispatch({ type: "HYDRATE", state: { _hydrated: false, _loadError: null } });
+    reloadDispatch();
+  }, []);
+
+  const persistProgram = useCallback(
+    async (program: Program) => {
+      if (userId) {
+        if (!internalIdRef.current) throw new Error("Le compte est en cours de chargement.");
+        await dbSaveProgram(supabase, internalIdRef.current, program);
+      }
+      rawDispatch({ type: "SET_PROGRAM", program });
+    },
+    [userId],
+  );
+
   // ── Hydratation Supabase au montage ─────────────────────────────────────────
   useEffect(() => {
     if (!userId) {
@@ -329,11 +375,11 @@ export function AppProvider({
         const current = stateRef.current;
         const [profile, programResult, remoteSessions, onboarding, remoteRecords] =
           await Promise.all([
-            getProfile(supabase, user.id).catch(() => null),
-            getActiveProgram(supabase, user.id).catch(() => null),
-            getDailySessions(supabase, user.id, 30).catch(() => [] as DailySession[]),
-            getOnboardingProgress(supabase, user.id).catch(() => null),
-            dbGetRecords(supabase, user.id).catch(() => [] as PersonalRecord[]),
+            getProfile(supabase, user.id),
+            getActiveProgram(supabase, user.id),
+            getDailySessions(supabase, user.id, 30),
+            getOnboardingProgress(supabase, user.id),
+            dbGetRecords(supabase, user.id),
           ]);
 
         if (cancelled) return;
@@ -341,9 +387,10 @@ export function AppProvider({
         rawDispatch({
           type: "HYDRATE",
           state: {
+            _loadError: null,
             profile: profile ?? current.profile,
-            program: programResult?.program ?? current.program,
-            programStartDate: programResult?.startedAt ?? current.programStartDate,
+            program: programResult?.program ?? null,
+            programStartDate: programResult?.startedAt ?? null,
             sessions: remoteSessions.length > 0 ? remoteSessions : current.sessions,
             records: remoteRecords.length > 0 ? remoteRecords : current.records,
             onboardingStep:
@@ -355,13 +402,16 @@ export function AppProvider({
         if (!profile && isProfileSaveable(current.profile)) {
           saveProfile(supabase, user.id, current.profile).catch(reportSyncError);
         }
-        if (!programResult?.program && current.program) {
-          dbSaveProgram(supabase, user.id, current.program).catch(reportSyncError);
-        }
       } catch (err) {
         if (cancelled) return;
         console.warn("[store] Hydratation Supabase échouée, données locales conservées", err);
-        rawDispatch({ type: "HYDRATE", state: {} });
+        rawDispatch({
+          type: "HYDRATE",
+          state: {
+            _loadError:
+              "Tes données n'ont pas pu être chargées. Vérifie ta connexion puis réessaie.",
+          },
+        });
       }
     })();
     return () => {
@@ -370,9 +420,12 @@ export function AppProvider({
     };
     // Intentionnellement déclenché uniquement au changement d'utilisateur
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, reload]);
 
-  const contextValue = useMemo(() => ({ state, dispatch }), [state, dispatch]);
+  const contextValue = useMemo(
+    () => ({ state, dispatch, addRecord, persistProfile, persistProgram, retryHydration }),
+    [state, dispatch, addRecord, persistProfile, persistProgram, retryHydration],
+  );
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }
 
