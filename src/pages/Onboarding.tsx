@@ -3,6 +3,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, Check, Sparkles, UserPlus, X } from "lucide-react";
 import { useApp } from "../lib/store";
 import { useAuth } from "../lib/auth";
+import { useGeneration } from "../lib/generationContext";
+import {
+  getProfileValidationError,
+  isValidProfileList,
+  PROFILE_LIMITS,
+  restoreTargetTimeline,
+  targetTimelineForMonths,
+  weeksUntilTargetDate,
+} from "../lib/profileValidation";
 import type {
   ObjectiveType,
   LevelType,
@@ -243,6 +252,7 @@ interface FormState {
   targetWeight: string;
   targetDurationMonths: string;
   targetDate: string;
+  targetDateReset: boolean;
 }
 
 const defaultForm: FormState = {
@@ -265,6 +275,7 @@ const defaultForm: FormState = {
   targetWeight: "",
   targetDurationMonths: "6",
   targetDate: addMonthsToToday(6),
+  targetDateReset: false,
 };
 
 function ChoiceCard({
@@ -321,28 +332,13 @@ const MIN_TARGET_MONTHS = 1;
 const MAX_TARGET_MONTHS = 12;
 const DEFAULT_TARGET_MONTHS = 6;
 
-function toDateInputValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 function addMonthsToToday(n: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + n);
-  return toDateInputValue(d);
+  return targetTimelineForMonths(n).targetDate;
 }
 
 /** Un brouillon enregistré avant la limite d'un an peut contenir plus : on le ramène dans la plage. */
 function clampMonths(months: number): number {
   return Math.min(MAX_TARGET_MONTHS, Math.max(MIN_TARGET_MONTHS, months));
-}
-
-/** Date visée plafonnée à un an (un brouillon plus ancien peut en contenir une plus lointaine). */
-function cappedTargetDate(date: string): string {
-  const limit = addMonthsToToday(MAX_TARGET_MONTHS);
-  return date && date > limit ? limit : date;
 }
 
 function monthsToWeeks(months: number): number {
@@ -384,13 +380,13 @@ type TimelineAssessment = {
 function getTimelineAssessment(form: FormState): TimelineAssessment {
   const months = Number.parseInt(form.targetDurationMonths, 10);
   const safeMonths = Number.isNaN(months) ? DEFAULT_TARGET_MONTHS : clampMonths(months);
-  const dateValue = cappedTargetDate(form.targetDate) || addMonthsToToday(safeMonths);
+  const dateValue = form.targetDate || addMonthsToToday(safeMonths);
   const goalDetail = resolveGoalDetail(form);
 
   if (!isWeightObjective(form.objective)) {
     return {
       tone: "neutral",
-      title: `${formatDurationMonths(safeMonths)} sélectionnés`,
+      title: "Échéance définie",
       message: `On périodise ${goalDetail || "ton objectif"} jusqu'au ${formatDateLabel(dateValue)} avec une progression adaptée à ton niveau.`,
     };
   }
@@ -398,7 +394,7 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
   if (!form.targetWeight) {
     return {
       tone: "neutral",
-      title: `${formatDurationMonths(safeMonths)} sélectionnés`,
+      title: "Échéance définie",
       message: `Programme calibré jusqu'au ${formatDateLabel(dateValue)}. Si tu vises un poids précis, ajoute-le pour vérifier le rythme.`,
     };
   }
@@ -409,7 +405,7 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
   if (Number.isNaN(currentWeight) || Number.isNaN(targetWeight)) {
     return {
       tone: "neutral",
-      title: `${formatDurationMonths(safeMonths)} sélectionnés`,
+      title: "Échéance définie",
       message: `On utilisera cette échéance pour structurer la progression jusqu'au ${formatDateLabel(dateValue)}.`,
     };
   }
@@ -420,7 +416,7 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
     return {
       tone: "neutral",
       title: "Poids stable",
-      message: `Tu gardes le même poids de référence sur ${formatDurationMonths(safeMonths)}. On peut surtout travailler la forme, la perf et la recomposition.`,
+      message: `Tu gardes le même poids de référence jusqu'au ${formatDateLabel(dateValue)}. On peut surtout travailler la forme, la perf et la recomposition.`,
     };
   }
 
@@ -443,7 +439,7 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
     };
   }
 
-  const weeks = monthsToWeeks(safeMonths);
+  const weeks = Math.max(1 / 7, weeksUntilTargetDate(dateValue) ?? monthsToWeeks(safeMonths));
   const weeklyChange = absDiffKg / weeks;
   const recommendedWeekly = isLoss ? 0.75 : 0.3;
   const maxWeekly = isLoss ? 1 : 0.5;
@@ -459,7 +455,7 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
     return {
       tone: "error",
       title: "Délai trop agressif",
-      message: `Passer de ${weightSummary} en ${formatDurationMonths(safeMonths)} demanderait une ${directionLabel} d'environ ${weeklyChange.toFixed(1)} kg/semaine. Vise plutôt ${formatSuggestedDuration(minMonths)} minimum, ou ajuste ton poids cible.`,
+      message: `Passer de ${weightSummary} d'ici au ${formatDateLabel(dateValue)} demanderait une ${directionLabel} d'environ ${weeklyChange.toFixed(1)} kg/semaine. Vise plutôt ${formatSuggestedDuration(minMonths)} minimum, ou ajuste ton poids cible.`,
     };
   }
 
@@ -467,14 +463,14 @@ function getTimelineAssessment(form: FormState): TimelineAssessment {
     return {
       tone: "warn",
       title: "Objectif ambitieux",
-      message: `${weightSummary} en ${formatDurationMonths(safeMonths)} représente environ ${weeklyChange.toFixed(1)} kg/semaine. C'est jouable, mais ${formatSuggestedDuration(comfortableMonths)} serait plus réaliste.`,
+      message: `${weightSummary} d'ici au ${formatDateLabel(dateValue)} représente environ ${weeklyChange.toFixed(1)} kg/semaine. C'est jouable, mais ${formatSuggestedDuration(comfortableMonths)} serait plus réaliste.`,
     };
   }
 
   return {
     tone: "good",
     title: "Délai cohérent",
-    message: `${weightSummary} en ${formatDurationMonths(safeMonths)} représente environ ${weeklyChange.toFixed(1)} kg/semaine. C'est un rythme réaliste pour construire ton programme.`,
+    message: `${weightSummary} d'ici au ${formatDateLabel(dateValue)} représente environ ${weeklyChange.toFixed(1)} kg/semaine. C'est un rythme réaliste pour construire ton programme.`,
   };
 }
 
@@ -572,10 +568,10 @@ export default function Onboarding() {
           availability: p.availability ?? [],
           injuries: p.injuries ?? "",
           nutritionRestrictions: p.nutritionRestrictions ?? "",
-          targetDate: p.targetDate ?? defaultForm.targetDate,
+          ...restoreTargetTimeline(p.targetDate),
           targetWeight: String(p.targetWeight ?? ""),
         }
-      : defaultForm;
+      : { ...defaultForm, ...targetTimelineForMonths(DEFAULT_TARGET_MONTHS) };
   });
   const [showCustomEquipmentInput, setShowCustomEquipmentInput] = useState(false);
   const [customEquipmentDraft, setCustomEquipmentDraft] = useState("");
@@ -584,6 +580,12 @@ export default function Onboarding() {
   const [showDislikedExerciseInput, setShowDislikedExerciseInput] = useState(false);
   const [dislikedExerciseDraft, setDislikedExerciseDraft] = useState("");
   const { isSignedIn } = useAuth();
+  const { state: generationState } = useGeneration();
+  const generationActive =
+    generationState.phase === "running" || generationState.phase === "saving";
+  const pendingProgram = generationState.phase === "error" && generationState.hasPendingProgram;
+  const generationBlocked = generationActive || pendingProgram;
+  const [submitError, setSubmitError] = useState("");
   const navigate = useNavigate();
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -614,6 +616,8 @@ export default function Onboarding() {
   ) {
     setForm((f) => {
       if (field === "equipment") {
+        if (!hasEquipmentLabel(f.equipment, val) && f.equipment.length >= PROFILE_LIMITS.list)
+          return f;
         return {
           ...f,
           equipment: hasEquipmentLabel(f.equipment, val)
@@ -633,6 +637,8 @@ export default function Onboarding() {
           };
         }
 
+        if (targetList.length >= PROFILE_LIMITS.list) return f;
+
         return {
           ...f,
           [field]: addExerciseLabel(targetList, val),
@@ -647,7 +653,13 @@ export default function Onboarding() {
 
   function addCustomEquipment() {
     const normalized = normalizeEquipmentLabel(customEquipmentDraft);
-    if (!normalized || hasEquipmentLabel(form.equipment, normalized)) return;
+    if (
+      !normalized ||
+      normalized.length > PROFILE_LIMITS.label ||
+      form.equipment.length >= PROFILE_LIMITS.list ||
+      hasEquipmentLabel(form.equipment, normalized)
+    )
+      return;
 
     setForm((f) => ({
       ...f,
@@ -663,6 +675,8 @@ export default function Onboarding() {
     const oppositeField = field === "likedExercises" ? "dislikedExercises" : "likedExercises";
     if (
       !normalized ||
+      normalized.length > PROFILE_LIMITS.label ||
+      form[field].length >= PROFILE_LIMITS.list ||
       hasExerciseLabel(form[field], normalized) ||
       hasExerciseLabel(form[oppositeField], normalized)
     ) {
@@ -708,11 +722,17 @@ export default function Onboarding() {
     update({
       targetDurationMonths: String(safe),
       targetDate: addMonthsToToday(safe),
+      targetDateReset: false,
     });
   }
 
   function canProceed(): boolean {
-    if (step === 0) return form.objective !== "" && resolveGoalDetail(form) !== "";
+    if (step === 0)
+      return (
+        form.objective !== "" &&
+        resolveGoalDetail(form) !== "" &&
+        resolveGoalDetail(form).length <= PROFILE_LIMITS.goalDetail
+      );
     if (step === 1) return form.gender !== "";
     if (step === 2) return form.level !== "";
     if (step === 3)
@@ -725,13 +745,30 @@ export default function Onboarding() {
         Number(form.weight) <= 300
       );
     if (step === 4) return form.weeklyFrequency !== "";
-    if (step === 5) return form.sessionDuration.length > 0;
+    if (step === 5)
+      return (
+        form.sessionDuration.length > 0 &&
+        form.sessionDuration.length <= PROFILE_LIMITS.sessionDurations
+      );
+    if (step === 6) return isValidProfileList(form.equipment);
+    if (step === 7) return isValidProfileList(form.likedExercises);
+    if (step === 8) return isValidProfileList(form.dislikedExercises);
     if (step === 9) return form.availability.length > 0;
-    if (step === 11) return getTimelineAssessment(form).tone !== "error";
+    if (step === 10)
+      return (
+        form.injuries.length <= PROFILE_LIMITS.constraints &&
+        form.nutritionRestrictions.length <= PROFILE_LIMITS.constraints
+      );
+    if (step === 11)
+      return (
+        (!form.targetWeight ||
+          (Number(form.targetWeight) >= 30 && Number(form.targetWeight) <= 300)) &&
+        getTimelineAssessment(form).tone !== "error"
+      );
     return true;
   }
 
-  function saveProfile(): UserProfile {
+  function saveProfile(): UserProfile | null {
     const profile: UserProfile = {
       objective: form.objective as ObjectiveType,
       goalDetail: resolveGoalDetail(form),
@@ -752,8 +789,14 @@ export default function Onboarding() {
         isWeightObjective(form.objective) && form.targetWeight
           ? Number.parseFloat(form.targetWeight)
           : undefined,
-      targetDate: cappedTargetDate(form.targetDate) || undefined,
+      targetDate: form.targetDate || undefined,
     };
+    const error = getProfileValidationError(profile);
+    if (error) {
+      setSubmitError(error);
+      return null;
+    }
+    setSubmitError("");
     dispatch({
       type: "SET_PROFILE_PARTIAL",
       data: profile,
@@ -762,38 +805,56 @@ export default function Onboarding() {
   }
 
   const optionalStep = [6, 7, 8, 10].includes(step);
-  const requirement = canProceed()
-    ? optionalStep
-      ? "Cette étape est facultative."
-      : ""
-    : step === 0
-      ? form.objective
+  function getRequirement(): string {
+    if (canProceed()) return optionalStep ? "Cette étape est facultative." : "";
+    if ([6, 7, 8].includes(step))
+      return `Garde ${PROFILE_LIMITS.list} éléments maximum, de ${PROFILE_LIMITS.label} caractères chacun.`;
+    if (step === 10)
+      return `Chaque champ peut contenir ${PROFILE_LIMITS.constraints} caractères maximum.`;
+    if (step === 11) {
+      if (form.targetWeight && (Number(form.targetWeight) < 30 || Number(form.targetWeight) > 300))
+        return "Le poids cible doit être compris entre 30 et 300 kg.";
+      return getTimelineAssessment(form).message;
+    }
+    if (step === 0) {
+      if (resolveGoalDetail(form).length > PROFILE_LIMITS.goalDetail)
+        return `Ton objectif doit contenir ${PROFILE_LIMITS.goalDetail} caractères maximum.`;
+      return form.objective
         ? "Choisis aussi un objectif précis pour continuer."
-        : "Choisis ta discipline ou ton objectif."
-      : step === 3
-        ? "Âge : 13–100 ans, taille : 100–250 cm, poids : 30–300 kg."
-        : "Choisis une réponse pour continuer.";
+        : "Choisis ta discipline ou ton objectif.";
+    }
+    if (step === 3) return "Âge : 13–100 ans, taille : 100–250 cm, poids : 30–300 kg.";
+    return "Choisis une réponse pour continuer.";
+  }
+  const requirement = getRequirement();
   const showFooter = step < TOTAL_STEPS - 1;
   const customEquipment = getCustomEquipment(form.equipment);
   const canAddCustomEquipment =
     normalizeEquipmentLabel(customEquipmentDraft) !== "" &&
+    normalizeEquipmentLabel(customEquipmentDraft).length <= PROFILE_LIMITS.label &&
+    form.equipment.length < PROFILE_LIMITS.list &&
     !hasEquipmentLabel(form.equipment, customEquipmentDraft);
   const customLikedExercises = getCustomExercises(form.likedExercises);
   const canAddLikedExercise =
     normalizeExerciseLabel(likedExerciseDraft) !== "" &&
+    normalizeExerciseLabel(likedExerciseDraft).length <= PROFILE_LIMITS.label &&
+    form.likedExercises.length < PROFILE_LIMITS.list &&
     !hasExerciseLabel(form.likedExercises, likedExerciseDraft) &&
     !hasExerciseLabel(form.dislikedExercises, likedExerciseDraft);
   const customDislikedExercises = getCustomExercises(form.dislikedExercises);
   const canAddDislikedExercise =
     normalizeExerciseLabel(dislikedExerciseDraft) !== "" &&
+    normalizeExerciseLabel(dislikedExerciseDraft).length <= PROFILE_LIMITS.label &&
+    form.dislikedExercises.length < PROFILE_LIMITS.list &&
     !hasExerciseLabel(form.dislikedExercises, dislikedExerciseDraft) &&
     !hasExerciseLabel(form.likedExercises, dislikedExerciseDraft);
   const targetDurationMonths = clampMonths(
     Number.parseInt(form.targetDurationMonths, 10) || DEFAULT_TARGET_MONTHS,
   );
   const targetTimelineAssessment = getTimelineAssessment(form);
-  const targetTimelineDate =
-    cappedTargetDate(form.targetDate) || addMonthsToToday(targetDurationMonths);
+  const targetTimelineDate = form.targetDate || addMonthsToToday(targetDurationMonths);
+  const approximateTargetDuration = targetTimelineDate !== addMonthsToToday(targetDurationMonths);
+  const targetRemainingWeeks = weeksUntilTargetDate(targetTimelineDate);
   const targetTimelineToneClasses = {
     neutral: "border-gray-200 bg-gray-50 text-gray-800",
     good: "border-emerald-200 bg-emerald-50 text-emerald-900",
@@ -912,10 +973,9 @@ export default function Onboarding() {
                     </label>
                     <textarea
                       id="custom-goal-detail"
+                      maxLength={PROFILE_LIMITS.goalDetail}
                       value={form.customGoalDetail}
-                      onChange={(e) =>
-                        update({ customGoalDetail: e.target.value.slice(0, 300), goalDetail: "" })
-                      }
+                      onChange={(e) => update({ customGoalDetail: e.target.value, goalDetail: "" })}
                       placeholder="Ex : finir mon premier 10 km sans marcher, réussir le grand écart latéral, préparer un HYROX en duo..."
                       rows={3}
                       className="mt-3 w-full resize-none rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
@@ -1101,10 +1161,17 @@ export default function Onboarding() {
                     key={eq}
                     label={eq}
                     selected={hasEquipmentLabel(form.equipment, eq)}
+                    disabled={
+                      form.equipment.length >= PROFILE_LIMITS.list &&
+                      !hasEquipmentLabel(form.equipment, eq)
+                    }
                     onClick={() => toggleList("equipment", eq)}
                   />
                 ))}
               </div>
+              <p className="mt-3 text-xs text-gray-400">
+                {form.equipment.length} / {PROFILE_LIMITS.list} matériels maximum
+              </p>
 
               <div className="mt-5 rounded-3xl border border-gray-200 bg-gray-50 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -1134,6 +1201,7 @@ export default function Onboarding() {
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <input
                         type="text"
+                        maxLength={PROFILE_LIMITS.label}
                         value={customEquipmentDraft}
                         onChange={(e) => setCustomEquipmentDraft(e.target.value)}
                         onKeyDown={(e) => {
@@ -1199,13 +1267,20 @@ export default function Onboarding() {
                         key={ex}
                         label={ex}
                         selected={hasExerciseLabel(form.likedExercises, ex)}
-                        disabled={hasExerciseLabel(form.dislikedExercises, ex)}
+                        disabled={
+                          hasExerciseLabel(form.dislikedExercises, ex) ||
+                          (form.likedExercises.length >= PROFILE_LIMITS.list &&
+                            !hasExerciseLabel(form.likedExercises, ex))
+                        }
                         onClick={() => toggleList("likedExercises", ex)}
                       />
                     ))}
                   </div>
                   <p className="mt-3 text-[11px] text-gray-400">
                     Les exercices déjà marqués dans “à éviter” sont bloqués ici.
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {form.likedExercises.length} / {PROFILE_LIMITS.list} exercices maximum
                   </p>
                 </div>
                 <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
@@ -1236,6 +1311,7 @@ export default function Onboarding() {
                       <div className="flex flex-col gap-3 sm:flex-row">
                         <input
                           type="text"
+                          maxLength={PROFILE_LIMITS.label}
                           value={likedExerciseDraft}
                           onChange={(e) => setLikedExerciseDraft(e.target.value)}
                           onKeyDown={(e) => {
@@ -1318,13 +1394,20 @@ export default function Onboarding() {
                     key={ex}
                     label={ex}
                     selected={hasExerciseLabel(form.dislikedExercises, ex)}
-                    disabled={hasExerciseLabel(form.likedExercises, ex)}
+                    disabled={
+                      hasExerciseLabel(form.likedExercises, ex) ||
+                      (form.dislikedExercises.length >= PROFILE_LIMITS.list &&
+                        !hasExerciseLabel(form.dislikedExercises, ex))
+                    }
                     onClick={() => toggleList("dislikedExercises", ex)}
                   />
                 ))}
               </div>
               <p className="mt-3 text-[11px] text-gray-400">
                 Les exercices déjà marqués dans “kiffés” sont bloqués ici.
+              </p>
+              <p className="mt-1 text-xs text-gray-400">
+                {form.dislikedExercises.length} / {PROFILE_LIMITS.list} exercices maximum
               </p>
 
               <div className="mt-5 rounded-3xl border border-gray-200 bg-gray-50 p-4">
@@ -1355,6 +1438,7 @@ export default function Onboarding() {
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <input
                         type="text"
+                        maxLength={PROFILE_LIMITS.label}
                         value={dislikedExerciseDraft}
                         onChange={(e) => setDislikedExerciseDraft(e.target.value)}
                         onKeyDown={(e) => {
@@ -1467,12 +1551,16 @@ export default function Onboarding() {
                   </label>
                   <textarea
                     id="injuries"
+                    maxLength={PROFILE_LIMITS.constraints}
                     value={form.injuries}
                     onChange={(e) => update({ injuries: e.target.value })}
                     placeholder="Ex : tendinite épaule droite, douleur genou gauche… (ou aucune)"
                     rows={3}
                     className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-black transition-colors resize-none"
                   />
+                  <p className="mt-1 text-xs text-gray-400">
+                    {form.injuries.length} / {PROFILE_LIMITS.constraints} caractères
+                  </p>
                 </div>
                 <div>
                   <label
@@ -1483,12 +1571,16 @@ export default function Onboarding() {
                   </label>
                   <textarea
                     id="nutrition"
+                    maxLength={PROFILE_LIMITS.constraints}
                     value={form.nutritionRestrictions}
                     onChange={(e) => update({ nutritionRestrictions: e.target.value })}
                     placeholder="Ex : végétarien, sans gluten, diabète… (ou aucune)"
                     rows={2}
                     className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-black transition-colors resize-none"
                   />
+                  <p className="mt-1 text-xs text-gray-400">
+                    {form.nutritionRestrictions.length} / {PROFILE_LIMITS.constraints} caractères
+                  </p>
                 </div>
               </div>
             </div>
@@ -1510,17 +1602,33 @@ export default function Onboarding() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-bold text-gray-900">Délai visé</p>
-                      <p className="mt-1 text-xs text-gray-500">Minimum 1 mois · maximum 1 an</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        De 1 mois à 1 an à partir d'aujourd'hui
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black text-gray-900">
-                        {formatDurationMonths(targetDurationMonths)}
+                        {targetRemainingWeeks !== null && targetRemainingWeeks > 53
+                          ? "Plus d'un an"
+                          : `${approximateTargetDuration ? "≈ " : ""}${formatDurationMonths(targetDurationMonths)}`}
                       </p>
                       <p className="text-xs text-gray-500">
                         Jusqu'au {formatDateLabel(targetTimelineDate)}
                       </p>
                     </div>
                   </div>
+                  {form.targetDateReset && (
+                    <p role="status" className="mt-3 text-xs text-gray-500">
+                      L'ancienne échéance est dépassée ou invalide. Une échéance à six mois est
+                      proposée ; ajuste le curseur si besoin.
+                    </p>
+                  )}
+                  {approximateTargetDuration && (
+                    <p className="mt-3 text-xs text-gray-500">
+                      Ta date précise est conservée. Le curseur donne un repère approximatif ;
+                      déplace-le pour choisir une nouvelle échéance.
+                    </p>
+                  )}
 
                   <div className="mt-5">
                     <input
@@ -1553,7 +1661,14 @@ export default function Onboarding() {
                         Premier programme
                       </p>
                       <p className="mt-1 text-sm font-bold text-gray-900">
-                        {Math.min(8, Math.max(4, monthsToWeeks(targetDurationMonths)))} semaines
+                        {Math.min(
+                          8,
+                          Math.max(
+                            4,
+                            Math.round(targetRemainingWeeks ?? monthsToWeeks(targetDurationMonths)),
+                          ),
+                        )}{" "}
+                        semaines
                       </p>
                     </div>
                   </div>
@@ -1606,11 +1721,14 @@ export default function Onboarding() {
               <div className="space-y-3">
                 {isSignedIn ? (
                   <button
+                    disabled={generationBlocked}
                     onClick={() => {
+                      if (generationBlocked) return;
                       const profile = saveProfile();
+                      if (!profile) return;
                       void navigate("/generating", { state: { profile } });
                     }}
-                    className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
+                    className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <div
                       className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0"
@@ -1619,7 +1737,13 @@ export default function Onboarding() {
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="font-bold text-[15px]">Générer mon programme</div>
+                      <div className="font-bold text-[15px]">
+                        {generationActive
+                          ? "Création déjà en cours"
+                          : pendingProgram
+                            ? "Programme à enregistrer"
+                            : "Générer mon programme"}
+                      </div>
                       <div className="text-sm text-gray-300 mt-1 leading-relaxed">
                         Ton profil est sauvegardé&nbsp;· programme complet dans l'app
                       </div>
@@ -1628,7 +1752,7 @@ export default function Onboarding() {
                 ) : (
                   <button
                     onClick={() => {
-                      saveProfile();
+                      if (!saveProfile()) return;
                       void navigate("/sign-up");
                     }}
                     className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
@@ -1646,6 +1770,18 @@ export default function Onboarding() {
                       </div>
                     </div>
                   </button>
+                )}
+                {generationBlocked && (
+                  <p role="status" className="text-sm text-gray-600">
+                    {pendingProgram
+                      ? "Ton programme est déjà créé. Utilise Enregistrer dans le bandeau avant d'en créer un autre."
+                      : "Attends la fin de la création en cours avant de lancer un autre programme."}
+                  </p>
+                )}
+                {submitError && (
+                  <p role="alert" className="text-sm text-red-600">
+                    {submitError}
+                  </p>
                 )}
               </div>
             </div>

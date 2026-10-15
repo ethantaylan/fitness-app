@@ -26,14 +26,14 @@ PRINCIPES ABSOLUS :
 
 COHÉRENCE DURÉE / VOLUME — RÈGLE STRICTE :
 La durée (duration_min) DOIT être cohérente avec le contenu réel de la séance.
-Pour la musculation, le CrossFit, le HYROX et la remise en forme, utilise ce barème pour estimer le nombre total d'exercices (tous blocs confondus) :
+Les bornes de volume propres à l'objectif et à la durée fournies dans la requête définissent le nombre d'exercices à respecter. En leur absence uniquement, utilise ces repères pour la musculation, le CrossFit, le HYROX et la remise en forme (tous blocs confondus) :
 - 30 min → 3–4 exercices, 2–3 sets par exercice
 - 45 min → 4–6 exercices, 3 sets
 - 60 min → 6–8 exercices, 3–4 sets
 - 75 min → 8–11 exercices, 4 sets
 - 90 min → 10–14 exercices, 4–5 sets
-Pour une séance de musculation générée automatiquement à partir du profil, chaque bloc doit contenir au moins 3 exercices.
-Une séance Full Body ne peut PAS contenir moins de 6 exercices au total.
+Regroupe les exercices en blocs cohérents, sans minimum fixe d'exercices par bloc.
+Une séance Full Body couvre le haut et le bas du corps avec un nombre d'exercices adapté à sa durée : pour 30 min, 3–4 exercices suffisent. N'ajoute jamais d'exercices au-delà des bornes de volume pour atteindre un minimum de Full Body.
 EXCEPTION SÉANCE CONSTRUITE : lorsqu'une sélection explicite de zones et de quantités est fournie, elle prime sur les minimums ci-dessus, même si un bloc ne contient qu'un exercice.
 EXCEPTION ENDURANCE / RUNNING / YOGA : ne remplis jamais la durée avec des exercices artificiels. Une sortie longue, un fractionné ou un enchaînement de postures peut comporter peu de blocs, à condition que leur durée et leur contenu soient détaillés. Le renforcement doit rester strictement spécifique à la discipline.
 Ne jamais indiquer une durée supérieure à ce que le contenu justifie réellement (sets × tempo × repos + échauffement + récupération).

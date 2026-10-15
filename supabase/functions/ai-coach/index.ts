@@ -7,6 +7,7 @@ import {
   OBJECTIVE_LABELS,
   SUPPORT_AGENT_PROMPT,
 } from "../../../src/lib/agents.ts";
+import { PROFILE_LIMITS } from "../../../src/lib/profileValidation.ts";
 import {
   maxActivitiesForObjective,
   minActivitiesForObjective,
@@ -23,6 +24,12 @@ import type {
   UserProfile,
   Week,
 } from "../../../src/lib/types.ts";
+import {
+  mapWithConcurrency,
+  parseStructuredResponse,
+  repairSessions,
+  sessionRepairSchema,
+} from "./programGeneration.ts";
 
 const MODEL = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -171,13 +178,6 @@ const weeksResponseSchema = {
   properties: { weeks: { type: "array", items: weekSchema } },
 } as const;
 
-const sessionsResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["sessions"],
-  properties: { sessions: { type: "array", items: sessionSchema } },
-} as const;
-
 const dailySessionSchema = {
   type: "object",
   additionalProperties: false,
@@ -225,11 +225,11 @@ const ACTIONS = new Set([
   "support",
 ]);
 
-function isStringList(value: unknown, maximum = 30): value is string[] {
+function isStringList(value: unknown, maximum = PROFILE_LIMITS.list): value is string[] {
   return (
     Array.isArray(value) &&
     value.length <= maximum &&
-    value.every((item) => typeof item === "string" && item.length <= 200)
+    value.every((item) => typeof item === "string" && item.length <= PROFILE_LIMITS.label)
   );
 }
 
@@ -257,10 +257,11 @@ function isUserProfile(value: unknown): value is UserProfile {
     profile.weeklyFrequency >= 1 &&
     profile.weeklyFrequency <= 7 &&
     (profile.goalDetail === undefined ||
-      (typeof profile.goalDetail === "string" && profile.goalDetail.length <= 500)) &&
+      (typeof profile.goalDetail === "string" &&
+        profile.goalDetail.length <= PROFILE_LIMITS.goalDetail)) &&
     Array.isArray(profile.sessionDuration) &&
     profile.sessionDuration.length > 0 &&
-    profile.sessionDuration.length <= 4 &&
+    profile.sessionDuration.length <= PROFILE_LIMITS.sessionDurations &&
     profile.sessionDuration.every(
       (duration) => typeof duration === "number" && duration >= 15 && duration <= 180,
     ) &&
@@ -268,9 +269,9 @@ function isUserProfile(value: unknown): value is UserProfile {
     isStringList(profile.likedExercises) &&
     isStringList(profile.dislikedExercises) &&
     typeof profile.injuries === "string" &&
-    profile.injuries.length <= 2000 &&
+    profile.injuries.length <= PROFILE_LIMITS.constraints &&
     typeof profile.nutritionRestrictions === "string" &&
-    profile.nutritionRestrictions.length <= 2000 &&
+    profile.nutritionRestrictions.length <= PROFILE_LIMITS.constraints &&
     Array.isArray(profile.availability) &&
     profile.availability.length <= 4 &&
     profile.availability.every(
@@ -362,35 +363,17 @@ function consumeRateLimit(key: string, maximum: number, windowMs: number): numbe
   return null;
 }
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = Array.from({ length: items.length }) as R[];
-  let nextIndex = 0;
-
-  async function worker() {
-    while (nextIndex < items.length) {
-      const index = nextIndex++;
-      results[index] = await mapper(items[index]);
-    }
-  }
-
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
-  return results;
-}
-
 function sanitizeProfile(profile: UserProfile): UserProfile {
-  const cleanList = (items: string[]) => items.slice(0, 30).map((item) => item.slice(0, 100));
+  const cleanList = (items: string[]) =>
+    items.slice(0, PROFILE_LIMITS.list).map((item) => item.slice(0, PROFILE_LIMITS.label));
   return {
     ...profile,
     equipment: cleanList(profile.equipment),
     likedExercises: cleanList(profile.likedExercises),
     dislikedExercises: cleanList(profile.dislikedExercises),
-    injuries: profile.injuries.slice(0, 800),
-    nutritionRestrictions: profile.nutritionRestrictions.slice(0, 800),
-    goalDetail: profile.goalDetail?.slice(0, 500),
+    injuries: profile.injuries.slice(0, PROFILE_LIMITS.constraints),
+    nutritionRestrictions: profile.nutritionRestrictions.slice(0, PROFILE_LIMITS.constraints),
+    goalDetail: profile.goalDetail?.slice(0, PROFILE_LIMITS.goalDetail),
     availability: profile.availability.slice(0, 4),
   };
 }
@@ -476,30 +459,27 @@ async function structuredResponse<T>(options: {
   prompt: string;
   temperature?: number;
   maxTokens?: number;
+  signal?: AbortSignal;
 }): Promise<T> {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY absente de la fonction serveur.");
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
-  const completion = await client.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: "system", content: options.system },
-      { role: "user", content: options.prompt },
-    ],
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: options.name, strict: true, schema: options.schema },
+  const client = new OpenAI({ apiKey: OPENAI_API_KEY, maxRetries: 0 });
+  const completion = await client.chat.completions.create(
+    {
+      model: MODEL,
+      messages: [
+        { role: "system", content: options.system },
+        { role: "user", content: options.prompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: options.name, strict: true, schema: options.schema },
+      },
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 8000,
     },
-    temperature: options.temperature ?? 0.3,
-    max_tokens: options.maxTokens ?? 8000,
-  });
-  const message = completion.choices[0]?.message;
-  if (!message?.content) {
-    throw new Error(
-      message?.refusal ||
-        `Le modèle n'a pas retourné de réponse exploitable (${completion.choices[0]?.finish_reason ?? "raison inconnue"}).`,
-    );
-  }
-  return JSON.parse(message.content) as T;
+    { signal: options.signal },
+  );
+  return parseStructuredResponse<T>(completion.choices[0]);
 }
 
 function batchErrors(weeks: Week[], expected: number[], profile: UserProfile): string[] {
@@ -649,7 +629,7 @@ function customSessionErrors(
   return errors;
 }
 
-async function generateProgram(profile: UserProfile): Promise<Program> {
+async function generateProgram(profile: UserProfile, signal?: AbortSignal): Promise<Program> {
   const durationWeeks = programDurationWeeks(profile);
   const system = coachSystemPrompt(profile);
   let plan: ProgramPlan | null = null;
@@ -667,6 +647,7 @@ Crée des phases sans trou ni chevauchement couvrant exactement les semaines 1 �
 ${planCorrection ? `CORRECTIONS OBLIGATOIRES : ${planCorrection}` : ""}`,
       temperature: attempt === 0 ? 0.3 : 0.15,
       maxTokens: 3000,
+      signal,
     });
     const errors = planErrors(candidate, durationWeeks);
     if (errors.length === 0) {
@@ -688,7 +669,7 @@ ${planCorrection ? `CORRECTIONS OBLIGATOIRES : ${planCorrection}` : ""}`,
   const generatedBatches = await mapWithConcurrency(
     batches,
     PROGRAM_BATCH_CONCURRENCY,
-    async (weekNumbers) => {
+    async (weekNumbers, batchSignal) => {
       let correction = "";
       let lastErrors: string[] = [];
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -705,6 +686,7 @@ Contraintes : exactement ${profile.weeklyFrequency} séances par semaine, identi
 ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
           temperature: attempt === 0 ? 0.35 : 0.2,
           maxTokens: Math.min(12000, 2500 + weekNumbers.length * profile.weeklyFrequency * 800),
+          signal: batchSignal,
         });
         const errors = batchErrors(response.weeks, weekNumbers, profile);
         if (errors.length === 0) return response.weeks;
@@ -715,46 +697,65 @@ ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
         `Impossible de générer les semaines ${weekNumbers.join(", ")} correctement : ${lastErrors.slice(0, 4).join(" ")}`,
       );
     },
+    signal,
   );
 
   let weeks = generatedBatches.flat().sort((a, b) => a.week_number - b.week_number);
   // La validation de volume compte les exercices, pas les séries/répétitions. Répare les seules
   // séances trop courtes après la génération initiale, sans redemander les semaines valides.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const invalid = underfilledSessions(weeks, profile);
-    if (invalid.length === 0) break;
-    const correction = invalid
-      .map(
-        ({ weekNumber, session, received, minimum }) =>
-          `Semaine ${weekNumber}, ${session.day} (ID ${session.session_id}) : ${received} exercices reçus, minimum attendu ${minimum}. Régénère cette séance avec au moins ${minimum} exercices distincts, sans changer son jour ni son identifiant.`,
-      )
-      .join("\n");
-    const repaired = await structuredResponse<{ sessions: Week["sessions"] }>({
-      name: `program_sessions_repair_${attempt + 1}`,
-      schema: sessionsResponseSchema,
-      system,
-      prompt: `Régénère uniquement les séances listées ci-dessous. Retourne exactement ces séances dans le tableau sessions, sans générer les autres séances de leur semaine.
+  const invalid = underfilledSessions(weeks, profile);
+  const repaired = await repairSessions(invalid, {
+    signal,
+    concurrency: PROGRAM_BATCH_CONCURRENCY,
+    request: async (targets, attempt, repairSignal) => {
+      const correction = targets
+        .map(
+          ({ weekNumber, session, received, minimum }) =>
+            `Semaine ${weekNumber}, ${session.day} (ID ${session.session_id}) : ${received} exercices reçus, minimum attendu ${minimum}. Complète cette séance avec au moins ${minimum} exercices distincts, sans changer son jour, son identifiant, sa durée ni son thème.`,
+        )
+        .join("\n");
+      const response = await structuredResponse<{ sessions: Week["sessions"] }>({
+        name: `program_sessions_repair_${attempt}`,
+        schema: sessionRepairSchema(
+          sessionSchema,
+          targets.map(({ session }) => session.session_id),
+        ),
+        system,
+        prompt: `Complète uniquement les ${targets.length} séances listées ci-dessous. Retourne exactement ces séances dans le tableau sessions, une seule fois par identifiant, sans générer les autres séances de leur semaine.
 ${profileData(profile)}
 PLAN GLOBAL : ${JSON.stringify(plan)}
 ${SPORT_RULES}
 ${volumeRules(profile)}
+SÉANCES À COMPLÉTER : ${JSON.stringify(targets.map(({ session }) => session))}
 ${correction}`,
-      temperature: attempt === 0 ? 0.25 : 0.15,
-      maxTokens: Math.min(12000, 2500 + invalid.length * 900),
-    });
-    const repairedById = new Map(repaired.sessions.map((session) => [session.session_id, session]));
-    const missing = invalid.filter(({ session }) => !repairedById.has(session.session_id));
-    if (missing.length > 0) {
-      throw new Error(
-        `La réparation n'a pas retourné les séances ${missing.map(({ session }) => session.session_id).join(", ")}.`,
+        temperature: attempt === 1 ? 0.25 : 0.15,
+        maxTokens: 2000 + targets.length * 3000,
+        signal: repairSignal,
+      });
+      return response.sessions;
+    },
+    isValid: (candidate, target, accepted) => {
+      if (
+        normalizeBlockName(candidate.day) !== normalizeBlockName(target.session.day) ||
+        candidate.duration_min !== target.session.duration_min ||
+        candidate.blocks.reduce((sum, block) => sum + block.exercises.length, 0) < target.minimum
+      ) {
+        return false;
+      }
+      const candidateWeeks = replaceSessions(
+        weeks,
+        [...accepted.values(), candidate],
+        new Set([...accepted.keys(), candidate.session_id]),
       );
-    }
-    weeks = replaceSessions(
-      weeks,
-      repaired.sessions,
-      new Set(invalid.map(({ session }) => session.session_id)),
-    );
-  }
+      const week = candidateWeeks.find((item) => item.week_number === target.weekNumber)!;
+      return batchErrors([week], [target.weekNumber], profile).length === 0;
+    },
+  });
+  weeks = replaceSessions(
+    weeks,
+    repaired,
+    new Set(invalid.map(({ session }) => session.session_id)),
+  );
 
   const program: Program = {
     user_profile: profile,
@@ -964,7 +965,7 @@ export default {
       if (!isUserProfile(profile)) return jsonResponse({ error: "Profil sportif invalide." }, 400);
 
       if (body.action === "program") {
-        return jsonResponse({ result: await generateProgram(profile) });
+        return jsonResponse({ result: await generateProgram(profile, req.signal) });
       }
       if (body.action === "daily-session") {
         const feedback = ["good", "normal", "hard"].includes(String(body.payload.previousFeedback))

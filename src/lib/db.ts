@@ -307,146 +307,25 @@ export async function deleteProfile(client: SupabaseClient, internalUserId: stri
 
 /**
  * Sauvegarde un programme complet généré par l'IA.
- * Insère le plan complet inactif, puis remplace le programme actif.
+ * Enregistre le plan et remplace le programme actif dans une transaction serveur.
+ * Réutiliser programId après une interruption évite de dupliquer le programme.
  * Retourne l'UUID du nouveau programme.
  */
 export async function saveProgram(
   client: SupabaseClient,
   internalUserId: string,
   program: Program,
+  programId: string = crypto.randomUUID(),
 ): Promise<string> {
-  const { data: previousPrograms, error: previousError } = await client
-    .from("programs")
-    .select("id")
-    .eq("user_id", internalUserId)
-    .eq("is_active", true);
-  if (previousError) throw new Error(previousError.message);
-  const previousIds = ((previousPrograms ?? []) as { id: string }[]).map((row) => row.id);
-  // Keep the previous plan active until every child row has been saved.
-  const { data: progRow, error: progErr } = await client
-    .from("programs")
-    .insert({
+  const { data, error } = await client.rpc("save_generated_program", {
+    p_program_id: programId,
+    p_program: {
+      ...program,
       user_id: internalUserId,
-      duration_weeks: program.program_overview.duration_weeks,
-      training_days_per_week: program.program_overview.training_days_per_week,
-      summary: program.program_overview.summary,
-      agent_used: program.program_overview.agent_used ?? null,
-      general_advice: program.general_advice ?? null,
-      legal_disclaimer: program.legal_disclaimer ?? null,
-      nutrition_daily_calories: program.nutrition_recommendations?.daily_calories_estimate ?? null,
-      nutrition_protein_g: program.nutrition_recommendations?.protein_target_g ?? null,
-      nutrition_water_l: program.nutrition_recommendations?.water_intake_l ?? null,
-      nutrition_notes: program.nutrition_recommendations?.notes ?? null,
-      is_active: false,
       started_at: new Date().toLocaleDateString("en-CA"),
-      profile_snapshot: program.user_profile ?? null,
-    })
-    .select("id")
-    .single();
-
-  const prog = assertOk(progRow, progErr, "saveProgram");
-  const programId = (prog as { id: string }).id;
-
-  let switched = false;
-  try {
-    // Save the complete inactive plan before switching the active program.
-    // 3. Insérer les semaines
-    for (const week of program.weeks) {
-      const { data: weekRow, error: weekErr } = await client
-        .from("program_weeks")
-        .insert({ program_id: programId, week_number: week.week_number, focus: week.focus })
-        .select("id")
-        .single();
-
-      const wk = assertOk(weekRow, weekErr, "saveProgram/week");
-      const weekId = (wk as { id: string }).id;
-
-      // 4. Insérer les séances de la semaine
-      for (const [si, session] of week.sessions.entries()) {
-        const { data: sessRow, error: sessErr } = await client
-          .from("program_sessions")
-          .insert({
-            week_id: weekId,
-            day: session.day,
-            session_label: session.session_id,
-            type: session.type,
-            duration_min: session.duration_min,
-            intensity: session.intensity,
-            warmup: session.warmup,
-            cooldown: session.cooldown,
-            notes: session.notes ?? null,
-            sort_order: si,
-          })
-          .select("id")
-          .single();
-
-        const sess = assertOk(sessRow, sessErr, "saveProgram/session");
-        const sessionId = (sess as { id: string }).id;
-
-        // 5. Insérer les blocs
-        for (const [bi, block] of session.blocks.entries()) {
-          const { data: blockRow, error: blockErr } = await client
-            .from("program_session_blocks")
-            .insert({ session_id: sessionId, block_name: block.block_name, sort_order: bi })
-            .select("id")
-            .single();
-
-          const blk = assertOk(blockRow, blockErr, "saveProgram/block");
-          const blockId = (blk as { id: string }).id;
-
-          // 6. Insérer les exercices du bloc
-          if (block.exercises.length > 0) {
-            const exercises = block.exercises.map((ex, ei) => ({
-              block_id: blockId,
-              name: ex.name,
-              sets: ex.sets,
-              reps: String(ex.reps),
-              load_kg: ex.load_kg ?? null,
-              tempo: ex.tempo ?? null,
-              rest_sec: ex.rest_sec ?? null,
-              alternative: ex.alternative ?? null,
-              notes: ex.notes ?? null,
-              sort_order: ei,
-            }));
-
-            const { error: exErr } = await client.from("exercises").insert(exercises);
-            if (exErr) throw new Error(`[db/saveProgram/exercises] ${exErr.message}`);
-          }
-        }
-      }
-    }
-
-    if (previousIds.length) {
-      const { error } = await client
-        .from("programs")
-        .update({ is_active: false })
-        .eq("user_id", internalUserId)
-        .in("id", previousIds);
-      if (error) throw new Error(error.message);
-      switched = true;
-    }
-    const { error: activationError } = await client
-      .from("programs")
-      .update({ is_active: true })
-      .eq("user_id", internalUserId)
-      .eq("id", programId);
-    if (activationError) throw new Error(activationError.message);
-    return programId;
-  } catch (error) {
-    if (switched && previousIds.length)
-      await client
-        .from("programs")
-        .update({ is_active: true })
-        .eq("user_id", internalUserId)
-        .in("id", previousIds);
-    await client
-      .from("programs")
-      .delete()
-      .eq("user_id", internalUserId)
-      .eq("id", programId)
-      .eq("is_active", false);
-    throw error;
-  }
+    },
+  });
+  return assertOk(data as string | null, error, "saveProgram");
 }
 
 /**

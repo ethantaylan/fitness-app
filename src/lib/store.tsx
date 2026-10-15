@@ -204,7 +204,7 @@ const AppContext = createContext<{
   dispatch: React.Dispatch<Action>;
   addRecord: (record: PersonalRecord) => Promise<void>;
   persistProfile: (data: Partial<UserProfile>) => Promise<void>;
-  persistProgram: (program: Program) => Promise<void>;
+  persistProgram: (program: Program, programId?: string) => Promise<void>;
   retryHydration: () => void;
 } | null>(null);
 
@@ -384,10 +384,19 @@ export function AppProvider({
   }, []);
 
   const persistProgram = useCallback(
-    async (program: Program) => {
+    async (program: Program, programId?: string) => {
       if (userId) {
-        if (!internalIdRef.current) throw new Error("Le compte est en cours de chargement.");
-        await dbSaveProgram(supabase, internalIdRef.current, program);
+        const accountId = internalIdRef.current;
+        if (!accountId || !stateRef.current._hydrated)
+          throw new Error("Le compte est en cours de chargement.");
+        await dbSaveProgram(supabase, accountId, program, programId);
+        // A retry may refer to an already saved plan that has since been replaced on another device.
+        const active = await getActiveProgram(supabase, accountId);
+        rawDispatch({
+          type: "HYDRATE",
+          state: { program: active?.program ?? null, programStartDate: active?.startedAt ?? null },
+        });
+        return;
       }
       rawDispatch({ type: "SET_PROGRAM", program });
     },

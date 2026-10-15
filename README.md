@@ -92,6 +92,19 @@ where a.id is null;
    que ses programmes, seances, records et contacts sont bien effaces, et qu'un
    ancien jeton ne permet plus de restaurer les donnees.
 
+Pour les correctifs de creation de programme du 15 octobre 2026, appliquer
+`supabase/migrations/20261015201645_save_generated_program.sql` **avant de publier
+le nouveau client** : il utilise le RPC transactionnel `save_generated_program`.
+Deployer aussi `ai-coach`, en incluant son helper `programGeneration.ts` et les
+dependances partagees `src/lib/agents.ts`, `aiValidation.ts`, `features.ts` et
+`profileValidation.ts`. La migration et la fonction sont a valider en staging
+avant leur mise en production.
+
+Les regressions de generation se verifient sans credits IA avec `vp test --run`
+et `vp exec playwright test e2e/program-recovery.spec.ts --project=desktop-chromium --project=iphone-webkit`.
+Les reponses sont simulees ; le test navigateur bloque les appels vers les
+services reels. Aucun essai de generation reelle n'est necessaire pour ces controles.
+
 Dans Supabase Auth :
 
 - definir la Site URL sur `https://vincere-fitness.netlify.app` ;

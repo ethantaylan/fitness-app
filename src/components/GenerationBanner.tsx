@@ -70,7 +70,9 @@ export default function GenerationBanner() {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">
             {failed
-              ? "La création de ton programme a échoué"
+              ? state.hasPendingProgram
+                ? "Ton programme attend son enregistrement"
+                : "La création de ton programme a échoué"
               : "Ton programme est en cours de création"}
           </p>
           <p className="text-xs text-ink-soft">
@@ -88,16 +90,18 @@ export default function GenerationBanner() {
               className="app-secondary min-h-11! px-3! text-xs!"
               onClick={retry}
             >
-              Réessayer
+              {state.hasPendingProgram ? "Enregistrer" : "Réessayer"}
             </button>
-            <button
-              type="button"
-              className="app-icon-button border-0! bg-transparent!"
-              aria-label="Fermer le message d'erreur"
-              onClick={dismiss}
-            >
-              ✕
-            </button>
+            {!state.hasPendingProgram && (
+              <button
+                type="button"
+                className="app-icon-button border-0! bg-transparent!"
+                aria-label="Fermer le message d'erreur"
+                onClick={dismiss}
+              >
+                ✕
+              </button>
+            )}
           </div>
         )}
       </div>

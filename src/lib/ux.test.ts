@@ -52,51 +52,35 @@ test("running measures hide irrelevant sets, load, tempo and zero rest", () => {
   ]);
 });
 
-for (const failure of ["child", "activation", null] as const) {
-  test(`saving a program protects the previous active plan (${failure ?? "success"})`, async () => {
-    const requests: { table: string; method: string; body: Record<string, unknown> | null }[] = [];
+for (const failure of [false, true]) {
+  test(`saving a program uses one atomic RPC (${failure ? "failure" : "success"})`, async () => {
+    const programId = "00000000-0000-0000-0000-000000000010";
+    const requests: { path: string; method: string; body: Record<string, unknown> | null }[] = [];
     const client = createClient("https://fixture.example.test", "test-key", {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
         fetch: async (input, init) => {
-          const table = new URL(input instanceof Request ? input.url : String(input)).pathname
-            .split("/")
-            .pop()!;
+          const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
           const method = init?.method ?? "GET";
           const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
-          requests.push({ table, method, body });
-          if (failure === "child" && table === "program_sessions")
-            return Response.json({ message: "Child insert failed" }, { status: 500 });
-          if (
-            failure === "activation" &&
-            table === "programs" &&
-            method === "PATCH" &&
-            body?.is_active &&
-            requests.filter((request) => request.method === "PATCH").length === 2
-          )
-            return Response.json({ message: "Activation failed" }, { status: 500 });
-          if (method === "GET") return Response.json([{ id: "previous" }]);
-          if (method === "POST") return Response.json({ id: table === "programs" ? "new" : table });
-          return new Response(null, { status: 204 });
+          requests.push({ path, method, body });
+          if (failure)
+            return Response.json({ message: "RPC unavailable", code: "PGRST202" }, { status: 404 });
+          return Response.json(programId);
         },
       },
     });
-    const result = saveProgram(client, "user", program);
-    if (failure) await expect(result).rejects.toThrow();
-    else await expect(result).resolves.toBe("new");
-    expect(
-      requests.find((request) => request.table === "programs" && request.method === "POST")?.body,
-    ).toMatchObject({ is_active: false });
-    const updates = requests.filter((request) => request.method === "PATCH");
-    if (failure === "child") expect(updates).toHaveLength(0);
-    else {
-      expect(updates.map((request) => request.body?.is_active)).toEqual(
-        failure === "activation" ? [false, true, true] : [false, true],
-      );
-      const firstUpdate = requests.findIndex((request) => request.method === "PATCH");
-      expect(requests.slice(firstUpdate).some((request) => request.method === "POST")).toBe(false);
-    }
-    expect(requests.some((request) => request.method === "DELETE")).toBe(Boolean(failure));
+    const result = saveProgram(client, "user", program, programId);
+    if (failure) await expect(result).rejects.toThrow("[db/saveProgram] RPC unavailable");
+    else await expect(result).resolves.toBe(programId);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      path: "/rest/v1/rpc/save_generated_program",
+      method: "POST",
+      body: { p_program_id: programId, p_program: { ...program, user_id: "user" } },
+    });
+    // An unavailable RPC must never fall back to a partially committed plan.
+    expect(requests[0].body?.p_program).toHaveProperty("started_at");
   });
 }
 const program: Program = {
