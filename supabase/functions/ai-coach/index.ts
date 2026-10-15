@@ -171,6 +171,13 @@ const weeksResponseSchema = {
   properties: { weeks: { type: "array", items: weekSchema } },
 } as const;
 
+const sessionsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["sessions"],
+  properties: { sessions: { type: "array", items: sessionSchema } },
+} as const;
+
 const dailySessionSchema = {
   type: "object",
   additionalProperties: false,
@@ -528,9 +535,9 @@ function batchErrors(weeks: Week[], expected: number[], profile: UserProfile): s
       if (days.has(normalizedDay)) errors.push(`Semaine ${number} : jour dupliqué.`);
       days.add(normalizedDay);
       const total = session.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
-      const minimum = minActivitiesForObjective(session.duration_min, profile.objective);
       const maximum = maxActivitiesForObjective(session.duration_min, profile.objective);
-      if (total < minimum) errors.push(`Semaine ${number}, ${session.day} : volume insuffisant.`);
+      // Le volume insuffisant est réparé ensuite, séance par séance. Le rejeter ici
+      // ferait régénérer tout le lot et empêcherait la réparation ciblée.
       if (total > maximum) errors.push(`Semaine ${number}, ${session.day} : volume excessif.`);
       if (
         !profile.sessionDuration.some((duration) => Math.abs(session.duration_min - duration) <= 10)
@@ -550,6 +557,34 @@ function batchErrors(weeks: Week[], expected: number[], profile: UserProfile): s
   const coherence = validateObjectiveCoherence(temporaryProgram, profile.objective);
   if (coherence) errors.push(coherence);
   return errors;
+}
+
+function underfilledSessions(weeks: Week[], profile: UserProfile) {
+  return weeks.flatMap((week) =>
+    week.sessions.flatMap((session) => {
+      const received = session.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
+      const minimum = minActivitiesForObjective(session.duration_min, profile.objective);
+      return received < minimum
+        ? [{ weekNumber: week.week_number, session, received, minimum }]
+        : [];
+    }),
+  );
+}
+
+function replaceSessions(
+  weeks: Week[],
+  replacements: Week["sessions"],
+  sessionIds: Set<string>,
+): Week[] {
+  const replacementsById = new Map(
+    replacements
+      .filter((session) => sessionIds.has(session.session_id))
+      .map((session) => [session.session_id, session] as const),
+  );
+  return weeks.map((week) => ({
+    ...week,
+    sessions: week.sessions.map((session) => replacementsById.get(session.session_id) ?? session),
+  }));
 }
 
 function planErrors(plan: ProgramPlan, durationWeeks: number): string[] {
@@ -682,6 +717,45 @@ ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
     },
   );
 
+  let weeks = generatedBatches.flat().sort((a, b) => a.week_number - b.week_number);
+  // La validation de volume compte les exercices, pas les séries/répétitions. Répare les seules
+  // séances trop courtes après la génération initiale, sans redemander les semaines valides.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const invalid = underfilledSessions(weeks, profile);
+    if (invalid.length === 0) break;
+    const correction = invalid
+      .map(
+        ({ weekNumber, session, received, minimum }) =>
+          `Semaine ${weekNumber}, ${session.day} (ID ${session.session_id}) : ${received} exercices reçus, minimum attendu ${minimum}. Régénère cette séance avec au moins ${minimum} exercices distincts, sans changer son jour ni son identifiant.`,
+      )
+      .join("\n");
+    const repaired = await structuredResponse<{ sessions: Week["sessions"] }>({
+      name: `program_sessions_repair_${attempt + 1}`,
+      schema: sessionsResponseSchema,
+      system,
+      prompt: `Régénère uniquement les séances listées ci-dessous. Retourne exactement ces séances dans le tableau sessions, sans générer les autres séances de leur semaine.
+${profileData(profile)}
+PLAN GLOBAL : ${JSON.stringify(plan)}
+${SPORT_RULES}
+${volumeRules(profile)}
+${correction}`,
+      temperature: attempt === 0 ? 0.25 : 0.15,
+      maxTokens: Math.min(12000, 2500 + invalid.length * 900),
+    });
+    const repairedById = new Map(repaired.sessions.map((session) => [session.session_id, session]));
+    const missing = invalid.filter(({ session }) => !repairedById.has(session.session_id));
+    if (missing.length > 0) {
+      throw new Error(
+        `La réparation n'a pas retourné les séances ${missing.map(({ session }) => session.session_id).join(", ")}.`,
+      );
+    }
+    weeks = replaceSessions(
+      weeks,
+      repaired.sessions,
+      new Set(invalid.map(({ session }) => session.session_id)),
+    );
+  }
+
   const program: Program = {
     user_profile: profile,
     program_overview: {
@@ -690,7 +764,7 @@ ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
       summary: plan.summary,
       agent_used: profile.objective,
     },
-    weeks: generatedBatches.flat().sort((a, b) => a.week_number - b.week_number),
+    weeks,
     nutrition_recommendations: plan.nutrition_recommendations,
     general_advice: plan.general_advice,
     legal_disclaimer: plan.legal_disclaimer,

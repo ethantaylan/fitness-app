@@ -166,7 +166,7 @@ select.app-input {
   }
 }
 .app-dock {
-  bottom: calc(4.5rem + var(--app-nav-extra, 0px) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(5.5rem + var(--app-nav-extra, 0px) + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 768px) {
   .app-dock {
