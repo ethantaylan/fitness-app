@@ -20,7 +20,7 @@ signee.
 | Confidentialite    | https://vincere-fitness.netlify.app/privacy |
 | Conditions         | https://vincere-fitness.netlify.app/terms   |
 | Bundle ID          | `app.vincere.fitness`                       |
-| Version courante   | `1.0.1` (`build 6`)                         |
+| Version courante   | `1.0.1` (`build 10`)                        |
 | Plateformes        | iPhone et iPad, iOS 17+                     |
 | Langue principale  | Francais                                    |
 | Categorie proposee | Forme et sante                              |
@@ -37,9 +37,10 @@ nom legal du titulaire si le compte Apple Developer est un compte individuel.
   bancaires acceptes lorsque necessaire.
 - Les acces aux projets Supabase et Netlify de production.
 
-La livraison du 14 octobre 2026 utilise Xcode 27 et le SDK iOS 27. L'archive
-signee **1.0.1 (build 6)** a ete envoyee avec succes a App Store Connect.
-Cet envoi ne constitue pas une validation Apple ni une publication publique.
+La livraison du 15 octobre 2026 utilise Xcode 27 et le SDK iOS 27. L'archive
+signee **1.0.1 (build 10)** a ete envoyee avec succes a App Store Connect et
+est en cours de traitement. Cet envoi ne constitue pas une validation Apple ni
+une publication publique.
 Voir le [statut de livraison](docs/APP_STORE.md).
 
 ## 2. Installer et verifier le projet
