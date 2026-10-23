@@ -1,6 +1,8 @@
 import { expect, test } from "vite-plus/test";
 import {
   getProfileValidationError,
+  getProfileBasicsError,
+  needsProfileSetup,
   restoreTargetTimeline,
   targetTimelineForMonths,
   weeksUntilTargetDate,
@@ -106,4 +108,15 @@ test("month end deadlines stay inside the chosen calendar month", () => {
     targetDate: "2026-02-28",
   });
   expect(targetTimelineForMonths(1, new Date(2028, 0, 31, 12)).targetDate).toBe("2028-02-29");
+});
+
+test("missing profile fields identify the actual selection instead of measurements", () => {
+  expect(getProfileBasicsError({ ...profile, objective: undefined })).toContain("discipline");
+  expect(getProfileBasicsError({ ...profile, goalDetail: "" })).toContain("objectif");
+  expect(getProfileBasicsError({ ...profile, gender: undefined })).toContain("genre");
+  expect(getProfileBasicsError({ ...profile, level: undefined })).toContain("niveau");
+  expect(getProfileBasicsError({ ...profile, age: NaN })).toContain("âge");
+  expect(needsProfileSetup(null)).toBe(true);
+  expect(needsProfileSetup({ ...profile, height: undefined })).toBe(true);
+  expect(needsProfileSetup(profile)).toBe(false);
 });

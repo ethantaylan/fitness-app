@@ -17,7 +17,7 @@ export default function PageHeader({
   const canGoBack = location.key !== "default";
   return (
     <header
-      className="sticky top-0 z-40 border-b border-line bg-paper/92 backdrop-blur-xl"
+      className="sticky top-0 z-40 border-b border-line bg-paper"
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
       <div className="mx-auto flex h-16 max-w-4xl items-center gap-2 px-2 sm:px-4">

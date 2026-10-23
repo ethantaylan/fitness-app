@@ -26,6 +26,7 @@ import { useApp } from "../lib/store";
 import { supabase } from "../lib/supabase";
 import { useTheme, type ThemeMode } from "../lib/theme";
 import { getAppRedirectUrl } from "../lib/appUrl";
+import { getProfileBasicsError } from "../lib/profileValidation";
 import { showToast } from "../lib/toast";
 import type { ObjectiveType, LevelType, GenderType, AvailabilityType } from "../lib/types";
 import { OBJECTIVE_LABELS } from "../lib/agents";
@@ -187,20 +188,17 @@ export default function Settings() {
 
   async function handleSave() {
     if (savingProfile) return;
-    if (
-      !form.objective ||
-      !form.gender ||
-      !form.level ||
-      Number(form.age) < 13 ||
-      Number(form.age) > 100 ||
-      Number(form.height) < 100 ||
-      Number(form.height) > 250 ||
-      Number(form.weight) < 30 ||
-      Number(form.weight) > 300
-    ) {
-      setProfileError(
-        "Vérifie tes informations : âge 13–100 ans, taille 100–250 cm, poids 30–300 kg.",
-      );
+    const validationError = getProfileBasicsError({
+      objective: form.objective as ObjectiveType,
+      goalDetail: form.goalDetail,
+      gender: form.gender as GenderType,
+      level: form.level as LevelType,
+      age: Number(form.age),
+      height: Number(form.height),
+      weight: Number(form.weight),
+    });
+    if (validationError) {
+      setProfileError(validationError);
       return;
     }
     setSavingProfile(true);
@@ -917,36 +915,26 @@ export default function Settings() {
               )}
             </div>
 
-            {/* Enregistrer : visible uniquement quand le formulaire a changé */}
-            {(hasChanges || savingProfile) && (
-              <>
-                <div className="h-24" aria-hidden="true" />
-                <div className="app-dock fixed inset-x-0 z-55">
-                  <div className="mx-auto w-[calc(100%-1.5rem)] max-w-2xl rounded-2xl border border-line bg-card p-2 shadow-[0_8px_30px_rgba(2,6,23,0.18)]">
-                    {profileError && (
-                      <p role="alert" className="px-2 pb-2 pt-1 text-sm font-medium text-danger">
-                        {profileError}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => void handleSave()}
-                      disabled={savingProfile}
-                      className="theme-profile-save app-primary w-full"
-                    >
-                      {savingProfile ? (
-                        "Enregistrement…"
-                      ) : (
-                        <>
-                          <Save className="h-5 w-5" aria-hidden="true" /> Enregistrer les
-                          modifications
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="border-t border-line pt-5">
+              {profileError && (
+                <p role="alert" className="mb-3 text-sm font-medium text-danger">
+                  {profileError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={savingProfile || !hasChanges}
+                className="theme-profile-save app-primary w-full"
+              >
+                <Save className="h-5 w-5" aria-hidden="true" />
+                {savingProfile
+                  ? "Enregistrement…"
+                  : saved
+                    ? "Profil enregistré"
+                    : "Enregistrer les modifications"}
+              </button>
+            </div>
           </div>
         )}
 

@@ -2,6 +2,7 @@ import { useAuth } from "../lib/auth";
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { buildAuthPath } from "../lib/authRedirect";
+import { needsProfileSetup } from "../lib/profileValidation";
 import { useApp } from "../lib/store";
 
 export default function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
@@ -47,6 +48,15 @@ export default function ProtectedRoute({ children }: Readonly<{ children: ReactN
         </button>
       </div>
     );
+
+  if (
+    !state._loadError &&
+    needsProfileSetup(state.profile) &&
+    (location.pathname !== "/onboarding" ||
+      new URLSearchParams(location.search).get("setup") !== "1")
+  ) {
+    return <Navigate to="/onboarding?setup=1" replace />;
+  }
 
   return (
     <>

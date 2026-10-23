@@ -15,22 +15,38 @@ export function isValidProfileList(items: string[]): boolean {
   );
 }
 
+/** Champs communs au profil et à la création de programme. */
+export function getProfileBasicsError(profile: Partial<UserProfile> | null): string | null {
+  if (!profile?.objective) return "Choisis ta discipline ou ton objectif.";
+  if (!profile.goalDetail?.trim()) return "Précise ton objectif.";
+  if (!profile.gender) return "Choisis ton genre.";
+  if (!profile.level) return "Choisis ton niveau.";
+  for (const [label, value, min, max] of [
+    ["âge", profile.age, 13, 100],
+    ["taille", profile.height, 100, 250],
+    ["poids", profile.weight, 30, 300],
+  ] as const) {
+    if (value === undefined || !Number.isFinite(value) || value < min || value > max)
+      return `Vérifie ton ${label} : ${min}–${max}${label === "taille" ? " cm" : label === "poids" ? " kg" : " ans"}.`;
+  }
+  return null;
+}
+
+export function needsProfileSetup(profile: Partial<UserProfile> | null): boolean {
+  return (
+    Boolean(getProfileBasicsError(profile)) ||
+    !profile?.sessionDuration?.length ||
+    !profile.weeklyFrequency ||
+    !profile.availability?.length
+  );
+}
+
 /** Vérifie les limites du formulaire avant toute demande de génération. */
 export function getProfileValidationError(profile: UserProfile): string | null {
+  const basicsError = getProfileBasicsError(profile);
+  if (basicsError) return basicsError;
   if (!profile.goalDetail?.trim() || profile.goalDetail.length > PROFILE_LIMITS.goalDetail)
     return `Précise ton objectif en ${PROFILE_LIMITS.goalDetail} caractères maximum.`;
-  if (
-    !Number.isFinite(profile.age) ||
-    profile.age < 13 ||
-    profile.age > 100 ||
-    !Number.isFinite(profile.height) ||
-    profile.height < 100 ||
-    profile.height > 250 ||
-    !Number.isFinite(profile.weight) ||
-    profile.weight < 30 ||
-    profile.weight > 300
-  )
-    return "Vérifie ton âge, ta taille et ton poids.";
   if (
     !Number.isInteger(profile.weeklyFrequency) ||
     profile.weeklyFrequency < 1 ||

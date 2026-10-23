@@ -116,7 +116,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-line bg-card/90 backdrop-blur-xl">
+      <nav className="app-top-nav fixed inset-x-0 top-0 z-50 border-b border-line bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
           {/* Logo */}
           <Link to="/" className="flex min-h-11 items-center gap-2.5 shrink-0">

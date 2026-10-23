@@ -545,11 +545,15 @@ function BigNumberInput({
 }
 
 export default function Onboarding() {
-  const { state, dispatch } = useApp();
+  const { state, persistProfile } = useApp();
   const location = useLocation();
-  const [step, setStep] = useState(0);
+  const setupMode = new URLSearchParams(location.search).get("setup") === "1";
+  const { userFirstName, updateUserDisplayName } = useAuth();
+  const [nickname, setNickname] = useState(userFirstName ?? "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [step, setStep] = useState(setupMode ? -1 : 0);
   const [form, setForm] = useState<FormState>(() => {
-    const p = (location.state as { prefill?: boolean } | null)?.prefill ? state.profile : null;
+    const p = state.profile;
     return p
       ? {
           ...defaultForm,
@@ -727,6 +731,7 @@ export default function Onboarding() {
   }
 
   function canProceed(): boolean {
+    if (step === -1) return nickname.trim().length >= 2 && nickname.trim().length <= 50;
     if (step === 0)
       return (
         form.objective !== "" &&
@@ -797,15 +802,33 @@ export default function Onboarding() {
       return null;
     }
     setSubmitError("");
-    dispatch({
-      type: "SET_PROFILE_PARTIAL",
-      data: profile,
-    });
     return profile;
+  }
+
+  async function finishProfile() {
+    if (savingProfile || (!setupMode && generationBlocked)) return;
+    const profile = saveProfile();
+    if (!profile) return;
+    setSavingProfile(true);
+    try {
+      if (setupMode) await updateUserDisplayName(nickname.trim());
+      await persistProfile(profile);
+      void navigate(setupMode ? "/dashboard" : "/generating", {
+        replace: setupMode,
+        state: setupMode ? undefined : { profile },
+      });
+    } catch {
+      setSubmitError(
+        "Impossible d’enregistrer ton profil. Tes réponses sont conservées, réessaie.",
+      );
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   const optionalStep = [6, 7, 8, 10].includes(step);
   function getRequirement(): string {
+    if (step === -1) return canProceed() ? "" : "Choisis un pseudo de 2 à 50 caractères.";
     if (canProceed()) return optionalStep ? "Cette étape est facultative." : "";
     if ([6, 7, 8].includes(step))
       return `Garde ${PROFILE_LIMITS.list} éléments maximum, de ${PROFILE_LIMITS.label} caractères chacun.`;
@@ -872,9 +895,9 @@ export default function Onboarding() {
       style={{ maxWidth: 480, margin: "0 auto" }}
     >
       {/* Header / progress bar */}
-      <div className="app-onboarding-header sticky top-0 z-40 bg-white/95 backdrop-blur-sm px-4 pt-4 pb-3 border-b border-gray-100">
+      <div className="app-onboarding-header sticky top-0 z-40 bg-white px-4 pt-4 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          {step === 0 ? (
+          {step === (setupMode ? -1 : 0) ? (
             <button
               onClick={() => navigate("/")}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors shrink-0 -ml-1"
@@ -894,16 +917,18 @@ export default function Onboarding() {
           <div className="flex-1">
             <div className="flex justify-between items-center mb-1.5">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                {STEP_LABELS[step]}
+                {step === -1 ? "Pseudo" : STEP_LABELS[step]}
               </span>
               <span className="text-xs text-gray-400 tabular-nums">
-                {step + 1}&nbsp;/&nbsp;{TOTAL_STEPS}
+                {step + (setupMode ? 2 : 1)}&nbsp;/&nbsp;{TOTAL_STEPS + (setupMode ? 1 : 0)}
               </span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-black rounded-full transition-all duration-500"
-                style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
+                style={{
+                  width: `${((step + (setupMode ? 2 : 1)) / (TOTAL_STEPS + (setupMode ? 1 : 0))) * 100}%`,
+                }}
               />
             </div>
           </div>
@@ -913,6 +938,26 @@ export default function Onboarding() {
       {/* Step content */}
       <div className="flex-1 px-4 pt-8 pb-36 overflow-y-auto">
         <div key={step} className="animate-slide-up">
+          {step === -1 && (
+            <div>
+              <h1 className="text-2xl font-black mb-2">Bienvenue !</h1>
+              <p className="text-gray-500 text-sm mb-6">
+                Configure ton profil une seule fois. Tes informations seront reprises pour tes
+                programmes.
+              </p>
+              <label htmlFor="setup-nickname" className="block font-semibold mb-2">
+                Ton pseudo
+              </label>
+              <input
+                id="setup-nickname"
+                className="app-input"
+                autoComplete="nickname"
+                maxLength={50}
+                value={nickname}
+                onChange={(event) => setNickname(event.target.value)}
+              />
+            </div>
+          )}
           {/* Step 0 — Objectif */}
           {step === 0 && (
             <div>
@@ -1716,18 +1761,15 @@ export default function Onboarding() {
               <div className="text-5xl mb-4">🚀</div>
               <h1 className="text-2xl font-black mb-1">C'est parti&nbsp;!</h1>
               <p className="text-gray-500 text-sm mb-8">
-                Ton profil est prêt. Génère maintenant ton programme personnalisé.
+                {setupMode
+                  ? "Enregistre ton profil pour accéder à Vincere. Tu pourras créer ton programme ensuite."
+                  : "Ton profil est prêt. Génère maintenant ton programme personnalisé."}
               </p>
               <div className="space-y-3">
                 {isSignedIn ? (
                   <button
-                    disabled={generationBlocked}
-                    onClick={() => {
-                      if (generationBlocked) return;
-                      const profile = saveProfile();
-                      if (!profile) return;
-                      void navigate("/generating", { state: { profile } });
-                    }}
+                    disabled={savingProfile || (!setupMode && generationBlocked)}
+                    onClick={() => void finishProfile()}
                     className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <div
@@ -1738,21 +1780,26 @@ export default function Onboarding() {
                     </div>
                     <div>
                       <div className="font-bold text-[15px]">
-                        {generationActive
-                          ? "Création déjà en cours"
-                          : pendingProgram
-                            ? "Programme à enregistrer"
-                            : "Générer mon programme"}
+                        {savingProfile
+                          ? "Enregistrement…"
+                          : setupMode
+                            ? "Enregistrer mon profil"
+                            : generationActive
+                              ? "Création déjà en cours"
+                              : pendingProgram
+                                ? "Programme à enregistrer"
+                                : "Générer mon programme"}
                       </div>
                       <div className="text-sm text-gray-300 mt-1 leading-relaxed">
-                        Ton profil est sauvegardé&nbsp;· programme complet dans l'app
+                        {setupMode
+                          ? "Retrouve tes informations sur tous tes appareils."
+                          : "Tes informations seront enregistrées avant la création."}
                       </div>
                     </div>
                   </button>
                 ) : (
                   <button
                     onClick={() => {
-                      if (!saveProfile()) return;
                       void navigate("/sign-up");
                     }}
                     className="w-full flex items-start gap-4 bg-black text-white rounded-2xl p-5 text-left hover:bg-gray-900 transition-all active:scale-[0.98]"
@@ -1771,13 +1818,13 @@ export default function Onboarding() {
                     </div>
                   </button>
                 )}
-                {isSignedIn && (
+                {isSignedIn && !setupMode && (
                   <p className="text-sm text-gray-600">
                     5 créations par semaine et par compte. Reprendre une création en cours ne
                     consomme pas une autre utilisation.
                   </p>
                 )}
-                {generationBlocked && (
+                {!setupMode && generationBlocked && (
                   <p role="status" className="text-sm text-gray-600">
                     {pendingProgram
                       ? "Ton programme est déjà créé. Utilise Enregistrer dans le bandeau avant d'en créer un autre."

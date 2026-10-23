@@ -13,6 +13,7 @@ const user = {
 };
 const profile = {
   objective: "running",
+  goalDetail: "Programme running régulier",
   gender: "homme",
   age: 30,
   height: 180,
@@ -57,6 +58,7 @@ async function setup(page: Page, theme: "light" | "dark", signedIn = false, aiCo
       body = {
         user_id: id,
         objective: "running",
+        goal_detail: "Programme running régulier",
         gender: "homme",
         age: 30,
         height_cm: 180,
@@ -281,7 +283,8 @@ for (const theme of ["light", "dark"] as const) {
     await page.getByLabel("Poids actuel").fill("75");
     await advanceTo(/Combien de séances/);
     await advanceTo(/Durée par séance/);
-    await page.getByRole("button", { name: /30 minutes/ }).click();
+    const duration = page.getByRole("button", { name: /30 minutes/ });
+    if ((await duration.getAttribute("aria-pressed")) !== "true") await duration.click();
     await advanceTo(/Ton équipement/);
     await advanceTo(/Exercices que tu kiffes/);
     await advanceTo(/Exercices à éviter/);
@@ -308,40 +311,52 @@ test("program generation displays errors and retries without losing the profile"
 }) => {
   await setup(page, "light", true, true);
   let calls = 0;
+  let jobId = "";
   await page.route("**/functions/v1/ai-coach", async (route) => {
-    calls += 1;
-    const requestBody = route.request().postDataJSON() as {
-      action?: string;
-      payload?: { profile?: { objective?: string } };
-    };
-    expect(requestBody.action).toBe("program");
-    expect(requestBody.payload?.profile?.objective).toBe("running");
-
-    if (calls === 1) {
-      await route.fulfill({ status: 500, json: { error: "Service momentanément indisponible." } });
+    const requestBody = route.request().postDataJSON();
+    if (requestBody.action === "program-start") {
+      calls += 1;
+      expect(requestBody.payload.profile.objective).toBe("running");
+      jobId = requestBody.payload.jobId;
+      if (calls === 1) {
+        await route.fulfill({
+          status: 500,
+          json: { error: "Service momentanément indisponible." },
+        });
+      } else {
+        await route.fulfill({ json: { result: { id: jobId, status: "queued" } } });
+      }
       return;
     }
-
+    expect(requestBody.action).toBe("program-status");
     await route.fulfill({
       json: {
         result: {
-          user_profile: profile,
-          program_overview: {
-            duration_weeks: 1,
-            training_days_per_week: 3,
-            summary: "Reprise progressive du running.",
+          id: jobId,
+          status: "completed",
+          result: {
+            program_id: jobId,
+            user_profile: profile,
+            program_overview: {
+              duration_weeks: 1,
+              training_days_per_week: 3,
+              summary: "Reprise progressive du running.",
+            },
+            weeks: [{ week_number: 1, focus: "Endurance", sessions: [] }],
           },
-          weeks: [{ week_number: 1, focus: "Endurance", sessions: [] }],
         },
       },
     });
   });
+  await page.route("**/rest/v1/rpc/save_generated_program", (route) =>
+    route.fulfill({ json: jobId }),
+  );
 
   // La génération tourne en arrière-plan : on arrive sur l'accueil, un bandeau signale l'erreur.
   await page.goto("/generating", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("alert")).toContainText("Service momentanément indisponible.");
-  await page.getByRole("button", { name: "Réessayer" }).click();
+  await expect(page.getByRole("alert")).toContainText("Le suivi de la création a été interrompu");
+  await page.getByRole("button", { name: "Reprendre le suivi" }).click();
   // Fin de génération : toast avec accès au programme, sans avoir quitté l'application.
   await expect(
     page.getByRole("status").filter({ hasText: "Ton programme est prêt" }),
