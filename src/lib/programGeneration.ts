@@ -17,9 +17,43 @@ interface PendingProgram {
 interface GenerationOptions {
   userId: string | null;
   storage: DraftStorage | null;
-  generate: (profile: UserProfile) => Promise<Program>;
+  generate: (profile: UserProfile, requestId?: string, signal?: AbortSignal) => Promise<Program>;
+  durableGeneration?: boolean;
   persist: (program: Program, programId: string) => Promise<void>;
   onReady: () => void;
+}
+
+export class ProgramRequestError extends Error {
+  readonly terminal: boolean;
+  constructor(message: string, terminal = false) {
+    super(message);
+    this.terminal = terminal;
+  }
+}
+
+interface RemoteDraft {
+  userId: string;
+  requestId: string;
+  profile: UserProfile;
+}
+
+function remoteKey(userId: string) {
+  return `Vincere_generation_job_${userId}`;
+}
+
+function readRemote(storage: DraftStorage | null, userId: string | null): RemoteDraft | null {
+  if (!storage || !userId) return null;
+  try {
+    const value = JSON.parse(storage.getItem(remoteKey(userId)) ?? "null") as RemoteDraft | null;
+    return value?.userId === userId &&
+      /^[0-9a-f-]{36}$/i.test(value.requestId) &&
+      value.profile &&
+      typeof value.profile === "object"
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function draftKey(userId: string) {
@@ -29,6 +63,7 @@ function draftKey(userId: string) {
 export function clearPendingProgram(storage: DraftStorage | null, userId: string) {
   try {
     storage?.removeItem(draftKey(userId));
+    storage?.removeItem(remoteKey(userId));
   } catch {
     // Storage can be unavailable in private browsing or when the device is full.
   }
@@ -65,11 +100,15 @@ export class ProgramGeneration {
   private busy = false;
   private active = true;
   private durable = false;
+  private remote: RemoteDraft | null = null;
+  private controller: AbortController | null = null;
   private state: GenerationState;
 
   constructor(options: GenerationOptions) {
     this.options = options;
     this.pending = readDraft(options.storage, options.userId);
+    this.remote = options.durableGeneration ? readRemote(options.storage, options.userId) : null;
+    this.profile = this.remote?.profile ?? null;
     this.durable = this.pending !== null;
     this.state = this.pending
       ? {
@@ -78,7 +117,9 @@ export class ProgramGeneration {
           message:
             "Ton programme est conservé sur cet appareil. Reprends son enregistrement sans le régénérer.",
         }
-      : { phase: "idle" };
+      : this.remote
+        ? { phase: "running" }
+        : { phase: "idle" };
   }
 
   getState = (): GenerationState => this.state;
@@ -90,10 +131,12 @@ export class ProgramGeneration {
 
   activate() {
     this.active = true;
+    if (this.remote && !this.pending) void this.run();
   }
 
   dispose() {
     this.active = false;
+    this.controller?.abort();
   }
 
   private update(state: GenerationState) {
@@ -112,7 +155,7 @@ export class ProgramGeneration {
   }
 
   start = (profile: UserProfile) => {
-    if (!this.active || this.busy || this.pending) return;
+    if (!this.active || this.busy || this.pending || this.remote) return;
     this.profile = profile;
     void this.run();
   };
@@ -123,7 +166,7 @@ export class ProgramGeneration {
 
   dismiss = () => {
     // A received, paid result must never be discarded by dismissing an error.
-    if (this.busy || this.pending) return;
+    if (this.busy || this.pending || this.remote) return;
     this.profile = null;
     this.update({ phase: "idle" });
   };
@@ -139,15 +182,35 @@ export class ProgramGeneration {
       return;
     }
     this.busy = true;
+    this.controller = new AbortController();
     try {
       if (!this.pending && this.profile) {
         this.update({ phase: "running" });
-        const result = await this.options.generate(this.profile);
+        if (this.options.durableGeneration && !this.remote) {
+          this.remote = {
+            userId: this.options.userId,
+            requestId: crypto.randomUUID(),
+            profile: this.profile,
+          };
+          try {
+            this.options.storage?.setItem(
+              remoteKey(this.options.userId),
+              JSON.stringify(this.remote),
+            );
+          } catch {
+            /* Server work continues even if local storage is unavailable. */
+          }
+        }
+        const result = await this.options.generate(
+          this.profile,
+          this.remote?.requestId,
+          this.controller.signal,
+        );
         if (!this.active) return;
         this.pending = {
           version: 1,
           userId: this.options.userId,
-          programId: crypto.randomUUID(),
+          programId: result.program_id ?? this.remote?.requestId ?? crypto.randomUUID(),
           program: {
             ...result,
             user_profile: result.user_profile ?? this.profile,
@@ -163,21 +226,33 @@ export class ProgramGeneration {
       if (!this.active) return;
       clearPendingProgram(this.options.storage, this.options.userId);
       this.pending = null;
+      this.remote = null;
       this.profile = null;
       this.update({ phase: "idle" });
       this.options.onReady();
     } catch (error) {
       if (!this.active) return;
+      if (error instanceof ProgramRequestError && error.terminal && !this.pending) {
+        this.remote = null;
+        try {
+          this.options.storage?.removeItem(remoteKey(this.options.userId));
+        } catch {
+          /* best effort */
+        }
+      }
       this.update({
         phase: "error",
         hasPendingProgram: this.pending !== null,
+        ...(this.remote ? { hasRemoteJob: true } : {}),
         message: this.pending
           ? this.durable
             ? "Ton programme est créé et conservé sur cet appareil. Réessaie son enregistrement sans le régénérer."
             : "Ton programme est créé, mais son enregistrement a échoué. Garde cette page ouverte et réessaie pour ne pas le perdre."
-          : error instanceof Error
-            ? error.message
-            : "La génération n'a pas abouti. Réessaie.",
+          : this.remote
+            ? "Le suivi a été interrompu. Reprends-le pour retrouver la création côté serveur, sans en lancer une autre."
+            : error instanceof Error
+              ? error.message
+              : "La génération n'a pas abouti. Réessaie.",
       });
     } finally {
       this.busy = false;

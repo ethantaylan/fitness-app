@@ -41,6 +41,7 @@ export default function GenerationProvider({ children }: Readonly<{ children: Re
       userId,
       storage,
       generate: generateProgram,
+      durableGeneration: true,
       persist: persistProgram,
       onReady,
     });

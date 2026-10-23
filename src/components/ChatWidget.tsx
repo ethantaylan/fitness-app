@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import SupportChat from "./SupportChat";
 import Modal from "./ui/Modal";
@@ -92,7 +92,15 @@ export default function ChatWidget() {
         className="app-chat-modal"
         onClose={() => setOpen(false)}
       >
-        {open && (
+        {open && !isSignedIn && (
+          <div className="space-y-4 p-5">
+            <p>Connecte-toi pour utiliser l'assistant IA et retrouver ton quota personnel.</p>
+            <Link to="/sign-in" className="app-primary" onClick={() => setOpen(false)}>
+              Me connecter
+            </Link>
+          </div>
+        )}
+        {open && isSignedIn && (
           <SupportChat
             onContact={() => {
               setOpen(false);

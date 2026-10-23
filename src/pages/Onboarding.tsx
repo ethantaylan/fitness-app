@@ -1771,6 +1771,12 @@ export default function Onboarding() {
                     </div>
                   </button>
                 )}
+                {isSignedIn && (
+                  <p className="text-sm text-gray-600">
+                    5 créations par semaine et par compte. Reprendre une création en cours ne
+                    consomme pas une autre utilisation.
+                  </p>
+                )}
                 {generationBlocked && (
                   <p role="status" className="text-sm text-gray-600">
                     {pendingProgram

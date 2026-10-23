@@ -1,8 +1,10 @@
 import { describe, expect, test, vi } from "vite-plus/test";
 import {
   IncompleteStructuredResponseError,
+  generateWeekBatch,
   mapWithConcurrency,
   parseStructuredResponse,
+  programBatchSizing,
   repairSessions,
   sessionRepairSchema,
 } from "./programGeneration.ts";
@@ -13,6 +15,106 @@ type Target = { session: Session; minimum: number };
 const target = (id: string): Target => ({ session: { session_id: id, exercises: 2 }, minimum: 5 });
 const complete = ({ session, minimum }: Target): Session => ({ ...session, exercises: minimum });
 const isValid = (session: Session, target: Target) => session.exercises >= target.minimum;
+
+describe("initial week generation (offline)", () => {
+  const validate = (received: number[], expected: number[]) =>
+    received.join() === expected.join() ? [] : ["Semaines manquantes."];
+
+  test("recovers a truncated initial response by splitting only that batch", async () => {
+    const request = vi.fn(async (weeks: number[]) => {
+      if (weeks.length > 1) throw new IncompleteStructuredResponseError();
+      return weeks;
+    });
+    expect(
+      await generateWeekBatch([1, 2, 3], { request, validate }, new AbortController().signal),
+    ).toEqual([1, 2, 3]);
+    expect(request.mock.calls.map(([weeks]) => weeks)).toEqual([[1, 2, 3], [1, 2], [1], [2], [3]]);
+  });
+
+  test("successful parallel batches are not regenerated when another is truncated", async () => {
+    const request = vi.fn(async (weeks: number[]) => {
+      if (weeks[0] === 3 && weeks.length > 1) throw new IncompleteStructuredResponseError();
+      return weeks;
+    });
+    const result = await mapWithConcurrency(
+      [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
+      3,
+      (weeks, signal) => generateWeekBatch(weeks, { request, validate }, signal),
+    );
+    expect(result.flat()).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(request.mock.calls.filter(([weeks]) => weeks.includes(1))).toHaveLength(1);
+    expect(request.mock.calls.filter(([weeks]) => weeks.includes(5))).toHaveLength(1);
+  });
+
+  test("bounds single-week truncation retries and requests a shorter response", async () => {
+    const request = vi.fn(
+      async (_weeks: number[], _attempt: number, _correction: string): Promise<number[]> => {
+        throw new IncompleteStructuredResponseError();
+      },
+    );
+    await expect(
+      generateWeekBatch([7], { request, validate }, new AbortController().signal),
+    ).rejects.toThrow("Impossible de générer les semaines 7");
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(request.mock.calls[1][2]).toContain("sans retirer");
+  });
+
+  test("does not retry provider or transport errors", async () => {
+    const failure = new Error("Provider unavailable");
+    const request = vi.fn(async (): Promise<number[]> => {
+      throw failure;
+    });
+    await expect(
+      generateWeekBatch([1, 2], { request, validate }, new AbortController().signal),
+    ).rejects.toBe(failure);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  test("a complete JSON response still has to pass validation and receives correction details", async () => {
+    const request = vi.fn(async (weeks: number[], attempt: number, _correction: string) =>
+      attempt === 0 ? weeks.slice(0, 1) : weeks,
+    );
+    expect(
+      await generateWeekBatch([1, 2], { request, validate }, new AbortController().signal),
+    ).toEqual([1, 2]);
+    expect(request.mock.calls[1][2]).toContain("Semaines manquantes");
+    const invalid = vi.fn(async () => [] as number[]);
+    await expect(
+      generateWeekBatch([1], { request: invalid, validate }, new AbortController().signal),
+    ).rejects.toThrow("Semaines manquantes");
+    expect(invalid).toHaveBeenCalledTimes(3);
+  });
+
+  test("stops subdivisions when the request is cancelled", async () => {
+    const controller = new AbortController();
+    const request = vi.fn(async (weeks: number[]) => {
+      if (weeks.length > 1) throw new IncompleteStructuredResponseError();
+      controller.abort(new Error("Client disconnected"));
+      return weeks;
+    });
+    await expect(
+      generateWeekBatch([1, 2], { request, validate }, controller.signal),
+    ).rejects.toThrow("Client disconnected");
+    expect(request.mock.calls.map(([weeks]) => weeks)).toEqual([[1, 2], [1]]);
+  });
+
+  test("longer sessions reduce batch size while every supported frequency fits one week", () => {
+    expect(programBatchSizing(3, 14).weeksPerBatch).toBeLessThan(
+      programBatchSizing(3, 4).weeksPerBatch,
+    );
+    for (let frequency = 1; frequency <= 7; frequency++) {
+      for (const activities of [3, 4, 6, 8, 11, 14]) {
+        const sizing = programBatchSizing(frequency, activities);
+        expect(sizing.weeksPerBatch).toBeGreaterThanOrEqual(1);
+        expect(sizing.maxTokens(sizing.weeksPerBatch)).toBeLessThanOrEqual(16000);
+      }
+    }
+  });
+});
 
 describe("repairSessions (offline)", () => {
   test("recovers the 18 omitted production IDs without regenerating accepted sessions", async () => {

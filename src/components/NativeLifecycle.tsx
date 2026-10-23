@@ -1,13 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { WifiOff, X } from "lucide-react";
 import { isNativeApp } from "../lib/native";
-import { parseNativeAuthUrl } from "../lib/nativeAuth";
+import { NativeAuthCodeGuard, parseNativeAuthUrl } from "../lib/nativeAuth";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme";
 
+// Les liens d'authentification sont à usage unique : on retient ceux déjà traités
+// pour toute la session de l'app, même si l'effet ci-dessous est relancé.
+const handledAuthCodes = new NativeAuthCodeGuard();
+
 export default function NativeLifecycle() {
   const navigate = useNavigate();
+  // `navigate` change à chaque page avec BrowserRouter ; le garder en ref évite de
+  // relancer l'effet natif (et de rejouer le lien de lancement déjà consommé).
+  const navigateRef = useRef(navigate);
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
   const { pathname } = useLocation();
   const { resolvedTheme } = useTheme();
   const [offline, setOffline] = useState(!navigator.onLine);
@@ -37,7 +47,6 @@ export default function NativeLifecycle() {
     if (!isNativeApp) return;
     let disposed = false;
     const cleanup: Array<() => void> = [];
-    const handledCodes = new Set<string>();
     async function initialize() {
       const [{ App }, { Keyboard }, { SplashScreen }] = await Promise.all([
         import("@capacitor/app"),
@@ -46,8 +55,14 @@ export default function NativeLifecycle() {
       ]);
       const handleUrl = async (url: string) => {
         const callback = parseNativeAuthUrl(url);
-        if (!callback || handledCodes.has(callback.code) || disposed) return;
-        handledCodes.add(callback.code);
+        if (!callback || disposed) return;
+        let storage: Storage | null = null;
+        try {
+          storage = window.localStorage;
+        } catch {
+          // Deduplication still works in memory when storage is unavailable.
+        }
+        if (!(await handledAuthCodes.claim(callback.code, storage))) return;
         const { error: authError } = await supabase.auth.exchangeCodeForSession(callback.code);
         if (disposed) return;
         if (authError) {
@@ -56,7 +71,8 @@ export default function NativeLifecycle() {
           );
           return;
         }
-        void navigate(callback.next, { replace: true });
+        setError("");
+        void navigateRef.current(callback.next, { replace: true });
       };
       const handles = await Promise.all([
         App.addListener("appUrlOpen", ({ url }) => {
@@ -106,7 +122,7 @@ export default function NativeLifecycle() {
       delete document.documentElement.dataset.keyboard;
       document.documentElement.style.removeProperty("--keyboard-height");
     };
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     if (!isNativeApp) return;

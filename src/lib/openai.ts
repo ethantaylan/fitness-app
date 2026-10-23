@@ -1,11 +1,14 @@
 import type { DailySession, Exercise, GeneratedDailySession, Program, UserProfile } from "./types";
 import { supabase } from "./supabase";
 import { AI_CONSENT_VERSION, requestAIConsent } from "./aiConsent";
+import { ProgramRequestError } from "./programGeneration";
 
 type SupportMessage = { role: "user" | "assistant"; content: string };
 
 type AIRequest =
   | { action: "program"; payload: { profile: UserProfile } }
+  | { action: "program-start"; payload: { profile: UserProfile; jobId: string } }
+  | { action: "program-status"; payload: { jobId: string } }
   | {
       action: "daily-session";
       payload: {
@@ -32,15 +35,18 @@ type AIRequest =
     }
   | { action: "support"; payload: { messages: SupportMessage[] } };
 
-async function invokeAI<T>(request: AIRequest): Promise<T> {
+async function invokeAI<T>(request: AIRequest, signal?: AbortSignal): Promise<T> {
   if (!navigator.onLine)
     throw new Error("Une connexion Internet est nécessaire pour générer ce contenu.");
-  if (!(await requestAIConsent()))
-    throw new Error(
+  if (request.action !== "program-status" && !(await requestAIConsent()))
+    throw new ProgramRequestError(
       "Le partage avec OpenAI n'a pas été autorisé. Tes séances enregistrées restent disponibles.",
+      true,
     );
   const { data, error, response } = await supabase.functions.invoke("ai-coach", {
     body: { ...request, consentVersion: AI_CONSENT_VERSION },
+    signal,
+    timeout: 30000,
   });
   if (error) {
     if (response) {
@@ -51,7 +57,10 @@ async function invokeAI<T>(request: AIRequest): Promise<T> {
         // The relay can return an empty or non-JSON response.
       }
       if (typeof payload?.error === "string" && payload.error.length <= 200) {
-        throw new Error(payload.error);
+        throw new ProgramRequestError(
+          payload.error,
+          [400, 403, 404, 429].includes(response.status),
+        );
       }
     }
     throw new Error(
@@ -68,8 +77,52 @@ async function invokeAI<T>(request: AIRequest): Promise<T> {
   return data.result as T;
 }
 
-export function generateProgram(profile: UserProfile): Promise<Program> {
-  return invokeAI<Program>({ action: "program", payload: { profile } });
+interface RemoteProgramStatus {
+  id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  error?: string;
+  result?: Program;
+}
+
+function waitForProgram(signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const stop = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", stop);
+      resolve();
+    }, 3000);
+    signal?.addEventListener("abort", stop, { once: true });
+  });
+}
+
+/** Poll short requests instead of keeping a paid creation attached to one HTTP connection. */
+export async function generateProgram(
+  profile: UserProfile,
+  requestId: string = crypto.randomUUID(),
+  signal?: AbortSignal,
+): Promise<Program> {
+  let job = await invokeAI<RemoteProgramStatus>(
+    { action: "program-start", payload: { profile, jobId: requestId } },
+    signal,
+  );
+  for (;;) {
+    if (job.status === "completed" && job.result) return job.result;
+    if (job.status === "failed")
+      throw new ProgramRequestError(job.error ?? "La création n'a pas abouti.", true);
+    if (!["queued", "running"].includes(job.status)) throw new Error("État de création invalide.");
+    await waitForProgram(signal);
+    job = await invokeAI<RemoteProgramStatus>(
+      { action: "program-status", payload: { jobId: job.id } },
+      signal,
+    );
+  }
 }
 
 export function generateDailySession(

@@ -85,7 +85,9 @@ beforeAll(async () => {
   await db.exec(`
     create role anon;
     create role authenticated;
+    create role service_role bypassrls;
     create schema auth;
+    create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$
       select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
     $$;
@@ -116,10 +118,29 @@ beforeAll(async () => {
   `);
   await db.exec(migration);
   await db.exec(migration);
+  await db.exec(
+    readFileSync(
+      new URL("../migrations/20261023141109_ai_usage_and_program_jobs.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL("../migrations/20261023142015_background_worker_table_grants.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL("../migrations/20261023142526_ai_job_auth_cascade.sql", import.meta.url),
+      "utf8",
+    ),
+  );
 }, 30000);
 
 beforeEach(async () => {
-  await db.exec("reset role; truncate public.users cascade;");
+  await db.exec("reset role; truncate public.users, auth.users cascade;");
+  await db.query("insert into auth.users(id) values ($1), ($2)", [owner, other]);
   await db.query("insert into public.users(id) values ($1), ($2)", [owner, other]);
   await db.query(
     `insert into public.programs(id, user_id, duration_weeks, training_days_per_week, summary)
@@ -131,6 +152,197 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await db?.close();
+});
+
+async function worker() {
+  await db.exec("reset role; set role service_role;");
+}
+const requestId = () => crypto.randomUUID();
+async function reserve(id: string, bucket = "program", userId = owner) {
+  const result = await db.query<{
+    quota: { allowed: boolean; duplicate?: boolean; resetsAt?: string };
+  }>("select public.ai_reserve_usage($1, $2, $3) as quota", [userId, bucket, id]);
+  return result.rows[0].quota;
+}
+async function startJob(id: string, userId = owner) {
+  const result = await db.query<{
+    value: { allowed: boolean; job: { id: string; status: string } };
+  }>("select public.ai_start_program($1, $2, $3) as value", [userId, id, { objective: "running" }]);
+  return result.rows[0].value;
+}
+async function claimJob(id: string) {
+  const result = await db.query<{
+    value: { lease_token: string; status: string; checkpoint: unknown } | null;
+  }>("select public.ai_claim_program($1) as value", [id]);
+  return result.rows[0].value;
+}
+
+test("weekly quota is atomic, persistent, and a retry cannot debit the same request twice", async () => {
+  await worker();
+  const id = requestId();
+  expect((await reserve(id)).allowed).toBe(true);
+  expect(await reserve(id)).toMatchObject({ allowed: true, duplicate: true });
+  const remaining = await Promise.all(Array.from({ length: 12 }, () => reserve(requestId())));
+  expect(remaining.filter((result) => result.allowed)).toHaveLength(4);
+  const blocked = await reserve(requestId());
+  expect(blocked.allowed).toBe(false);
+  expect(
+    new Date(blocked.resetsAt!).toLocaleDateString("en-US", {
+      timeZone: "Europe/Paris",
+      weekday: "long",
+    }),
+  ).toBe("Monday");
+  expect(
+    new Date(blocked.resetsAt!).toLocaleTimeString("en-GB", { timeZone: "Europe/Paris" }),
+  ).toBe("00:00:00");
+  expect((await reserve(requestId(), "program", other)).allowed).toBe(true);
+  expect((await reserve(requestId(), "other")).allowed).toBe(true);
+  const daily = await Promise.all(Array.from({ length: 10 }, () => reserve(requestId(), "other")));
+  expect(daily.filter((result) => result.allowed)).toHaveLength(9);
+});
+
+test("a new quota window ignores previous-week usage without deleting its audit record", async () => {
+  await worker();
+  await db.query(
+    "insert into ai_private.usage values ($1, 'program', now() - interval '14 days', 5)",
+    [owner],
+  );
+  expect((await reserve(requestId())).allowed).toBe(true);
+  expect(
+    (
+      await db.query("select used from ai_private.usage where user_id = $1 order by period_start", [
+        owner,
+      ])
+    ).rows,
+  ).toEqual([{ used: 5 }, { used: 1 }]);
+});
+
+test("two devices resume one job and consume only one program allowance", async () => {
+  await worker();
+  const first = requestId();
+  const results = await Promise.all([startJob(first), startJob(requestId()), startJob(first)]);
+  expect(results.map((result) => result.job.id)).toEqual([first, first, first]);
+  expect(
+    (await db.query("select used from ai_private.usage where user_id = $1", [owner])).rows,
+  ).toEqual([{ used: 1 }]);
+  await expect(startJob(first, other)).rejects.toThrow("Job unavailable");
+  expect(
+    (await db.query("select public.ai_get_program($1, $2) as value", [other, first])).rows[0],
+  ).toEqual({ value: null });
+});
+
+test("only one worker holds a lease and a stale worker cannot overwrite a checkpoint", async () => {
+  await worker();
+  const id = requestId();
+  await startJob(id);
+  const first = (await claimJob(id))!;
+  expect(await claimJob(id)).toBeNull();
+  await db.query(
+    "update ai_private.program_jobs set lease_until = now() - interval '1 second' where id = $1",
+    [id],
+  );
+  const second = (await claimJob(id))!;
+  expect(second.lease_token).not.toBe(first.lease_token);
+  const stale = await db.query("select public.ai_checkpoint_program($1, $2, $3) as saved", [
+    id,
+    first.lease_token,
+    { lost: true },
+  ]);
+  expect(stale.rows[0]).toEqual({ saved: false });
+  const current = await db.query("select public.ai_checkpoint_program($1, $2, $3) as saved", [
+    id,
+    second.lease_token,
+    { weeks: [1] },
+  ]);
+  expect(current.rows[0]).toEqual({ saved: true });
+  expect((await claimJob(id))?.checkpoint).toEqual({ weeks: [1] });
+});
+
+test("completion saves the program and job status in one transaction", async () => {
+  await worker();
+  const id = requestId();
+  await startJob(id);
+  const lease = (await claimJob(id))!;
+  const invalid = fixture();
+  invalid.weeks[0].sessions[0].duration_min = -10;
+  await expect(
+    db.query("select public.ai_finish_program($1, $2, $3)", [id, lease.lease_token, invalid]),
+  ).rejects.toThrow();
+  expect(
+    (await db.query("select status from ai_private.program_jobs where id = $1", [id])).rows[0],
+  ).toEqual({ status: "running" });
+  expect(
+    (await db.query("select id from public.programs where is_active and user_id = $1", [owner]))
+      .rows,
+  ).toEqual([{ id: previous }]);
+  expect(
+    (
+      await db.query("select public.ai_finish_program($1, $2, $3) as saved", [
+        id,
+        lease.lease_token,
+        fixture(),
+      ])
+    ).rows[0],
+  ).toEqual({ saved: true });
+  expect(
+    (await db.query("select status from ai_private.program_jobs where id = $1", [id])).rows[0],
+  ).toEqual({ status: "completed" });
+  expect(
+    (await db.query("select id from public.programs where is_active and user_id = $1", [owner]))
+      .rows,
+  ).toEqual([{ id }]);
+  expect(await claimJob(id)).toBeNull();
+});
+
+test("ordinary accounts cannot write quotas, claim work, or impersonate a job owner", async () => {
+  await expect(
+    db.query("select public.ai_reserve_usage($1, 'program', $2)", [owner, requestId()]),
+  ).rejects.toThrow("permission denied");
+  await expect(db.query("select public.ai_claim_program($1)", [requestId()])).rejects.toThrow(
+    "permission denied",
+  );
+  await expect(db.query("select * from ai_private.usage")).rejects.toThrow("permission denied");
+});
+
+test("repeated worker termination is bounded and cannot keep spending indefinitely", async () => {
+  await worker();
+  const id = requestId();
+  await startJob(id);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    expect(await claimJob(id)).not.toBeNull();
+    await db.query(
+      "update ai_private.program_jobs set lease_until = now() - interval '1 second' where id = $1",
+      [id],
+    );
+  }
+  expect(await claimJob(id)).toBeNull();
+  expect(
+    (await db.query("select status from ai_private.program_jobs where id = $1", [id])).rows,
+  ).toEqual([{ status: "failed" }]);
+  expect(
+    (await db.query("select id from public.programs where is_active and user_id = $1", [owner]))
+      .rows,
+  ).toEqual([{ id: previous }]);
+});
+
+test("deleting Auth removes the new AI data even when a legacy public profile remains", async () => {
+  await worker();
+  const id = requestId();
+  await startJob(id);
+  await db.exec("reset role;");
+  await db.query("delete from auth.users where id = $1", [owner]);
+  expect(
+    (await db.query("select id from ai_private.program_jobs where user_id = $1", [owner])).rows,
+  ).toEqual([]);
+  expect(
+    (await db.query("select id from ai_private.requests where user_id = $1", [owner])).rows,
+  ).toEqual([]);
+  expect(
+    (await db.query("select used from ai_private.usage where user_id = $1", [owner])).rows,
+  ).toEqual([]);
+  expect((await db.query("select id from public.users where id = $1", [owner])).rows).toEqual([
+    { id: owner },
+  ]);
 });
 
 test("the RPC stores ordered nested data and replaces only its owner's plan", async () => {

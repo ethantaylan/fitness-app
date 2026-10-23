@@ -72,7 +72,9 @@ export default function GenerationBanner() {
             {failed
               ? state.hasPendingProgram
                 ? "Ton programme attend son enregistrement"
-                : "La création de ton programme a échoué"
+                : state.hasRemoteJob
+                  ? "Le suivi de la création a été interrompu"
+                  : "La création de ton programme a échoué"
               : "Ton programme est en cours de création"}
           </p>
           <p className="text-xs text-ink-soft">
@@ -80,7 +82,7 @@ export default function GenerationBanner() {
               ? state.message
               : state.phase === "saving"
                 ? "Enregistrement…"
-                : `${MESSAGES[index]} Tu peux continuer à naviguer.`}
+                : `${MESSAGES[index]} La création continue côté serveur.`}
           </p>
         </div>
         {failed && (
@@ -90,9 +92,13 @@ export default function GenerationBanner() {
               className="app-secondary min-h-11! px-3! text-xs!"
               onClick={retry}
             >
-              {state.hasPendingProgram ? "Enregistrer" : "Réessayer"}
+              {state.hasPendingProgram
+                ? "Enregistrer"
+                : state.hasRemoteJob
+                  ? "Reprendre le suivi"
+                  : "Réessayer"}
             </button>
-            {!state.hasPendingProgram && (
+            {!state.hasPendingProgram && !state.hasRemoteJob && (
               <button
                 type="button"
                 className="app-icon-button border-0! bg-transparent!"

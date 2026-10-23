@@ -85,6 +85,8 @@ export interface NutritionRecommendations {
 }
 
 export interface Program {
+  /** Stable ID assigned by the background generation job. */
+  program_id?: string;
   generated_at?: string;
   user_profile?: Partial<UserProfile>;
   program_overview: {

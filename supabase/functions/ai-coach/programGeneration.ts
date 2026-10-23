@@ -21,6 +21,61 @@ export function parseStructuredResponse<T>(choice?: {
   return JSON.parse(message.content) as T;
 }
 
+/** Split truncated week responses without restarting successful parallel batches. */
+export async function generateWeekBatch<T>(
+  weekNumbers: number[],
+  options: {
+    request: (
+      weeks: number[],
+      attempt: number,
+      correction: string,
+      signal: AbortSignal,
+    ) => Promise<T[]>;
+    validate: (weeks: T[], expected: number[]) => string[];
+  },
+  signal: AbortSignal,
+): Promise<T[]> {
+  let errors: string[] = [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    signal.throwIfAborted();
+    let weeks: T[];
+    try {
+      weeks = await options.request(weekNumbers, attempt, errors.join(" "), signal);
+    } catch (error) {
+      if (!(error instanceof IncompleteStructuredResponseError)) throw error;
+      if (weekNumbers.length === 1) {
+        errors = [
+          "Réponse trop longue : raccourcis les notes, sans retirer de séance ni d'exercice.",
+        ];
+        continue;
+      }
+      const middle = Math.ceil(weekNumbers.length / 2);
+      // Sequential subdivisions keep the existing outer concurrency limit and cancellation.
+      const first = await generateWeekBatch(weekNumbers.slice(0, middle), options, signal);
+      const second = await generateWeekBatch(weekNumbers.slice(middle), options, signal);
+      return [...first, ...second];
+    }
+    signal.throwIfAborted();
+    errors = options.validate(weeks, weekNumbers);
+    if (errors.length === 0) return weeks;
+  }
+  throw new Error(
+    `Impossible de générer les semaines ${weekNumbers.join(", ")} correctement : ${errors.slice(0, 4).join(" ")}`,
+  );
+}
+
+/** Reserve room for exercise details as well as warmups, cooldowns and session metadata. */
+export function programBatchSizing(frequency: number, maximumActivities: number) {
+  const tokensPerSession = 400 + maximumActivities * 160;
+  const sessionsPerBatch = Math.max(1, Math.min(10, Math.floor(11000 / tokensPerSession)));
+  const weeksPerBatch = Math.max(1, Math.floor(sessionsPerBatch / frequency));
+  return {
+    weeksPerBatch,
+    maxTokens: (weekCount: number) =>
+      Math.min(16000, 1500 + weekCount * frequency * tokensPerSession),
+  };
+}
+
 /** Stop the queue and cancel active requests as soon as any worker fails. */
 export async function mapWithConcurrency<T, R>(
   items: T[],

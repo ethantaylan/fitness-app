@@ -4,7 +4,7 @@ import type { UserProfile } from "./types";
 export type GenerationState =
   | { phase: "idle" }
   | { phase: "running" | "saving" }
-  | { phase: "error"; message: string; hasPendingProgram: boolean };
+  | { phase: "error"; message: string; hasPendingProgram: boolean; hasRemoteJob?: boolean };
 
 export interface GenerationApi {
   state: GenerationState;

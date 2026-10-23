@@ -25,15 +25,18 @@ import type {
   Week,
 } from "../../../src/lib/types.ts";
 import {
+  generateWeekBatch,
   mapWithConcurrency,
   parseStructuredResponse,
+  programBatchSizing,
   repairSessions,
   sessionRepairSchema,
 } from "./programGeneration.ts";
+import { advanceProgramJob, initialProgramCheckpoint, publicProgramJob } from "./programJobs.ts";
+import type { ProgramJob, ProgramPlan, ProgramSteps } from "./programJobs.ts";
 
 const MODEL = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const MAX_SESSIONS_PER_BATCH = 10;
 const PROGRAM_BATCH_CONCURRENCY = 3;
 
 type CustomSelection = {
@@ -41,14 +44,6 @@ type CustomSelection = {
   label: string;
   count: number;
   minutesPerItem: number;
-};
-
-type ProgramPlan = {
-  summary: string;
-  phases: Array<{ start_week: number; end_week: number; focus: string; progression: string }>;
-  nutrition_recommendations: Program["nutrition_recommendations"];
-  general_advice: string;
-  legal_disclaimer: string;
 };
 
 type RateBucket = { count: number; resetAt: number };
@@ -219,6 +214,8 @@ const GENDERS = new Set(["homme", "femme", "autre"]);
 const AVAILABILITIES = new Set(["matin", "midi", "soir", "indifférent"]);
 const ACTIONS = new Set([
   "program",
+  "program-start",
+  "program-status",
   "daily-session",
   "custom-session",
   "replace-exercise",
@@ -462,7 +459,7 @@ async function structuredResponse<T>(options: {
   signal?: AbortSignal;
 }): Promise<T> {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY absente de la fonction serveur.");
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY, maxRetries: 0 });
+  const client = new OpenAI({ apiKey: OPENAI_API_KEY, maxRetries: 0, timeout: 105_000 });
   const completion = await client.chat.completions.create(
     {
       model: MODEL,
@@ -658,7 +655,15 @@ ${planCorrection ? `CORRECTIONS OBLIGATOIRES : ${planCorrection}` : ""}`,
   }
   if (!plan) throw new Error("Impossible de construire une progression cohérente.");
 
-  const batchSize = Math.max(1, Math.floor(MAX_SESSIONS_PER_BATCH / profile.weeklyFrequency));
+  const sizing = programBatchSizing(
+    profile.weeklyFrequency,
+    Math.max(
+      ...profile.sessionDuration.map((duration) =>
+        maxActivitiesForObjective(duration, profile.objective),
+      ),
+    ),
+  );
+  const batchSize = sizing.weeksPerBatch;
   const batches: number[][] = [];
   for (let start = 1; start <= durationWeeks; start += batchSize) {
     batches.push(
@@ -669,34 +674,33 @@ ${planCorrection ? `CORRECTIONS OBLIGATOIRES : ${planCorrection}` : ""}`,
   const generatedBatches = await mapWithConcurrency(
     batches,
     PROGRAM_BATCH_CONCURRENCY,
-    async (weekNumbers, batchSignal) => {
-      let correction = "";
-      let lastErrors: string[] = [];
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const response = await structuredResponse<{ weeks: Week[] }>({
-          name: `program_weeks_${weekNumbers[0]}_${weekNumbers.at(-1)}`,
-          schema: weeksResponseSchema,
-          system,
-          prompt: `Génère uniquement les semaines ${weekNumbers.join(", ")} de ce programme.
+    (weekNumbers, batchSignal) =>
+      generateWeekBatch(
+        weekNumbers,
+        {
+          request: async (requestedWeeks, attempt, correction, requestSignal) => {
+            const response = await structuredResponse<{ weeks: Week[] }>({
+              name: `program_weeks_${requestedWeeks[0]}_${requestedWeeks.at(-1)}`,
+              schema: weeksResponseSchema,
+              system,
+              prompt: `Génère uniquement les semaines ${requestedWeeks.join(", ")} de ce programme.
 ${profileData(profile)}
 PLAN GLOBAL : ${JSON.stringify(plan)}
 ${SPORT_RULES}
 ${volumeRules(profile)}
 Contraintes : exactement ${profile.weeklyFrequency} séances par semaine, identifiants W{semaine}D{séance}, progression visible et aucun copier-coller entre semaines.
+Reste concis : 12 mots maximum par note d'exercice, sans retirer d'exercice ni de détail d'exécution utile.
 ${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
-          temperature: attempt === 0 ? 0.35 : 0.2,
-          maxTokens: Math.min(12000, 2500 + weekNumbers.length * profile.weeklyFrequency * 800),
-          signal: batchSignal,
-        });
-        const errors = batchErrors(response.weeks, weekNumbers, profile);
-        if (errors.length === 0) return response.weeks;
-        lastErrors = errors;
-        correction = errors.join(" ");
-      }
-      throw new Error(
-        `Impossible de générer les semaines ${weekNumbers.join(", ")} correctement : ${lastErrors.slice(0, 4).join(" ")}`,
-      );
-    },
+              temperature: attempt === 0 ? 0.35 : 0.2,
+              maxTokens: sizing.maxTokens(requestedWeeks.length),
+              signal: requestSignal,
+            });
+            return response.weeks;
+          },
+          validate: (weeks, expected) => batchErrors(weeks, expected, profile),
+        },
+        batchSignal,
+      ),
     signal,
   );
 
@@ -773,6 +777,216 @@ ${correction}`,
   const errors = validateProgram(program, profile, durationWeeks);
   if (errors.length > 0) throw new Error(`Programme invalide : ${errors.slice(0, 3).join(" ")}`);
   return program;
+}
+
+function adminClient() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+async function adminRpc(name: string, args: Record<string, unknown>) {
+  const { data, error } = await adminClient()
+    .rpc(name, args)
+    .abortSignal(AbortSignal.timeout(15000));
+  if (error) throw new Error(`${name}: ${error.message}`);
+  return data;
+}
+
+class QuotaError extends Error {
+  constructor(
+    readonly quota: { limit: number; resetsAt: string },
+    bucket: string,
+  ) {
+    const reset = new Date(quota.resetsAt).toLocaleString("fr-FR", {
+      timeZone: "Europe/Paris",
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    super(
+      `Limite de ${quota.limit} ${bucket === "program" ? "programmes par semaine" : "actions IA par jour"} atteinte. Disponible à nouveau le ${reset}.`,
+    );
+  }
+}
+
+async function reserveQuota(userId: string, bucket: "program" | "other") {
+  const quota = await adminRpc("ai_reserve_usage", {
+    p_user_id: userId,
+    p_bucket: bucket,
+    p_request_id: crypto.randomUUID(),
+  });
+  if (!quota.allowed) throw new QuotaError(quota, bucket);
+}
+
+async function queueProgramWorker(jobId: string) {
+  const token = Deno.env.get("AI_WORKER_SECRET");
+  if (!token) throw new Error("AI_WORKER_SECRET is not configured");
+  const response = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-coach`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "program-work", jobId }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`Program worker dispatch returned HTTP ${response.status}`);
+  await response.body?.cancel();
+}
+
+function programSteps(
+  profile: UserProfile,
+  durationWeeks: number,
+  signal: AbortSignal,
+): ProgramSteps {
+  const system = coachSystemPrompt(profile);
+  const sizing = programBatchSizing(
+    profile.weeklyFrequency,
+    Math.max(
+      ...profile.sessionDuration.map((duration) =>
+        maxActivitiesForObjective(duration, profile.objective),
+      ),
+    ),
+  );
+  return {
+    plan: (attempt, correction) =>
+      structuredResponse<ProgramPlan>({
+        name: "program_plan",
+        schema: programPlanSchema,
+        system,
+        signal,
+        maxTokens: 3000,
+        temperature: attempt === 0 ? 0.3 : 0.15,
+        prompt: `Construis l'architecture d'un programme de ${durationWeeks} semaines à ${profile.weeklyFrequency} séances par semaine.
+${profileData(profile)}\n${SPORT_RULES}\n${volumeRules(profile)}
+Crée des phases sans trou ni chevauchement couvrant exactement les semaines 1 à ${durationWeeks}. La nutrition reste générale, prudente et non médicale.
+${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
+      }),
+    planErrors: (plan) => planErrors(plan, durationWeeks),
+    weeks: async (plan, numbers, attempt, correction) => {
+      const response = await structuredResponse<{ weeks: Week[] }>({
+        name: `program_weeks_${numbers[0]}_${numbers.at(-1)}`,
+        schema: weeksResponseSchema,
+        system,
+        signal,
+        maxTokens: sizing.maxTokens(numbers.length),
+        temperature: attempt === 0 ? 0.35 : 0.2,
+        prompt: `Génère uniquement les semaines ${numbers.join(", ")} de ce programme.
+${profileData(profile)}\nPLAN GLOBAL : ${JSON.stringify(plan)}\n${SPORT_RULES}\n${volumeRules(profile)}
+Contraintes : exactement ${profile.weeklyFrequency} séances par semaine, identifiants W{semaine}D{séance}, progression visible et aucun copier-coller entre semaines.
+Reste concis : 12 mots maximum par note d'exercice, sans retirer d'exercice ni de détail utile.
+${correction ? `CORRECTIONS OBLIGATOIRES : ${correction}` : ""}`,
+      });
+      return response.weeks;
+    },
+    weekErrors: (weeks, expected) => batchErrors(weeks, expected, profile),
+    needsRepair: (weeks) => underfilledSessions(weeks, profile),
+    repair: async (plan, session, attempt) => {
+      const minimum = minActivitiesForObjective(session.duration_min, profile.objective);
+      const response = await structuredResponse<{ sessions: Week["sessions"] }>({
+        name: "program_session_repair",
+        schema: sessionRepairSchema(sessionSchema, [session.session_id]),
+        system,
+        signal,
+        maxTokens: 5000,
+        temperature: attempt === 1 ? 0.25 : 0.15,
+        prompt: `Complète uniquement la séance ${session.session_id}, avec au moins ${minimum} exercices distincts. Ne change ni son identifiant, ni son jour, ni sa durée, ni son thème.
+${profileData(profile)}\nPLAN GLOBAL : ${JSON.stringify(plan)}\n${SPORT_RULES}\n${volumeRules(profile)}
+SÉANCE À COMPLÉTER : ${JSON.stringify(session)}`,
+      });
+      return response.sessions;
+    },
+    validRepair: (weeks, original, candidate) => {
+      if (
+        normalizeBlockName(candidate.day) !== normalizeBlockName(original.day) ||
+        candidate.duration_min !== original.duration_min ||
+        candidate.blocks.reduce((sum, block) => sum + block.exercises.length, 0) <
+          minActivitiesForObjective(candidate.duration_min, profile.objective)
+      )
+        return false;
+      const replaced = replaceSessions(weeks, [candidate], new Set([candidate.session_id]));
+      const week = replaced.find((week) =>
+        week.sessions.some((session) => session.session_id === candidate.session_id),
+      );
+      return !!week && batchErrors([week], [week.week_number], profile).length === 0;
+    },
+    assemble: (plan, weeks) => {
+      const program: Program = {
+        user_profile: profile,
+        generated_at: new Date().toISOString(),
+        program_overview: {
+          duration_weeks: durationWeeks,
+          training_days_per_week: profile.weeklyFrequency,
+          summary: plan.summary,
+          agent_used: profile.objective,
+        },
+        weeks,
+        nutrition_recommendations: plan.nutrition_recommendations,
+        general_advice: plan.general_advice,
+        legal_disclaimer: plan.legal_disclaimer,
+      };
+      const errors = validateProgram(program, profile, durationWeeks);
+      if (errors.length) throw new Error(`Programme invalide : ${errors.slice(0, 3).join(" ")}`);
+      return program;
+    },
+  };
+}
+
+async function runProgramWorker(jobId: string) {
+  const job = (await adminRpc("ai_claim_program", { p_job_id: jobId })) as ProgramJob | null;
+  if (!job) return;
+  try {
+    const { data, error } = await adminClient().auth.admin.getUserById(job.user_id);
+    if (error || !data.user || data.user.user_metadata.ai_consent_version !== "2026-10-08")
+      throw new Error("La création a été arrêtée : l'accord pour l'IA n'est plus disponible.");
+    const sizing = programBatchSizing(
+      job.profile.weeklyFrequency,
+      Math.max(
+        ...job.profile.sessionDuration.map((duration) =>
+          maxActivitiesForObjective(duration, job.profile.objective),
+        ),
+      ),
+    );
+    const checkpoint = job.checkpoint.durationWeeks
+      ? job.checkpoint
+      : initialProgramCheckpoint(programDurationWeeks(job.profile), sizing.weeksPerBatch);
+    const result = await advanceProgramJob(
+      checkpoint,
+      programSteps(job.profile, checkpoint.durationWeeks, AbortSignal.timeout(110000)),
+    );
+    const saved = result.program
+      ? await adminRpc("ai_finish_program", {
+          p_job_id: job.id,
+          p_lease: job.lease_token,
+          p_program: result.program,
+        })
+      : await adminRpc("ai_checkpoint_program", {
+          p_job_id: job.id,
+          p_lease: job.lease_token,
+          p_checkpoint: result.checkpoint,
+        });
+    if (saved && !result.program) {
+      // A failed dispatch is recovered by the database scheduler without redoing saved stages.
+      await queueProgramWorker(job.id).catch((error) =>
+        console.error("program dispatch delayed", { jobId: job.id, message: error.message }),
+      );
+    }
+  } catch (error) {
+    console.error("program worker error", {
+      jobId: job.id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    // A killed/timed-out worker retains its lease and bounded retry count for the scheduler.
+    if (error instanceof Error && /timeout|timed out|abort|connection/i.test(error.message)) return;
+    const message =
+      error instanceof Error &&
+      /^(Impossible de|Programme invalide|La création a été arrêtée)/.test(error.message)
+        ? error.message
+        : "La création n'a pas pu aboutir. Ton ancien programme reste disponible.";
+    await adminRpc("ai_checkpoint_program", {
+      p_job_id: job.id,
+      p_lease: job.lease_token,
+      p_checkpoint: job.checkpoint,
+      p_error: message,
+    });
+  }
 }
 
 function feedbackContext(feedback?: DailySession["feedback"]): string {
@@ -910,12 +1124,30 @@ export default {
     if (req.method !== "POST") {
       return jsonResponse({ error: "Méthode non autorisée." }, 405, { Allow: "POST" });
     }
+    let action = "unknown";
     try {
       const body = (await req.json()) as {
         action?: string;
         payload?: Record<string, unknown>;
         consentVersion?: string;
+        jobId?: string;
       };
+      if (body.action === "program-work") {
+        const token = Deno.env.get("AI_WORKER_SECRET");
+        if (!token || req.headers.get("Authorization") !== `Bearer ${token}`)
+          return jsonResponse({ error: "Accès refusé." }, 401);
+        if (typeof body.jobId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.jobId))
+          return jsonResponse({ error: "Identifiant invalide." }, 400);
+        EdgeRuntime.waitUntil(
+          runProgramWorker(body.jobId).catch((error) =>
+            console.error("program worker unavailable", {
+              jobId: body.jobId,
+              message: error.message,
+            }),
+          ),
+        );
+        return jsonResponse({ accepted: true }, 202);
+      }
       if (body.consentVersion !== "2026-10-08") {
         return jsonResponse(
           { error: "Ton accord est requis avant l'envoi de données à OpenAI." },
@@ -924,6 +1156,54 @@ export default {
       }
       if (!body.action || !ACTIONS.has(body.action) || !body.payload)
         return jsonResponse({ error: "Requête IA invalide." }, 400);
+      action = body.action;
+
+      const user = await authenticatedUser(req);
+      if (!user) {
+        return jsonResponse({ error: "Connecte-toi pour utiliser l'IA de Vincere." }, 401);
+      }
+
+      if (body.action === "program-status" || body.action === "program-start") {
+        const jobId = body.payload.jobId;
+        if (
+          typeof jobId !== "string" ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobId)
+        )
+          return jsonResponse({ error: "Identifiant de création invalide." }, 400);
+        if (body.action === "program-status") {
+          const job = await adminRpc("ai_get_program", { p_user_id: user.id, p_job_id: jobId });
+          return job
+            ? jsonResponse({ result: publicProgramJob(job) })
+            : jsonResponse({ error: "Création introuvable.", code: "JOB_NOT_FOUND" }, 404);
+        }
+        if (!Deno.env.get("AI_WORKER_SECRET"))
+          return jsonResponse(
+            { error: "La création en arrière-plan n'est pas encore configurée." },
+            503,
+          );
+        if (!isUserProfile(body.payload.profile))
+          return jsonResponse({ error: "Profil sportif invalide." }, 400);
+        // User-editable consent is used only as permission to send data, never for quota/authorization.
+        if (user.user_metadata.ai_consent_version !== "2026-10-08")
+          return jsonResponse({ error: "Ton accord est requis pour créer un programme." }, 403);
+        const reserved = await adminRpc("ai_start_program", {
+          p_user_id: user.id,
+          p_job_id: jobId,
+          p_profile: sanitizeProfile(body.payload.profile),
+        });
+        if (!reserved.allowed) throw new QuotaError(reserved, "program");
+        if (["queued", "running"].includes(reserved.job.status)) {
+          EdgeRuntime.waitUntil(
+            queueProgramWorker(reserved.job.id).catch((error) =>
+              console.error("program dispatch delayed", {
+                jobId: reserved.job.id,
+                message: error.message,
+              }),
+            ),
+          );
+        }
+        return jsonResponse({ result: publicProgramJob(reserved.job) }, 202);
+      }
 
       if (body.action === "support") {
         const address = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -937,16 +1217,10 @@ export default {
         if (!isSupportMessages(messages)) {
           return jsonResponse({ error: "Messages invalides." }, 400);
         }
+        await reserveQuota(user.id, "other");
         return jsonResponse({ result: await supportChat(messages) });
       }
 
-      const user = await authenticatedUser(req);
-      if (!user) {
-        return jsonResponse(
-          { error: "Connexion requise pour générer un programme ou une séance." },
-          401,
-        );
-      }
       const isProgram = body.action === "program";
       const retryAfter = consumeRateLimit(
         `${body.action}:${user.id}`,
@@ -965,9 +1239,11 @@ export default {
       if (!isUserProfile(profile)) return jsonResponse({ error: "Profil sportif invalide." }, 400);
 
       if (body.action === "program") {
+        await reserveQuota(user.id, "program");
         return jsonResponse({ result: await generateProgram(profile, req.signal) });
       }
       if (body.action === "daily-session") {
+        await reserveQuota(user.id, "other");
         const feedback = ["good", "normal", "hard"].includes(String(body.payload.previousFeedback))
           ? (body.payload.previousFeedback as DailySession["feedback"])
           : undefined;
@@ -992,6 +1268,7 @@ export default {
         ) {
           return jsonResponse({ error: "Sélection de séance invalide." }, 400);
         }
+        await reserveQuota(user.id, "other");
         return jsonResponse({
           result: await generateCustomSession(profile, selections, estimatedDuration),
         });
@@ -1009,17 +1286,20 @@ export default {
         ) {
           return jsonResponse({ error: "Exercice invalide." }, 400);
         }
+        await reserveQuota(user.id, "other");
         return jsonResponse({
           result: await replaceExercise(exercise, { ...context, profile }),
         });
       }
       return jsonResponse({ error: "Action IA inconnue." }, 404);
     } catch (error) {
+      if (error instanceof QuotaError)
+        return jsonResponse({ error: error.message, code: "AI_QUOTA", ...error.quota }, 429);
       const requestId = crypto.randomUUID();
       const message = error instanceof Error ? error.message : String(error);
       console.error("ai-coach error", {
         requestId,
-        action: "unknown",
+        action,
         message,
         stack: error instanceof Error ? error.stack : undefined,
       });

@@ -26,19 +26,34 @@ test("received fixture survives navigation, a failed save and reload without a s
   let saves = 0;
   const savedIds: string[] = [];
   let active: typeof databaseFixture | null = null;
+  let jobId = "";
   await page.route("https://vincere-test.supabase.co/functions/v1/ai-coach", async (route) => {
-    received += 1;
+    const request = route.request().postDataJSON() as {
+      action: string;
+      payload: { jobId: string };
+    };
+    if (request.action === "program-start") {
+      received += 1;
+      jobId = request.payload.jobId;
+      await route.fulfill({ json: { result: { id: jobId, status: "queued" } } });
+      return;
+    }
     await responseGate;
     await route.fulfill({
       json: {
         result: {
-          user_profile: profile,
-          program_overview: {
-            duration_weeks: 8,
-            training_days_per_week: 4,
-            summary: "Programme fictif local",
+          id: jobId,
+          status: "completed",
+          result: {
+            program_id: jobId,
+            user_profile: profile,
+            program_overview: {
+              duration_weeks: 8,
+              training_days_per_week: 4,
+              summary: "Programme fictif local",
+            },
+            weeks: [],
           },
-          weeks: [],
         },
       },
     });
@@ -100,4 +115,107 @@ test("received fixture survives navigation, a failed save and reload without a s
   expect(
     await page.evaluate((userId) => localStorage.getItem(`Vincere_pending_program_${userId}`), id),
   ).toBeNull();
+});
+
+test("reloading while work is queued resumes its stable ID without another quota debit", async ({
+  page,
+  context,
+}) => {
+  await context.route("**/*", (route) => {
+    const origin = new URL(route.request().url()).origin;
+    return origin === "http://127.0.0.1:4175" || origin === "https://vincere-test.supabase.co"
+      ? route.fallback()
+      : route.abort();
+  });
+  const { profile, program } = await setupApp(page, {
+    theme: "light",
+    objective: "running",
+    empty: true,
+  });
+  const accepted = new Set<string>();
+  let starts = 0;
+  let complete = false;
+  let savedId: string | null = null;
+  await page.route("https://vincere-test.supabase.co/functions/v1/ai-coach", async (route) => {
+    const body = route.request().postDataJSON() as { action: string; payload: { jobId: string } };
+    if (body.action === "program-start") {
+      starts++;
+      accepted.add(body.payload.jobId);
+    }
+    await route.fulfill({
+      json: {
+        result: {
+          id: body.payload.jobId,
+          status: complete ? "completed" : "queued",
+          result: complete
+            ? {
+                program_id: body.payload.jobId,
+                user_profile: profile,
+                program_overview: {
+                  duration_weeks: 8,
+                  training_days_per_week: 4,
+                  summary: "Fixture",
+                },
+                weeks: [],
+              }
+            : undefined,
+        },
+      },
+    });
+  });
+  await page.route(
+    "https://vincere-test.supabase.co/rest/v1/rpc/save_generated_program",
+    async (route) => {
+      savedId = route.request().postDataJSON().p_program_id as string;
+      await route.fulfill({ json: savedId });
+    },
+  );
+  await page.route("https://vincere-test.supabase.co/rest/v1/programs?**", (route) =>
+    route.fulfill({ json: complete ? { ...program, id: [...accepted][0] } : null }),
+  );
+  await page.goto("/generating");
+  await expect.poll(() => starts).toBe(1);
+  await page.reload();
+  await expect.poll(() => starts).toBe(2);
+  expect(accepted.size).toBe(1);
+  complete = true;
+  await expect(page.getByRole("status").filter({ hasText: "Ton programme est prêt" })).toBeVisible({
+    timeout: 10000,
+  });
+  expect(savedId).toBe([...accepted][0]);
+  expect(
+    await page.evaluate((userId) => localStorage.getItem(`Vincere_generation_job_${userId}`), id),
+  ).toBeNull();
+});
+
+test("quota exhaustion displays the weekly limit without leaving a phantom server creation", async ({
+  page,
+  context,
+}) => {
+  await context.route("**/*", (route) => {
+    const origin = new URL(route.request().url()).origin;
+    return origin === "http://127.0.0.1:4175" || origin === "https://vincere-test.supabase.co"
+      ? route.fallback()
+      : route.abort();
+  });
+  await setupApp(page, { theme: "light", objective: "running", empty: true });
+  let requests = 0;
+  await page.route("https://vincere-test.supabase.co/functions/v1/ai-coach", async (route) => {
+    requests++;
+    await route.fulfill({
+      status: 429,
+      json: {
+        code: "AI_QUOTA",
+        error: "Limite de 5 programmes par semaine atteinte. Disponible à nouveau lundi.",
+      },
+    });
+  });
+  await page.goto("/generating");
+  await expect(page.locator(".app-generation")).toContainText("5 programmes par semaine");
+  expect(requests).toBe(1);
+  expect(
+    await page.evaluate((userId) => localStorage.getItem(`Vincere_generation_job_${userId}`), id),
+  ).toBeNull();
+  await page.getByRole("button", { name: "Fermer le message d'erreur", exact: true }).click();
+  await expect(page.locator(".app-generation")).toHaveCount(0);
 });

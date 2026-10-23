@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vite-plus/test";
-import { clearPendingProgram, ProgramGeneration } from "./programGeneration";
+import { clearPendingProgram, ProgramGeneration, ProgramRequestError } from "./programGeneration";
 import type { Program, UserProfile } from "./types";
 
 const profile: UserProfile = {
@@ -35,6 +35,64 @@ function storage() {
   };
 }
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+test("a durable request resumes the same server job after losing the response and reloading", async () => {
+  const cache = storage();
+  const options = {
+    userId: "alice",
+    storage: cache,
+    durableGeneration: true,
+    persist: vi.fn(async (_program: Program, _id: string) => {}),
+    onReady: vi.fn(),
+  };
+  const lost = vi.fn(async () => {
+    throw new Error("connection lost after acceptance");
+  });
+  const first = new ProgramGeneration({ ...options, generate: lost });
+  first.start(profile);
+  await tick();
+  expect(first.getState()).toMatchObject({ phase: "error", hasRemoteJob: true });
+  const remote = JSON.parse(cache.getItem("Vincere_generation_job_alice")!) as {
+    requestId: string;
+  };
+  first.dismiss();
+  expect(cache.getItem("Vincere_generation_job_alice")).not.toBeNull();
+  first.dispose();
+  const completed = vi.fn(async () => ({ ...fixture, program_id: remote.requestId }));
+  const resumed = new ProgramGeneration({ ...options, generate: completed });
+  resumed.activate();
+  await tick();
+  expect(completed.mock.calls[0]).toEqual([profile, remote.requestId, expect.any(AbortSignal)]);
+  expect(options.persist.mock.calls[0][1]).toBe(remote.requestId);
+  expect(cache.getItem("Vincere_generation_job_alice")).toBeNull();
+  expect(options.onReady).toHaveBeenCalledTimes(1);
+});
+
+test("a rejected quota or terminal server failure clears the remote request without retrying AI", async () => {
+  const cache = storage();
+  const generate = vi.fn(async () => {
+    throw new ProgramRequestError("Limite de 5 programmes par semaine atteinte.", true);
+  });
+  const run = new ProgramGeneration({
+    userId: "alice",
+    storage: cache,
+    durableGeneration: true,
+    generate,
+    persist: vi.fn(),
+    onReady: vi.fn(),
+  });
+  run.start(profile);
+  await tick();
+  expect(run.getState()).toMatchObject({
+    phase: "error",
+    hasPendingProgram: false,
+    message: expect.stringContaining("5 programmes"),
+  });
+  expect(cache.getItem("Vincere_generation_job_alice")).toBeNull();
+  run.dismiss();
+  expect(run.getState()).toEqual({ phase: "idle" });
+  expect(generate).toHaveBeenCalledTimes(1);
+});
 
 describe("program generation recovery with local fixtures only", () => {
   test("reload retries only persistence with the same ID and result", async () => {
