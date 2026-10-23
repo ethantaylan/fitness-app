@@ -32,6 +32,6 @@ Sources : [limites Supabase](https://supabase.com/docs/guides/functions/limits),
 
 ## État vérifié le 23 octobre 2026
 
-Les quatre migrations, le secret de worker et ses entrées Vault sont installés sur le projet Supabase. `ai-coach` v17 est actif et le cron est activé. La publication du client web/iOS reste nécessaire pour utiliser le nouveau suivi. Aucun appel OpenAI supplémentaire n’a été effectué pour ces vérifications.
+Les quatre migrations, le secret de worker et ses entrées Vault sont installés sur le projet Supabase. `ai-coach` v17 est actif et le cron est activé. Le client web est publié sur Netlify et ses nouveaux fichiers ont été vérifiés en production. Le client natif 1.0.2 (11) est synchronisé dans Xcode ; son archive signée a été envoyée avec succès à App Store Connect, qui a commencé son traitement. Sa disponibilité TestFlight et sa publication publique restent à confirmer. Aucun appel OpenAI supplémentaire n’a été effectué pour cette livraison.
 
 Les données de quota et de travail référencent aussi directement le compte Auth : sa suppression efface ces nouvelles données même sur un ancien schéma dont le profil public ne suit pas encore cette suppression.

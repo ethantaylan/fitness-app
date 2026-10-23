@@ -6,7 +6,19 @@ Le depot contient le projet iOS Capacitor, les adaptations mobiles et les parcou
 
 Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du SDK iOS 27**. Les controles natifs, la compilation et la signature ont reussi.
 
-### Livraison 1.0.1
+### Livraison 1.0.2 (11) — 23 octobre 2026
+
+- Version : **1.0.2**, numero de build **11**, bundle `app.vincere.fitness`.
+- Web : correctifs publies sur `https://vincere-fitness.netlify.app` depuis `main`. Les routes publiques et les fichiers JavaScript de la nouvelle generation ont ete verifies en production.
+- iOS : projet synchronise et ouvert dans Xcode ; archive signee `build/Vincere-1.0.2-11.xcarchive`.
+- Envoi App Store Connect : reussi le 23 octobre 2026 a 16 h 40, heure de Paris. Xcode confirme `Upload succeeded`, `EXPORT SUCCEEDED` et le debut du traitement Apple.
+- Contenu : quotas persistants de 5 programmes par semaine et de 10 autres actions IA par jour, creation de programme par etapes sauvegardees cote serveur, reprise du suivi apres rechargement et suppression des relectures du lien natif de reinitialisation du mot de passe. L'e-mail de fin de creation reste reporte.
+- Backend : `ai-coach` v17, les quatre migrations de quotas/travaux et le cron sont actifs. Voir [Quotas et creation en arriere-plan](ai-usage-and-background-programs.md).
+- Validation : `vp check`, 113 tests, 10 scenarios Playwright sur Chromium/WebKit, builds web/natif, controles iOS, verification de signature, archive et envoi Apple reussis. Aucun nouvel appel IA payant pendant la livraison.
+
+La version 1.0.1 est deja approuvee chez Apple et fermee aux nouveaux builds ; la nouvelle livraison utilise donc 1.0.2. **Le traitement Apple a commence, mais la disponibilite TestFlight, la soumission App Review et la publication publique de 1.0.2 ne sont pas encore confirmees.**
+
+### Livraison 1.0.1 (10) — 15 octobre 2026
 
 - Version : **1.0.1**, numero de build **10** (les builds precedents sont remplaces).
 - Bundle : `app.vincere.fitness` ; application App Store Connect `6821321431`.
@@ -16,7 +28,7 @@ Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du 
 - Verification : `vp check`, controles iOS, preparation native, archive signee et envoi App Store Connect reussis.
 - Les migrations Supabase `20261014141541` (contrainte des records) et `20261015090000` (table `user_notes`) sont appliquees au serveur.
 
-**Envoi ne signifie pas publication publique.** La selection du build pour la version 1.0.1, sa soumission a App Review et sa disponibilite publique n'ont pas ete effectuees ni verifiees ici. L'acces a l'interface App Store Connect par l'outil de controle du navigateur etait indisponible pendant cette livraison.
+Lors de cette livraison du 15 octobre, la selection du build pour la version 1.0.1, sa soumission a App Review et sa disponibilite publique n'avaient pas ete effectuees ni verifiees ici. L'acces a l'interface App Store Connect par l'outil de controle du navigateur etait indisponible.
 
 ## Identite
 
@@ -70,7 +82,7 @@ Une ancienne variable locale `VITE_OPENAI_API_KEY` a ete renommee `OPENAI_API_KE
 2. Sauvegarder la base et verifier les comptes orphelins avec la requete ci-dessous. Si des lignes existent, examiner leur origine ; ne pas les supprimer automatiquement.
 3. Appliquer `supabase/migrations/20261008085025_app_store_account_deletion.sql` avec le circuit de migration habituel, puis verifier `select public.account_deletion_ready();` en role administrateur/service. Le resultat doit etre `true`. La fonction est volontairement interdite aux roles publics.
 4. Deployer les Edge Functions `delete-account` et `ai-coach` apres verification de la configuration du projet cible. `verify_jwt = false` au niveau de la passerelle est intentionnel : les actions protegees verifient elles-memes l'identite via `auth.getUser()`. Ne pas retirer ces verifications.
-5. Configurer `OPENAI_API_KEY` uniquement dans les secrets Supabase. Verifier les quotas et la facturation cote fournisseur. La limitation IA existante est en memoire par instance ; pour une exploitation a grande echelle, ajouter une limite persistante avant d'augmenter le trafic.
+5. Configurer `OPENAI_API_KEY` uniquement dans les secrets Supabase. Verifier les quotas et la facturation cote fournisseur. Les quotas persistants sont de 5 programmes par semaine et 10 autres actions IA par jour et par compte. Les migrations, le worker et le cron necessaires sont decrits dans [Quotas et creation en arriere-plan](ai-usage-and-background-programs.md).
 6. Publier cette version web sur Netlify avec `vp run build` et `dist`. Verifier les trois URL publiques dans une fenetre privee, sans compte. L'ancienne version web n'envoie pas encore `consentVersion` : coordonner le deploiement web et celui de `ai-coach`, puis faire recharger les anciens clients.
 7. Tester la suppression avec deux comptes de test : seul le compte confirme doit disparaitre, avec ses programmes, seances, records et contacts lies. Verifier aussi l'impossibilite de recreer ses donnees avec un ancien jeton. Les contacts anonymes, les copies partagees, les e-mails et sauvegardes des prestataires demandent un traitement distinct.
 
