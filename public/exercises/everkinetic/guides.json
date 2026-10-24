@@ -1,0 +1,205 @@
+[
+  {
+    "id": "push-ups",
+    "title": "Pompes",
+    "aliases": ["Pompes", "Push ups"],
+    "steps": [
+      "Place les mains sous les épaules, jambes tendues.",
+      "Garde le corps aligné et descends en pliant les coudes.",
+      "Repousse le sol pour revenir."
+    ],
+    "mistake": "Évite de laisser tomber le bassin."
+  },
+  {
+    "id": "pull-ups",
+    "title": "Tractions pronation",
+    "aliases": ["Tractions pronation", "Pull-ups"],
+    "steps": [
+      "Saisis une barre fixe, paumes vers l’avant.",
+      "Tire les coudes vers le bas pour monter la poitrine.",
+      "Redescends lentement."
+    ],
+    "mistake": "Évite les balancements."
+  },
+  {
+    "id": "side-plank",
+    "title": "Planche latérale",
+    "aliases": ["Planche latérale", "Gainage latéral", "Side plank"],
+    "steps": [
+      "Allonge-toi sur le côté, coude sous l’épaule.",
+      "Soulève le bassin en prenant appui sur l’avant-bras et les pieds.",
+      "Maintiens puis repose le bassin et change de côté."
+    ],
+    "mistake": "Ne laisse pas le bassin s’affaisser."
+  },
+  {
+    "id": "crunches",
+    "title": "Crunch jambes sur banc",
+    "aliases": ["Crunch jambes sur banc", "Crunch sur banc"],
+    "steps": [
+      "Allonge-toi, mollets sur un banc, genoux fléchis.",
+      "Décolle légèrement les épaules en contractant les abdominaux.",
+      "Repose lentement les épaules."
+    ],
+    "mistake": "Ne tire pas sur la nuque."
+  },
+  {
+    "id": "barbell-squat",
+    "title": "Squat barre",
+    "aliases": ["Squat barre", "Squat avec barre", "Back squat", "Barbell squat"],
+    "steps": [
+      "Place la barre sur le haut du dos, pieds bien ancrés.",
+      "Fléchis hanches et genoux dans une amplitude contrôlée.",
+      "Pousse dans les pieds pour te redresser."
+    ],
+    "mistake": "Évite de décoller les talons ou d’arrondir le dos."
+  },
+  {
+    "id": "bench-press",
+    "title": "Développé couché barre",
+    "aliases": ["Développé couché barre", "Développé couché avec barre", "Barbell bench press"],
+    "steps": [
+      "Allonge-toi sur un banc, pieds au sol, barre au-dessus de la poitrine.",
+      "Descends la barre lentement vers la poitrine.",
+      "Repousse la barre avec contrôle."
+    ],
+    "mistake": "Ne fais pas rebondir la barre sur la poitrine."
+  },
+  {
+    "id": "bench-press-dumbbell",
+    "title": "Développé couché haltères",
+    "aliases": [
+      "Développé couché haltères",
+      "Développé couché avec haltères",
+      "Dumbbell bench press"
+    ],
+    "steps": [
+      "Allonge-toi sur un banc, haltères au-dessus de la poitrine.",
+      "Descends les haltères de chaque côté dans une amplitude confortable.",
+      "Repousse-les au-dessus de la poitrine."
+    ],
+    "mistake": "Garde les poignets alignés avec les avant-bras."
+  },
+  {
+    "id": "dumbbell-shoulder-press",
+    "title": "Développé épaules haltères assis",
+    "aliases": [
+      "Développé épaules haltères assis",
+      "Développé militaire haltères assis",
+      "Seated dumbbell shoulder press"
+    ],
+    "steps": [
+      "Assieds-toi sur un banc, haltères à hauteur des épaules.",
+      "Pousse les haltères au-dessus de la tête.",
+      "Redescends lentement à hauteur des épaules."
+    ],
+    "mistake": "Ne cambre pas excessivement le bas du dos."
+  },
+  {
+    "id": "seated-cable-rows",
+    "title": "Tirage horizontal poulie",
+    "aliases": ["Tirage horizontal poulie", "Rowing poulie basse", "Seated cable row"],
+    "steps": [
+      "Assieds-toi face à la poulie, genoux légèrement fléchis.",
+      "Tire la poignée vers le ventre en gardant le buste stable.",
+      "Laisse revenir les bras avec contrôle."
+    ],
+    "mistake": "Évite de donner de l’élan avec le dos."
+  },
+  {
+    "id": "biceps-curl-with-dumbbell",
+    "title": "Curl biceps haltères",
+    "aliases": ["Curl biceps haltères", "Curl haltères", "Dumbbell biceps curl"],
+    "steps": [
+      "Debout, haltères le long du corps, paumes vers l’avant.",
+      "Plie les coudes pour rapprocher les haltères des épaules.",
+      "Redescends lentement."
+    ],
+    "mistake": "Garde les coudes près du corps, sans balancer le buste."
+  },
+  {
+    "id": "biceps-hammer-curl-with-dumbbell",
+    "title": "Curl marteau",
+    "aliases": ["Curl marteau", "Curl marteau haltères", "Hammer curl"],
+    "steps": [
+      "Tiens les haltères avec les paumes face à face.",
+      "Plie les coudes sans tourner les poignets.",
+      "Redescends avec contrôle."
+    ],
+    "mistake": "Évite de prendre de l’élan."
+  },
+  {
+    "id": "leg-press",
+    "title": "Presse à cuisses",
+    "aliases": ["Presse à cuisses", "Leg press"],
+    "steps": [
+      "Installe-toi sur la presse, dos et bassin soutenus.",
+      "Fléchis les genoux en gardant les pieds à plat sur la plateforme.",
+      "Repousse sans verrouiller brutalement les genoux."
+    ],
+    "mistake": "Ne décolle pas le bassin du siège."
+  },
+  {
+    "id": "lying-leg-curl-machine",
+    "title": "Leg curl allongé",
+    "aliases": ["Leg curl allongé", "Lying leg curl"],
+    "steps": [
+      "Allonge-toi sur la machine, rouleau au-dessus des talons.",
+      "Ramène les talons vers les fesses en pliant les genoux.",
+      "Redescends lentement."
+    ],
+    "mistake": "Garde le bassin contre le support."
+  },
+  {
+    "id": "dumbbell-lunges",
+    "title": "Fentes haltères",
+    "aliases": ["Fentes haltères", "Fentes avec haltères", "Dumbbell lunges"],
+    "steps": [
+      "Debout, tiens un haltère dans chaque main.",
+      "Fais un pas en avant et fléchis les deux jambes.",
+      "Repousse dans le pied avant pour revenir puis alterne."
+    ],
+    "mistake": "Garde le genou aligné avec le pied et le buste stable."
+  },
+  {
+    "id": "incline-bench-press",
+    "title": "Développé incliné barre",
+    "aliases": [
+      "Développé incliné barre",
+      "Développé incliné avec barre",
+      "Incline barbell bench press"
+    ],
+    "steps": [
+      "Allonge-toi sur un banc incliné, pieds au sol.",
+      "Descends la barre vers le haut de la poitrine.",
+      "Repousse avec contrôle."
+    ],
+    "mistake": "Ne fais pas rebondir la barre."
+  },
+  {
+    "id": "dumbbell-incline-bench-press",
+    "title": "Développé incliné haltères",
+    "aliases": [
+      "Développé incliné haltères",
+      "Développé incliné avec haltères",
+      "Incline dumbbell bench press"
+    ],
+    "steps": [
+      "Allonge-toi sur un banc incliné, haltères près des épaules.",
+      "Pousse les haltères au-dessus de la poitrine.",
+      "Redescends lentement."
+    ],
+    "mistake": "Évite de cogner les haltères en haut."
+  },
+  {
+    "id": "triceps-pushdown-with-rope-and-cable",
+    "title": "Extension triceps corde",
+    "aliases": ["Extension triceps corde", "Triceps à la corde", "Triceps pushdown corde"],
+    "steps": [
+      "Debout face à une poulie haute, saisis la corde.",
+      "Garde les coudes près du corps et tends les bras vers le bas.",
+      "Reviens lentement sans déplacer les coudes."
+    ],
+    "mistake": "Évite de pousser avec tout le buste."
+  }
+]

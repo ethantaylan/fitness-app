@@ -5,6 +5,7 @@ import type { SessionStatus } from "../../lib/program";
 import type { Exercise, Session, WarmupItem } from "../../lib/types";
 import PageHeader from "../ui/PageHeader";
 import SessionCheck from "../ui/SessionCheck";
+import ExerciseGuide from "./ExerciseGuide";
 import ExerciseVisual from "./ExerciseVisual";
 
 function Steps({ title, items }: Readonly<{ title: string; items: WarmupItem[] }>) {
@@ -65,6 +66,7 @@ function ExerciseCard({
           ))}
         </dl>
       )}
+      <ExerciseGuide name={exercise.name} notes={exercise.notes} />
       {exercise.alternative && (
         <p className="mt-3 flex items-start gap-2 text-sm text-ink-soft">
           <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

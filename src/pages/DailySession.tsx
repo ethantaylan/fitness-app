@@ -26,6 +26,7 @@ import { encodeSharedSession } from "../lib/sharedSession";
 import { replaceExercise } from "../lib/openai";
 import { FEEDBACK_META } from "../lib/constants";
 import { formatLoadValue } from "../lib/formatLoad";
+import ExerciseGuide from "../components/session/ExerciseGuide";
 import Modal from "../components/ui/Modal";
 import {
   exerciseMetrics,
@@ -477,6 +478,7 @@ function SessionDetail({
                           </div>
                         ))}
                       </dl>
+                      <ExerciseGuide name={ex.name} notes={ex.notes} />
                       {isReplaced && (
                         <p className="mt-2 text-xs text-green-600 font-semibold flex items-center gap-1">
                           <Check className="w-3 h-3" /> Exercice remplacé
