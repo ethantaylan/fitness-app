@@ -16,7 +16,7 @@ export function findBuiltinGuide(name: string) {
     : null;
 }
 
-/** This endpoint has no image-provider client: consultation can never spend credits. */
+/** Reads the shared catalogue; generation is separately reserved in the database. */
 export async function resolveDemo(
   admin,
   userId: string,

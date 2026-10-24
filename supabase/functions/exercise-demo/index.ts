@@ -2,6 +2,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.99.1";
 import { corsHeaders } from "npm:@supabase/supabase-js@2.99.1/cors";
 import { normalizeExerciseName } from "../../../src/lib/exerciseGuideKey.ts";
+import { generateMissingDemo } from "./generation.ts";
 import { findBuiltinGuide, resolveDemo } from "./library.ts";
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: corsHeaders });
@@ -30,6 +31,12 @@ export default {
         !["lookup", "request"].includes(body.action)
       )
         return json({ error: "Exercice invalide." }, 400);
+      if (
+        body.automatic === true &&
+        body.action === "request" &&
+        body.consentVersion !== "2026-10-08"
+      )
+        return json({ error: "Accord IA requis." }, 403);
       const url = Deno.env.get("SUPABASE_URL")!;
       const auth = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -46,15 +53,26 @@ export default {
       const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      return json(
-        await resolveDemo(
-          admin,
-          user.id,
-          body.name,
-          normalizeExerciseName(body.name),
-          body.action === "request",
-        ),
-      );
+      const key = normalizeExerciseName(body.name);
+      const result = await resolveDemo(admin, user.id, body.name, key, body.action === "request");
+      if (
+        body.automatic === true &&
+        body.action === "request" &&
+        ["pending", "unavailable"].includes(result.status)
+      ) {
+        const apiKey = Deno.env.get("OPENAI_API_KEY");
+        if (apiKey)
+          EdgeRuntime.waitUntil(
+            generateMissingDemo(admin, user.id, body.name, key, apiKey).catch(() =>
+              console.error("Exercise demo worker interrupted"),
+            ),
+          );
+      }
+      // Legacy builds promise human-reviewed images. Never send an automatic
+      // illustration to those builds until they support the honest provenance label.
+      if (result.status === "ready" && result.guide?.reviewed === false && body.automatic !== true)
+        return json({ status: "pending" });
+      return json(result);
     } catch {
       return json({ error: "Bibliothèque momentanément indisponible." }, 503);
     }

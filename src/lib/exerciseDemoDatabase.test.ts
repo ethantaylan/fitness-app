@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { PGlite } from "@electric-sql/pglite";
+import automatic from "../../supabase/migrations/20261024165536_exercise_demo_automatic_generation.sql?raw";
 import migration from "../../supabase/migrations/20261024154903_exercise_demo_library.sql?raw";
 
 const owner = "00000000-0000-0000-0000-000000000001";
@@ -36,6 +37,7 @@ test(
       insert into public.exercises values (1,1,'Squat au poids du corps'), (2,2,'Squat au poids du corps');
     `);
       await db.exec(migration);
+      await db.exec(automatic);
       async function request(
         user = owner,
         key = "squat au poids du corps",
@@ -109,6 +111,39 @@ test(
       expect(
         (await request(owner, "developpe couche halteres", "Développé couché haltères")).status,
       ).toBe("ready");
+      await db.exec("insert into public.exercises values (3,1,'Burpees'), (4,2,'Burpees')");
+      await request(owner, "burpees", "Burpees");
+      async function claim(user: string) {
+        return (
+          await db.query<{ value: { claimed: boolean; id: string; token: string } }>(
+            "select public.exercise_demo_claim($1,'burpees','Burpees') as value",
+            [user],
+          )
+        ).rows[0].value;
+      }
+      const first = await claim(owner);
+      expect(first.claimed).toBe(true);
+      const second = await claim(other);
+      expect(second.claimed).toBe(false);
+      expect(second.token).toBe(first.token);
+      await db.query(
+        "select public.exercise_demo_generated('burpees',$1,'generation_interrupted')",
+        [first.token],
+      );
+      expect((await request(other, "burpees", "Burpees")).status).toBe("unavailable");
+      expect((await claim(other)).claimed).toBe(false);
+      await db.query("insert into storage.objects values ('exercise-demo-library',$1)", [
+        `${first.id}/generated.png`,
+      ]);
+      await db.query("select public.exercise_demo_generated('burpees',$1)", [first.token]);
+      const generated = await request(other, "burpees", "Burpees");
+      expect(generated.status).toBe("ready");
+      expect(generated.guide).toMatchObject({ reviewed: false });
+      expect(await claim(owner)).toBeNull();
+      expect(
+        (await db.query("select reviewed_at from ai_private.exercise_demos where key='burpees'"))
+          .rows[0],
+      ).toEqual({ reviewed_at: null });
       await db.query("delete from auth.users where id=$1", [owner]);
       expect((await request(other)).status).toBe("ready");
     } finally {

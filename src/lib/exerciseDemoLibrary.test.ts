@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock("./aiConsent", () => ({
+  requestAIConsent: vi.fn().mockResolvedValue(true),
+  AI_CONSENT_VERSION: "2026-10-08",
+}));
 vi.mock("./supabase", () => ({ supabase: { functions: { invoke } } }));
 
 beforeEach(() => {
@@ -17,6 +21,7 @@ describe("shared demonstration requests", () => {
     const { requestExerciseDemo } = await import("./exerciseDemoLibrary");
     const first = requestExerciseDemo("Fentes arrière");
     const second = requestExerciseDemo("  FENTES ARRIERE  ");
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
     release({ data: { status: "pending" }, error: null });
     expect(await first).toEqual({ status: "pending" });
     expect(await second).toEqual({ status: "pending" });
@@ -24,7 +29,14 @@ describe("shared demonstration requests", () => {
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith(
       "exercise-demo",
-      expect.objectContaining({ body: { action: "request", name: "Fentes arrière" } }),
+      expect.objectContaining({
+        body: {
+          action: "request",
+          name: "Fentes arrière",
+          automatic: true,
+          consentVersion: "2026-10-08",
+        },
+      }),
     );
   });
   it("does not cache failures forever and refuses unrelated remote image origins", async () => {

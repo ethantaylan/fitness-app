@@ -1,64 +1,83 @@
 # Bibliothèque partagée de démonstrations
 
-Les consultations ne génèrent **jamais** d’image et n’appellent aucun fournisseur IA.
-Les 17 fiches Everkinetic embarquées restent prioritaires et disponibles hors connexion.
-À l’ouverture d’une fiche manquante, l’app demande une fiche commune à Supabase.
-Si elle n’existe pas, une seule entrée est créée, uniquement si le nom figure dans
-une séance enregistrée du compte. Les notes, mensurations et profils ne sont pas
-copiés dans cette bibliothèque. Les demandes sont bornées à 50 nouveaux noms par
-compte et par jour et ne consomment pas le quota des programmes.
+Les 17 fiches Everkinetic embarquées sont prioritaires et consultables hors connexion.
+Pour une fiche manquante : consultation de la base, création d’une entrée unique,
+réservation atomique puis **un seul appel** à l’API Images OpenAI (`gpt-image-2`,
+`n: 1`, PNG 1536×1024, qualité medium). L’image contient les deux positions.
+Le résultat est stocké dans le bucket privé `exercise-demo-library` et partagé
+avec les comptes via une URL signée d’une heure. Le cache client dure cinq minutes.
 
-## Déduplication et variantes
+## Une seule tentative payante
 
-Une clé normalise accents, casse, espaces, apostrophes et tirets. Une contrainte
-primaire assure une seule demande même entre plusieurs comptes ou requêtes
-simultanées. Le matériel et les variantes ne sont jamais supprimés de la clé.
-Des synonymes vérifiés peuvent être associés à la même fiche. La normalisation
-ne prétend pas comprendre automatiquement que deux noms différents désignent
-le même mouvement : vérifier les synonymes **avant chaque lot de génération**.
-Les alias des fiches embarquées sont déjà enregistrés côté serveur.
+La clé normalise accents, casse, espaces, apostrophes et tirets. Elle conserve
+le matériel et les variantes. Les synonymes vérifiés sont associés par alias ;
+la normalisation ne prétend pas fusionner automatiquement tous les synonymes.
+La contrainte primaire empêche les lignes dupliquées, y compris entre comptes.
+`exercise_demo_claim` verrouille la ligne et enregistre un token permanent
+**avant** l’appel au fournisseur. Un autre serveur reçoit `claimed: false`.
+Il n’y a ni bail renouvelable, ni reset automatique du token, ni retry HTTP/SDK.
 
-## Traitement manuel d’un lot
+Les deux risques sont volontairement traités différemment :
 
-Utiliser le skill imagegen dans Codex pour générer les illustrations demandées,
-avec le style validé : contour anatomique noir, fond blanc, deux positions du
-même mouvement et du même matériel. Aucune génération de lot n’est programmée.
-L’exemple de développé couché n’est pas à régénérer : il existe déjà dans le catalogue.
+- Si le PNG a été stocké mais la finalisation a été interrompue, la prochaine
+  demande retrouve le fichier et finalise la même fiche sans générer d’image.
+- Si le fournisseur a potentiellement facturé mais que le fichier n’a pas été
+  reçu, la tentative reste `uncertain` (ou `generating` si le worker a été tué).
+  On **ne régénère pas** automatiquement. Après dix minutes, la consultation
+  indique une indisponibilité. Vérifier manuellement la tentative, les journaux
+  et Storage ; ne pas effacer le token pour relancer aveuglément.
 
-L’outil administratif ci-dessous nécessite `SUPABASE_URL` et
-`SUPABASE_SERVICE_ROLE_KEY` dans l’environnement **local de l’administrateur**.
-Ne pas utiliser une variable `VITE_`, ne pas committer une clé, ni la coller dans
-le chat. Il ne contient aucun appel OpenAI. Le SDK ne persiste pas de session.
+Cette garantie porte sur **au plus un appel de génération par clé**, pas sur
+la livraison garantie d’une image en cas de panne entre deux services.
+
+## Accès, consentement et compatibilité
+
+L’endpoint vérifie le JWT avec `auth.getUser()`. Une réservation exige que le nom
+figure dans une séance enregistrée du compte. Seul le nom du mouvement est envoyé
+à OpenAI, jamais les mensurations, blessures, notes ou données du profil.
+Le client demande l’accord IA déjà utilisé par Vincere avant une première demande.
+Les lectures de suivi (`lookup`) ne démarrent jamais de génération.
+Les 50 nouvelles demandes par jour et par compte restent distinctes du quota des
+programmes. Les tables internes et RPC de génération sont réservées au rôle serveur.
+La clé OpenAI reste dans les secrets Supabase ; aucune variable VITE ne la contient.
+
+Les images automatiques portent `reviewed: false` et un crédit explicite de génération
+par IA sans vérification manuelle. Les instructions spécifiques figurent sur l’image ;
+les consignes enregistrées de la séance restent affichées. Le champ `reviewed_at`
+reste nul pour les images automatiques. Les brouillons manuels ne sont pas publiés.
+Les anciens builds qui promettent une vérification manuelle ne déclenchent pas de
+génération et ne reçoivent pas les illustrations automatiques : le client annonce
+`automatic: true` pour activer ce flux et afficher sa provenance correctement.
+
+## Exploitation manuelle et alias
+
+Le script `scripts/exercise-demo-library.mjs` reste disponible pour ajouter une
+illustration validée manuellement, examiner la file et associer un synonyme vérifié.
+Il exige `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` dans l’environnement local
+administrateur. Ne jamais mettre la clé dans `VITE_`, dans Git ou dans le chat.
 
 ```sh
 node scripts/exercise-demo-library.mjs list
-# Associer d’abord les demandes déjà couvertes à une fiche vérifiée :
 node scripts/exercise-demo-library.mjs alias 'builtin:barbell-squat' 'synonyme vérifié'
-# Après génération manuelle d’une seule planche contenant les deux positions :
-node scripts/exercise-demo-library.mjs stage 'clé de la demande' /chemin/demo.png /chemin/guide.json
-# Vérifier visuellement les deux positions, le matériel, la posture et le texte :
-node scripts/exercise-demo-library.mjs approve 'clé de la demande' --reviewed
+node scripts/exercise-demo-library.mjs stage 'clé' /chemin/demo.png /chemin/guide.json
+node scripts/exercise-demo-library.mjs approve 'clé' --reviewed
 ```
 
-Le JSON du guide contient `title`, `steps` (au moins deux consignes en français)
-et `mistake` (erreur à éviter). L’import conserve l’image dans un bucket privé et
-crée un brouillon. Le téléchargement administratif du brouillon est possible via
-Supabase Storage ; aucune URL de brouillon n’est renvoyée aux utilisateurs.
-Seules les fiches approuvées sont servies par URL signée (une heure), avec un crédit
-Vincere distinct d’Everkinetic. Le cache client expire après cinq minutes.
-
-Un import répété ne remplace jamais un fichier différent ; un import interrompu
-peut reprendre avec les mêmes octets. Une fiche publiée est immuable. Une fiche
-rejetée reste enregistrée et ne déclenche aucune nouvelle génération. Un alias
-peut réutiliser une autre fiche approuvée après vérification.
+Le JSON manuel contient `title`, `steps` (au moins deux consignes françaises) et
+`mistake`. Un fichier existant n’est jamais remplacé par un import différent.
+Les fiches publiées sont immuables. Les fiches rejetées restent enregistrées.
+Les dix entrées préparées avant le passage au mode automatique ne sont pas lancées
+en lot : elles seront traitées individuellement lors d’une première consultation
+compatible, avec une séance du compte qui contient effectivement l’exercice.
 
 ## Déploiement et vérification
 
-Appliquer la migration `exercise_demo_library`, puis déployer la fonction
-`exercise-demo` (contrôle JWT dans la fonction avec `auth.getUser()`).
-Les RPC et tables internes sont réservés au rôle serveur ; aucun accès direct
-aux brouillons ou privilège administratif n’est accordé aux comptes de l’app.
-Aucune configuration de fournisseur d’images et aucun cron ne sont nécessaires.
+Appliquer les migrations `exercise_demo_library` puis
+`exercise_demo_automatic_generation` ; déployer la fonction `exercise-demo` avec
+contrôle JWT interne. `OPENAI_API_KEY` est le seul secret de fournisseur nécessaire.
+Aucun cron et aucun appel IA depuis le navigateur ne sont utilisés.
 
-Les tests utilisent des fixtures et une base Postgres PGlite locale : aucun
-appel IA ni création réelle de programme n’est nécessaire.
+Les tests du fournisseur sont **simulés**, et les fonctions SQL sont exécutées
+sur PGlite. Couverture : concurrence, seconde consultation, timeout, récupération
+d’un PNG stocké, absence de clé, refus d’accès et séparation des variantes.
+Aucune création réelle de programme ni image payante n’est nécessaire aux tests.

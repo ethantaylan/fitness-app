@@ -1,3 +1,4 @@
+import { requestAIConsent, AI_CONSENT_VERSION } from "./aiConsent";
 import { supabase } from "./supabase";
 import { normalizeExerciseName } from "./exerciseGuideKey";
 
@@ -9,6 +10,7 @@ export interface LibraryGuide {
   source: "everkinetic" | "vincere";
   images: string[];
   layout?: "pair";
+  reviewed?: boolean;
 }
 export type DemoResult =
   | { status: "ready"; guide: LibraryGuide }
@@ -42,8 +44,11 @@ export function isLibraryGuide(value: unknown): value is LibraryGuide {
   );
 }
 
-/** The server only queues missing entries. No image generation is triggered by this call. */
-export async function requestExerciseDemo(name: string): Promise<DemoResult> {
+/** Requests can reserve a first generation; lookup polling never starts one. */
+export async function requestExerciseDemo(
+  name: string,
+  action: "request" | "lookup" = "request",
+): Promise<DemoResult> {
   const key = normalizeExerciseName(name);
   const saved = cache.get(key);
   if (saved && saved.expires > Date.now()) return saved.result;
@@ -51,8 +56,9 @@ export async function requestExerciseDemo(name: string): Promise<DemoResult> {
   if (active) return active;
   const request = (async (): Promise<DemoResult> => {
     try {
+      if (action === "request" && !(await requestAIConsent())) return { status: "unavailable" };
       const { data, error } = await supabase.functions.invoke("exercise-demo", {
-        body: { action: "request", name },
+        body: { action, name, automatic: true, consentVersion: AI_CONSENT_VERSION },
         timeout: 10000,
       });
       if (error || !data) return { status: "unavailable" };
@@ -66,7 +72,7 @@ export async function requestExerciseDemo(name: string): Promise<DemoResult> {
             };
       cache.set(key, {
         result,
-        expires: Date.now() + (result.status === "ready" ? 300000 : 30000),
+        expires: Date.now() + (result.status === "ready" ? 300000 : 2000),
       });
       return result;
     } catch {

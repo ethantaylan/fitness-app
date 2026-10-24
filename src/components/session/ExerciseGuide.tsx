@@ -27,11 +27,21 @@ export default function ExerciseGuide({ name, notes }: Readonly<{ name: string; 
   useEffect(() => {
     if (!open || local) return;
     let active = true;
-    void requestExerciseDemo(name).then((value) => {
-      if (active) setRemote({ name, result: value });
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const started = Date.now();
+    async function load(action: "request" | "lookup") {
+      const value = await requestExerciseDemo(name, action);
+      if (!active) return;
+      setRemote({ name, result: value });
+      if (value.status === "pending" && Date.now() - started < 240000)
+        timer = setTimeout(() => {
+          void load("lookup");
+        }, 5000);
+    }
+    void load("request");
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [open, name, local]);
   return (
@@ -140,8 +150,9 @@ export default function ExerciseGuide({ name, notes }: Readonly<{ name: string; 
               </p>
             ) : (
               <p className="text-xs leading-relaxed text-ink-soft">
-                Illustration créée avec l’IA pour Vincere et vérifiée avant son ajout à la
-                bibliothèque.
+                {guide.reviewed === false
+                  ? "Illustration générée par IA pour Vincere, sans vérification manuelle."
+                  : "Illustration créée avec l’IA pour Vincere et vérifiée avant son ajout à la bibliothèque."}
               </p>
             )}
           </div>
@@ -154,7 +165,7 @@ export default function ExerciseGuide({ name, notes }: Readonly<{ name: string; 
               {!result
                 ? "Recherche dans la bibliothèque…"
                 : result.status === "pending"
-                  ? "Cet exercice a été ajouté à la liste des démonstrations à préparer."
+                  ? "La démonstration est en préparation. Elle sera ensuite réutilisée depuis la bibliothèque."
                   : "Les consignes de ta séance restent disponibles."}
             </p>
             {notes && (

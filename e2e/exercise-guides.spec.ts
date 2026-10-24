@@ -64,6 +64,8 @@ test("missing guides queue once and approved shared media is reused", async ({ p
     expect(route.request().postDataJSON()).toEqual({
       action: "request",
       name: "Course en endurance",
+      automatic: true,
+      consentVersion: "2026-10-08",
     });
     await route.fulfill({
       json: approved
@@ -99,10 +101,10 @@ test("missing guides queue once and approved shared media is reused", async ({ p
   });
   await button.click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("ajouté à la liste");
+  await expect(dialog).toContainText("en préparation");
   await dialog.getByRole("button", { name: "Revenir à ma séance" }).click();
   await button.click();
-  await expect(dialog).toContainText("ajouté à la liste");
+  await expect(dialog).toContainText("en préparation");
   expect(calls).toBe(1);
   approved = true;
   await page.reload();
@@ -116,4 +118,66 @@ test("missing guides queue once and approved shared media is reused", async ({ p
     )
     .toBeGreaterThan(0);
   expect(calls).toBe(2);
+});
+
+test("automatic generation is followed with read-only polling and its result is reused", async ({
+  page,
+  context,
+}) => {
+  await context.route("**/*", (route) => {
+    const origin = new URL(route.request().url()).origin;
+    if (origin === "http://127.0.0.1:4175") return route.continue();
+    if (origin === "https://vincere-test.supabase.co") return route.fallback();
+    return route.abort();
+  });
+  await setupApp(page, { theme: "dark", objective: "running" });
+  const actions: string[] = [];
+  await page.route("https://vincere-test.supabase.co/functions/v1/exercise-demo", async (route) => {
+    const body = route.request().postDataJSON();
+    actions.push(body.action);
+    expect(body.automatic).toBe(true);
+    await route.fulfill({
+      json:
+        body.action === "request"
+          ? { status: "pending" }
+          : {
+              status: "ready",
+              guide: {
+                id: "automatic",
+                title: "Course en endurance",
+                steps: ["Repère les positions.", "Suis les consignes de ta séance."],
+                mistake: "Ne force pas en cas de douleur.",
+                source: "vincere",
+                reviewed: false,
+                layout: "pair",
+                images: [
+                  "https://vincere-test.supabase.co/storage/v1/object/sign/exercise-demo-library/automatic/generated.png?token=fixture",
+                ],
+              },
+            },
+    });
+  });
+  await page.route(
+    "https://vincere-test.supabase.co/storage/v1/object/sign/exercise-demo-library/**",
+    (route) =>
+      route.fulfill({
+        path: "public/exercises/everkinetic/push-ups-1.webp",
+        contentType: "image/webp",
+      }),
+  );
+  await page.goto("/result?week=1&session=W1D1");
+  const button = page.getByRole("button", {
+    name: "Comment faire : Course en endurance",
+    exact: true,
+  });
+  await button.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("en préparation");
+  await expect(dialog).toContainText("sans vérification manuelle", { timeout: 12000 });
+  await expect(dialog.getByRole("img")).toHaveCount(1);
+  expect(actions).toEqual(["request", "lookup"]);
+  await dialog.getByRole("button", { name: "Revenir à ma séance" }).click();
+  await button.click();
+  await expect(dialog).toContainText("sans vérification manuelle");
+  expect(actions).toEqual(["request", "lookup"]);
 });
