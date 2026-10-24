@@ -1,13 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen } from "lucide-react";
 import { findExerciseGuide } from "../../lib/exerciseGuides";
+import {
+  requestExerciseDemo,
+  type DemoResult,
+  type LibraryGuide,
+} from "../../lib/exerciseDemoLibrary";
 import Modal from "../ui/Modal";
 
 export default function ExerciseGuide({ name, notes }: Readonly<{ name: string; notes?: string }>) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(1);
   const [failed, setFailed] = useState(false);
-  const guide = findExerciseGuide(name);
+  const local = findExerciseGuide(name);
+  const [remote, setRemote] = useState<{ name: string; result: DemoResult } | null>(null);
+  const result = remote?.name === name ? remote.result : null;
+  const guide: LibraryGuide | null = local
+    ? {
+        ...local,
+        source: "everkinetic",
+        images: [1, 2].map((step) => `/exercises/everkinetic/${local.id}-${step}.webp`),
+      }
+    : result?.status === "ready"
+      ? result.guide
+      : null;
+  useEffect(() => {
+    if (!open || local) return;
+    let active = true;
+    void requestExerciseDemo(name).then((value) => {
+      if (active) setRemote({ name, result: value });
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, name, local]);
   return (
     <>
       <button
@@ -34,34 +60,40 @@ export default function ExerciseGuide({ name, notes }: Readonly<{ name: string; 
               ) : (
                 <img
                   key={`${guide.id}-${position}`}
-                  src={`/exercises/everkinetic/${guide.id}-${position}.webp`}
-                  alt={`${guide.title} — position ${position} sur 2`}
+                  src={guide.images[position - 1] ?? guide.images[0]}
+                  alt={
+                    guide.layout === "pair"
+                      ? `${guide.title} — positions de départ et d’arrivée`
+                      : `${guide.title} — position ${position} sur 2`
+                  }
                   width={560}
                   height={560}
                   onError={() => setFailed(true)}
-                  className="h-64 w-full bg-white object-contain sm:h-80"
+                  className={`${guide.layout === "pair" ? "h-auto max-h-96" : "h-64 sm:h-80"} w-full bg-white object-contain`}
                 />
               )}
-              <div
-                className="flex gap-2 bg-card-soft p-2"
-                role="group"
-                aria-label="Positions du mouvement"
-              >
-                {[1, 2].map((step) => (
-                  <button
-                    key={step}
-                    type="button"
-                    aria-pressed={position === step}
-                    className={`${position === step ? "app-primary" : "app-secondary"} min-h-11 flex-1`}
-                    onClick={() => {
-                      setPosition(step);
-                      setFailed(false);
-                    }}
-                  >
-                    Position {step}
-                  </button>
-                ))}
-              </div>
+              {guide.images.length === 2 && (
+                <div
+                  className="flex gap-2 bg-card-soft p-2"
+                  role="group"
+                  aria-label="Positions du mouvement"
+                >
+                  {[1, 2].map((step) => (
+                    <button
+                      key={step}
+                      type="button"
+                      aria-pressed={position === step}
+                      className={`${position === step ? "app-primary" : "app-secondary"} min-h-11 flex-1`}
+                      onClick={() => {
+                        setPosition(step);
+                        setFailed(false);
+                      }}
+                    >
+                      Position {step}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <p className="text-xs text-ink-soft">
               Deux positions illustrées pour comprendre le mouvement.
@@ -84,32 +116,46 @@ export default function ExerciseGuide({ name, notes }: Readonly<{ name: string; 
                 <p className="mt-1 text-sm text-ink-soft">{notes}</p>
               </section>
             )}
-            <p className="text-xs leading-relaxed text-ink-soft">
-              Illustrations : Everkinetic / Greg Priday. Images redimensionnées et consignes
-              adaptées en français par Vincere.{" "}
-              <a
-                className="underline"
-                href="/exercises/everkinetic/NOTICE.md"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Sources et crédits
-              </a>{" "}
-              ·{" "}
-              <a
-                className="underline"
-                href="https://creativecommons.org/licenses/by-sa/4.0/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                CC BY-SA 4.0
-              </a>
-            </p>
+            {guide.source === "everkinetic" ? (
+              <p className="text-xs leading-relaxed text-ink-soft">
+                Illustrations : Everkinetic / Greg Priday. Images redimensionnées et consignes
+                adaptées en français par Vincere.{" "}
+                <a
+                  className="underline"
+                  href="/exercises/everkinetic/NOTICE.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Sources et crédits
+                </a>{" "}
+                ·{" "}
+                <a
+                  className="underline"
+                  href="https://creativecommons.org/licenses/by-sa/4.0/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  CC BY-SA 4.0
+                </a>
+              </p>
+            ) : (
+              <p className="text-xs leading-relaxed text-ink-soft">
+                Illustration créée avec l’IA pour Vincere et vérifiée avant son ajout à la
+                bibliothèque.
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-ink-soft">
               La démonstration de cet exercice n’est pas encore disponible dans la bibliothèque.
+            </p>
+            <p className="text-xs text-ink-soft" role="status">
+              {!result
+                ? "Recherche dans la bibliothèque…"
+                : result.status === "pending"
+                  ? "Cet exercice a été ajouté à la liste des démonstrations à préparer."
+                  : "Les consignes de ta séance restent disponibles."}
             </p>
             {notes && (
               <section>

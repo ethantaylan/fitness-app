@@ -48,3 +48,72 @@ for (const theme of ["light", "dark"] as const) {
     await expect(dialog).toContainText("Les étapes");
   });
 }
+
+test("missing guides queue once and approved shared media is reused", async ({ page, context }) => {
+  await context.route("**/*", (route) => {
+    const origin = new URL(route.request().url()).origin;
+    if (origin === "http://127.0.0.1:4175") return route.continue();
+    if (origin === "https://vincere-test.supabase.co") return route.fallback();
+    return route.abort();
+  });
+  await setupApp(page, { theme: "dark", objective: "running" });
+  let calls = 0;
+  let approved = false;
+  await page.route("https://vincere-test.supabase.co/functions/v1/exercise-demo", async (route) => {
+    calls++;
+    expect(route.request().postDataJSON()).toEqual({
+      action: "request",
+      name: "Course en endurance",
+    });
+    await route.fulfill({
+      json: approved
+        ? {
+            status: "ready",
+            guide: {
+              id: "shared",
+              title: "Course en endurance",
+              steps: ["Garde le buste stable.", "Adopte une foulée confortable."],
+              mistake: "Ne crispe pas les épaules.",
+              source: "vincere",
+              layout: "pair",
+              images: [
+                "https://vincere-test.supabase.co/storage/v1/object/sign/exercise-demo-library/shared/demo.webp?token=fixture",
+              ],
+            },
+          }
+        : { status: "pending" },
+    });
+  });
+  await page.route(
+    "https://vincere-test.supabase.co/storage/v1/object/sign/exercise-demo-library/**",
+    (route) =>
+      route.fulfill({
+        path: "public/exercises/everkinetic/push-ups-1.webp",
+        contentType: "image/webp",
+      }),
+  );
+  await page.goto("/result?week=1&session=W1D1");
+  const button = page.getByRole("button", {
+    name: "Comment faire : Course en endurance",
+    exact: true,
+  });
+  await button.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("ajouté à la liste");
+  await dialog.getByRole("button", { name: "Revenir à ma séance" }).click();
+  await button.click();
+  await expect(dialog).toContainText("ajouté à la liste");
+  expect(calls).toBe(1);
+  approved = true;
+  await page.reload();
+  await button.click();
+  await expect(dialog).toContainText("Illustration créée avec l’IA pour Vincere");
+  await expect(dialog.getByRole("img")).toHaveCount(1);
+  await expect(dialog.getByRole("button", { name: "Position 2" })).toHaveCount(0);
+  await expect
+    .poll(() =>
+      dialog.getByRole("img").evaluate((element) => (element as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  expect(calls).toBe(2);
+});
