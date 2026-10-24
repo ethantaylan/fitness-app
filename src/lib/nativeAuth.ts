@@ -48,3 +48,5 @@ export function parseNativeAuthUrl(raw: string): { code: string; next: string } 
     return null;
   }
 }
+
+export const nativeAuthCodeGuard = new NativeAuthCodeGuard();

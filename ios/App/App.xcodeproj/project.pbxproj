@@ -17,6 +17,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		B1AC5EA00000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1AC5EA00000000000000002 /* PrivacyInfo.xcprivacy */; };
+		B2AC5EA00000000000000001 /* NativeSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2AC5EA00000000000000002 /* NativeSignIn.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		B1AC5EA00000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B2AC5EA00000000000000002 /* NativeSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignIn.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
+				B2AC5EA00000000000000002 /* NativeSignIn.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -164,6 +167,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
+				B2AC5EA00000000000000001 /* NativeSignIn.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -304,7 +308,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 248X772XW6;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -327,7 +332,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 248X772XW6;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { WifiOff, X } from "lucide-react";
 import { isNativeApp } from "../lib/native";
-import { NativeAuthCodeGuard, parseNativeAuthUrl } from "../lib/nativeAuth";
+import { nativeAuthCodeGuard, parseNativeAuthUrl } from "../lib/nativeAuth";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme";
 
 // Les liens d'authentification sont à usage unique : on retient ceux déjà traités
 // pour toute la session de l'app, même si l'effet ci-dessous est relancé.
-const handledAuthCodes = new NativeAuthCodeGuard();
 
 export default function NativeLifecycle() {
   const navigate = useNavigate();
@@ -62,7 +61,7 @@ export default function NativeLifecycle() {
         } catch {
           // Deduplication still works in memory when storage is unavailable.
         }
-        if (!(await handledAuthCodes.claim(callback.code, storage))) return;
+        if (!(await nativeAuthCodeGuard.claim(callback.code, storage))) return;
         const { error: authError } = await supabase.auth.exchangeCodeForSession(callback.code);
         if (disposed) return;
         if (authError) {
