@@ -1,7 +1,7 @@
 import { Clock, Gauge, Info, RefreshCw } from "lucide-react";
 import { exerciseMetrics, formatSeconds, usesHolds } from "../../lib/exerciseDisplay";
-import { capitalize, sessionFocus, whenLabel } from "../../lib/sessionDisplay";
-import type { SessionStatus } from "../../lib/program";
+import { sessionFocus } from "../../lib/sessionDisplay";
+import { sessionLabel, type SessionStatus } from "../../lib/program";
 import type { Exercise, Session, WarmupItem } from "../../lib/types";
 import PageHeader from "../ui/PageHeader";
 import SessionCheck from "../ui/SessionCheck";
@@ -83,24 +83,26 @@ function ExerciseCard({
 export default function ProgramSessionScreen({
   session,
   weekNumber,
-  date,
+  date: _date,
   status,
   objective,
   onToggleCompletion,
+  canComplete = true,
 }: Readonly<{
   session: Session;
   weekNumber: number;
   date: Date | null;
   status: SessionStatus;
   objective?: string | null;
-  onToggleCompletion: (completed: boolean) => void;
+  onToggleCompletion: (completed: boolean) => void | Promise<void>;
+  canComplete?: boolean;
 }>) {
   const holds = usesHolds(objective, session.type);
   const focus = sessionFocus(session);
   return (
     <div className="theme-app-page min-h-screen">
       <PageHeader
-        title={`${capitalize(session.day)} · ${session.type}`}
+        title={`${sessionLabel(session)} · ${session.type}`}
         backLabel="Retour"
         fallbackPath={`/result?week=${weekNumber}`}
       />
@@ -111,7 +113,7 @@ export default function ProgramSessionScreen({
           style={{ paddingBottom: "13rem" }}
         >
           <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">
-            Semaine {weekNumber} · {whenLabel(date, session.day)}
+            Semaine {weekNumber} · À ton rythme
           </p>
           {focus && <p className="mt-1 text-base font-semibold">{focus}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
@@ -170,12 +172,21 @@ export default function ProgramSessionScreen({
         </main>
       </div>
 
-      <div className="app-dock fixed inset-x-0 z-55">
-        <div className="mx-auto w-[calc(100%-1.5rem)] max-w-2xl rounded-2xl border border-line bg-card p-2 shadow-[0_8px_30px_rgba(2,6,23,0.18)]">
+      {!canComplete && !session.completed && (
+        <p className="mx-auto max-w-3xl px-4 pb-24 text-sm text-ink-soft">
+          Termine les semaines précédentes pour valider cette séance.
+        </p>
+      )}
+      <div
+        className="session-completion-dock fixed inset-x-0 bottom-0 z-55 border-t border-line bg-card"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <div className="mx-auto max-w-2xl p-2">
           <SessionCheck
             variant="button"
             completed={Boolean(session.completed)}
-            day={session.day}
+            day={sessionLabel(session)}
+            disabled={!canComplete && !session.completed}
             onChange={onToggleCompletion}
             className="w-full"
           />

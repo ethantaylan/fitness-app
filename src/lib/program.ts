@@ -1,84 +1,63 @@
 import type { Program, UserProfile, Week, Session } from "./types";
 
-const DAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 export function programSessionLink(weekNumber: number, sessionId: string): string {
   return `/result?week=${weekNumber}&session=${encodeURIComponent(sessionId)}`;
 }
-function parseStart(startDate: string | null): Date | null {
-  const start = startDate ? new Date(`${startDate}T12:00:00`) : null;
-  return start && Number.isFinite(start.getTime()) ? start : null;
-}
-function atNoon(now: Date): Date {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
-}
-/** Date prévue d'une séance (jour de la semaine, sinon réparties dans la semaine). */
-function plannedDate(week: Week, session: Session, index: number, start: Date | null): Date | null {
-  if (!start) return null;
-  const day = DAYS.indexOf(session.day.toLocaleLowerCase("fr-FR").trim());
-  const offset =
-    day >= 0
-      ? (day - start.getDay() + 7) % 7
-      : Math.floor((index * 7) / Math.max(1, week.sessions.length));
-  const date = new Date(start);
-  date.setDate(date.getDate() + (week.week_number - 1) * 7 + offset);
-  return date;
-}
 export type SessionStatus = "done" | "overdue" | "today" | "upcoming";
-/** État d'affichage de chaque séance d'une semaine : faite, à rattraper, aujourd'hui, à venir. */
+export function sessionLabel(session: Session, index = 0): string {
+  const match = /D(\d+)$/.exec(session.session_id);
+  return `Séance ${match ? Number(match[1]) : index + 1}`;
+}
+export function canCompleteWeek(program: Program, number: number): boolean {
+  return program.weeks
+    .filter((week) => week.week_number < number)
+    .every((week) => week.sessions.every((session) => session.completed));
+}
+/** Week numbers describe training blocks, never elapsed calendar weeks. */
 export function weekSessionStates(
   week: Week | null,
-  startDate: string | null,
-  now = new Date(),
+  _startDate?: string | null,
+  _now?: Date,
 ): Array<{ session: Session; date: Date | null; status: SessionStatus }> {
-  if (!week) return [];
-  const today = atNoon(now);
-  const start = parseStart(startDate);
-  return week.sessions.map((session, index) => {
-    const date = plannedDate(week, session, index, start);
-    let status: SessionStatus = "upcoming";
-    if (session.completed) status = "done";
-    else if (date?.toDateString() === today.toDateString()) status = "today";
-    else if (date && date < today) status = "overdue";
-    return { session, date, status };
-  });
+  return (
+    week?.sessions.map((session) => ({
+      session,
+      date: null,
+      status: session.completed ? "done" : "upcoming",
+    })) ?? []
+  );
 }
-export function programSchedule(
-  program: Program | null,
-  startDate: string | null,
-  now = new Date(),
-) {
-  if (!program)
-    return {
-      activeWeek: null as Week | null,
-      next: null as { session: Session; weekNumber: number; date: Date | null } | null,
-      overdueCount: 0,
-    };
-  const today = atNoon(now);
-  const validStart = parseStart(startDate);
-  const activeNumber = validStart
-    ? Math.max(1, Math.floor((today.getTime() - validStart.getTime()) / 604800000) + 1)
-    : null;
-  const activeWeek = activeNumber
-    ? (program.weeks.find(
-        (week) => week.week_number === Math.min(activeNumber, program.weeks.length),
-      ) ?? null)
-    : (program.weeks.find((week) => week.sessions.some((session) => !session.completed)) ??
-      program.weeks.at(-1) ??
-      null);
-  const scheduled = program.weeks
-    .flatMap((week) =>
-      week.sessions.map((session, index) => ({
-        session,
-        weekNumber: week.week_number,
-        date: plannedDate(week, session, index, validStart),
-      })),
-    )
-    .sort((a, b) => (a.date?.getTime() ?? a.weekNumber) - (b.date?.getTime() ?? b.weekNumber));
-  const pending = scheduled.filter((item) => !item.session.completed);
+export function programSchedule(program: Program | null, _startDate?: string | null, _now?: Date) {
+  const weeks = [...(program?.weeks ?? [])].sort((a, b) => a.week_number - b.week_number);
+  const activeWeek =
+    weeks.find((week) => week.sessions.some((session) => !session.completed)) ??
+    weeks.at(-1) ??
+    null;
+  const session = activeWeek?.sessions.find((item) => !item.completed);
   return {
     activeWeek,
-    next: pending.find((item) => !item.date || item.date >= today) ?? null,
-    overdueCount: pending.filter((item) => item.date && item.date < today).length,
+    next:
+      session && activeWeek
+        ? { session, weekNumber: activeWeek.week_number, date: null as Date | null }
+        : null,
+    overdueCount: 0,
+  };
+}
+export function resetProgramWeeks(program: Program, number: number, following: boolean): Program {
+  return {
+    ...program,
+    weeks: program.weeks.map((week) =>
+      week.week_number === number || (following && week.week_number > number)
+        ? {
+            ...week,
+            sessions: week.sessions.map((session) => ({
+              ...session,
+              completed: false,
+              completedAt: null,
+            })),
+          }
+        : week,
+    ),
   };
 }
 export function profileDifferences(

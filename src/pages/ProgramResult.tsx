@@ -16,12 +16,14 @@ import { useApp } from "../lib/store";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import {
   programSchedule,
+  sessionLabel,
+  canCompleteWeek,
   programSessionLink,
   profileDifferences,
   weekSessionStates,
   type SessionStatus,
 } from "../lib/program";
-import { capitalize, sessionFocus } from "../lib/sessionDisplay";
+import { sessionFocus } from "../lib/sessionDisplay";
 import type { Week } from "../lib/types";
 import Navbar from "../components/Navbar";
 import Modal from "../components/ui/Modal";
@@ -90,12 +92,16 @@ function WeekPicker({
 }
 
 export default function ProgramResult() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, resetWeeks, completeSession } = useApp();
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const generating = ["running", "saving"].includes(useGeneration().state.phase);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetFollowing, setResetFollowing] = useState(true);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetError, setResetError] = useState("");
   const [introOpen, setIntroOpen] = useState(false);
   const [confirm, setConfirm] = useState<null | "regenerate" | "delete">(null);
   const program = state.program;
@@ -105,7 +111,7 @@ export default function ProgramResult() {
   const targetSession = params.get("session");
 
   function setCompletion(weekNumber: number, sessionId: string, completed: boolean) {
-    dispatch({ type: "SET_PROGRAM_SESSION_COMPLETION", weekNumber, sessionId, completed });
+    return completeSession(weekNumber, sessionId, completed);
   }
 
   if (!program) {
@@ -159,6 +165,7 @@ export default function ProgramResult() {
         weekNumber={week.week_number}
         date={targeted.date}
         status={targeted.status}
+        canComplete={canCompleteWeek(program, week.week_number)}
         objective={user_profile?.objective}
         onToggleCompletion={(completed) =>
           setCompletion(week.week_number, targeted.session.session_id, completed)
@@ -254,6 +261,13 @@ export default function ProgramResult() {
           <h2 id="program-sessions" className="mb-3 text-xl font-black">
             Tes séances
           </h2>
+          <p className="mb-3 text-sm text-ink-soft">
+            Entraîne-toi quand tu veux. La semaine suivante commence lorsque toutes les séances sont
+            validées.
+          </p>
+          <Link className="app-secondary mb-4 min-h-11" to="/settings?tab=compte#sante">
+            Associer une activité Santé
+          </Link>
           <WeekPicker
             weeks={weeks}
             selected={week?.week_number ?? 1}
@@ -270,6 +284,21 @@ export default function ProgramResult() {
                   <span className="font-sans font-semibold text-ink-soft">faites</span>
                 </p>
               </div>
+              <button
+                type="button"
+                className="app-secondary mt-3 min-h-11"
+                onClick={() => {
+                  setResetError("");
+                  setResetOpen(true);
+                }}
+              >
+                Recommencer cette semaine
+              </button>
+              {!canCompleteWeek(program, week.week_number) && (
+                <p className="mt-2 text-sm text-ink-soft">
+                  Termine les semaines précédentes avant de valider celles-ci.
+                </p>
+              )}
               {week.focus && <p className="mt-1 text-sm text-ink-soft">{week.focus}</p>}
 
               <ul className="mt-4 space-y-3">
@@ -288,7 +317,8 @@ export default function ProgramResult() {
                     >
                       <SessionCheck
                         completed={Boolean(session.completed)}
-                        day={session.day}
+                        day={sessionLabel(session)}
+                        disabled={!session.completed && !canCompleteWeek(program, week.week_number)}
                         onChange={(completed) =>
                           setCompletion(week.week_number, session.session_id, completed)
                         }
@@ -296,7 +326,7 @@ export default function ProgramResult() {
                       <div className="min-w-0 flex-1 py-1">
                         <p className="flex items-center gap-1.5 text-xs font-bold text-ink-soft">
                           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                          {capitalize(session.day)}
+                          {sessionLabel(session)}
                           {date &&
                             ` · ${date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`}
                         </p>
@@ -306,7 +336,10 @@ export default function ProgramResult() {
                             className="break-words after:absolute after:inset-0 after:rounded-2xl after:content-['']"
                           >
                             {session.type}
-                            <span className="sr-only"> du {session.day}, voir le détail</span>
+                            <span className="sr-only">
+                              {" "}
+                              {sessionLabel(session)}, voir le détail
+                            </span>
                           </Link>
                         </h4>
                         <p className="text-sm text-ink-soft">
@@ -426,6 +459,63 @@ export default function ProgramResult() {
         </section>
       </main>
 
+      <Modal
+        open={resetOpen}
+        title={`Recommencer la semaine ${week?.week_number} ?`}
+        onClose={() => {
+          if (!resetBusy) setResetOpen(false);
+        }}
+      >
+        <p className="text-sm">
+          Les séances seront remises à faire. Le programme et ses exercices sont conservés, sans
+          nouvelle génération IA.
+        </p>
+        <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={resetFollowing}
+            onChange={(event) => setResetFollowing(event.target.checked)}
+          />
+          Réinitialiser aussi les semaines suivantes
+        </label>
+        {resetError && (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            {resetError}
+          </p>
+        )}
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            disabled={resetBusy}
+            className="app-secondary flex-1"
+            onClick={() => setResetOpen(false)}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={resetBusy}
+            className="app-primary flex-1"
+            onClick={async () => {
+              if (!week) return;
+              setResetBusy(true);
+              setResetError("");
+              try {
+                await resetWeeks(week.week_number, resetFollowing);
+                setResetOpen(false);
+              } catch (error) {
+                setResetError(
+                  error instanceof Error ? error.message : "Réinitialisation impossible.",
+                );
+              } finally {
+                setResetBusy(false);
+              }
+            }}
+          >
+            {resetBusy ? "Réinitialisation…" : "Recommencer"}
+          </button>
+        </div>
+      </Modal>
       <Modal
         open={confirm === "regenerate"}
         title="Remplacer ton programme ?"

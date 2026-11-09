@@ -64,13 +64,26 @@ export default function AccountPrivacy() {
           disabled={busy}
           onClick={() =>
             void run(async () => {
+              const { data: healthLinks, error: healthError } = await supabase
+                .from("health_activity_links")
+                .select(
+                  "source, external_id, program_session_id, activity_started_at, activity_ended_at, created_at",
+                )
+                .eq("user_id", userId ?? "");
+              if (healthError)
+                throw new Error("L’export des associations Santé a échoué. Réessaie.");
               const { _hydrated, ...saved } = state;
               void _hydrated;
               await shareFile(
                 new Blob(
                   [
                     JSON.stringify(
-                      { exportedAt: new Date().toISOString(), email: userEmail, ...saved },
+                      {
+                        exportedAt: new Date().toISOString(),
+                        email: userEmail,
+                        ...saved,
+                        healthLinks,
+                      },
                       null,
                       2,
                     ),

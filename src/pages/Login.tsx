@@ -5,7 +5,7 @@ import { useAuth } from "../lib/auth";
 import { buildAuthPath, sanitizeNextPath } from "../lib/authRedirect";
 import logoUrl from "../assets/logo.png";
 import BetaBadge from "../components/BetaBadge";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 
 export default function Login() {
@@ -42,13 +42,6 @@ export default function Login() {
   return (
     <div className="theme-auth-page relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
       <div className="hero-dots absolute inset-0 opacity-25" aria-hidden="true" />
-      <Link
-        to="/"
-        className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-black sm:left-6 sm:top-6"
-        aria-label="Retour à l'accueil"
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </Link>
 
       <div className="theme-auth-card relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-200/50 sm:p-8">
         <Link to="/" className="mb-7 flex items-center justify-center gap-2">

@@ -6,8 +6,13 @@ import { useGeneration } from "../lib/generationContext";
 import { FREE_SESSION_BUILDER_ENABLED } from "../lib/features";
 import { useApp } from "../lib/store";
 import { LEVEL_META } from "../lib/constants";
-import { programSchedule, programSessionLink, weekSessionStates } from "../lib/program";
-import { capitalize, whenLabel } from "../lib/sessionDisplay";
+import {
+  programSchedule,
+  programSessionLink,
+  sessionLabel,
+  weekSessionStates,
+} from "../lib/program";
+import { capitalize } from "../lib/sessionDisplay";
 import { OBJECTIVE_LABELS } from "../lib/agents";
 import type { UserProfile } from "../lib/types";
 import Navbar from "../components/Navbar";
@@ -135,7 +140,7 @@ export default function Dashboard() {
             ) : next ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-wide text-brand">
-                  Prochaine séance · {whenLabel(next.date, next.session.day)}
+                  Prochaine séance · {sessionLabel(next.session)}
                 </p>
                 <h2 className="font-display mt-1 text-2xl font-black">{next.session.type}</h2>
                 <p className="mt-1 text-sm text-ink-soft">

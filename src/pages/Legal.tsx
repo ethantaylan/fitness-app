@@ -64,8 +64,28 @@ export default function Legal() {
               vérifie le destinataire avant de confirmer le partage.
             </p>
             <p>
-              Vincere n'intègre ni publicité, ni suivi publicitaire, ni accès à HealthKit, à la
-              localisation, au micro ou aux contacts.
+              Vincere n'intègre ni publicité, ni suivi publicitaire, ni accès à la localisation, au
+              micro ou aux contacts.
+            </p>
+          </section>
+          <section>
+            <h2>Apple Santé et montres</h2>
+            <p>
+              Sur iPhone, tu peux autoriser la lecture de tes entraînements dans Apple Santé. Les
+              activités des 60 derniers jours sont consultées à ta demande et restent en mémoire sur
+              ton appareil. Elles ne sont pas envoyées au coach IA.
+            </p>
+            <p>
+              Quand tu confirmes une association avec une séance, Vincere enregistre dans Supabase
+              l’identifiant de l’activité, sa provenance et ses dates de début et de fin, liés à ton
+              compte et à cette séance. Les détails comme la distance et la source affichée restent
+              sur ton appareil. Ces données servent uniquement au suivi de ton programme.
+            </p>
+            <p>
+              Tu peux retirer l’accès dans les réglages Santé d’iOS. Décocher une séance ou
+              réinitialiser sa semaine supprime son association ; supprimer ton compte supprime
+              toutes ces associations. Aucune activité n’est modifiée dans Apple Santé. Les
+              activités Garmin sont accessibles si Garmin Connect les transmet à Apple Santé.
             </p>
           </section>
           <section>

@@ -64,9 +64,9 @@ test("yoga sessions speak in holds and breaths, not sets, rest and tempo", () =>
   ).toEqual(["Séries", "Répétitions", "Tempo"]);
 });
 
-test("week sessions expose done, overdue, today and upcoming states", () => {
+test("week sessions only depend on completion, never calendar days", () => {
   const states = weekSessionStates(program.weeks[0], "2026-10-12", now);
-  expect(states.map((entry) => entry.status)).toEqual(["overdue", "done", "today", "upcoming"]);
+  expect(states.map((entry) => entry.status)).toEqual(["upcoming", "done", "upcoming", "upcoming"]);
   // Sans date de départ, rien n'est en retard.
   expect(weekSessionStates(program.weeks[0], null, now).map((entry) => entry.status)).toEqual([
     "upcoming",
@@ -76,8 +76,8 @@ test("week sessions expose done, overdue, today and upcoming states", () => {
   ]);
   // programSchedule reste cohérent avec les états : 1 séance en retard, la suivante est aujourd'hui.
   const schedule = programSchedule(program, "2026-10-12", now);
-  expect(schedule.overdueCount).toBe(1);
-  expect(schedule.next?.session.session_id).toBe("c");
+  expect(schedule.overdueCount).toBe(0);
+  expect(schedule.next?.session.session_id).toBe("a");
 });
 
 test("session labels are relative and short", () => {

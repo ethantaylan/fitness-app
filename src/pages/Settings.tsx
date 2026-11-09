@@ -40,6 +40,7 @@ import {
 } from "../lib/equipment";
 import Navbar from "../components/Navbar";
 import AccountPrivacy from "../components/AccountPrivacy";
+import HealthConnections from "../components/HealthConnections";
 import AppVersion from "../components/AppVersion";
 
 export default function Settings() {
@@ -941,6 +942,7 @@ export default function Settings() {
         {/* ── Tab Compte ── */}
         {tab === "compte" && (
           <div className="space-y-4">
+            <HealthConnections />
             <div className="border border-line rounded-2xl p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                 Pseudo

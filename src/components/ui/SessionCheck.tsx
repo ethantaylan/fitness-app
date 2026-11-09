@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Check } from "lucide-react";
 import { selectionFeedback } from "../../lib/native";
 import { showToast } from "../../lib/toast";
@@ -13,29 +14,47 @@ export default function SessionCheck({
   onChange,
   variant = "box",
   className = "",
+  disabled = false,
 }: Readonly<{
   completed: boolean;
   /** Jour de la séance, repris dans le libellé accessible (« lundi »). */
   day: string;
-  onChange: (completed: boolean) => void;
+  onChange: (completed: boolean) => void | Promise<void>;
   variant?: "box" | "button";
   className?: string;
+  disabled?: boolean;
 }>) {
+  const [pending, setPending] = useState(false);
   const dayLabel = day.trim().toLocaleLowerCase("fr-FR");
+  const context = /^séance /i.test(day) ? dayLabel : `séance du ${dayLabel}`;
   const label = completed
-    ? `Marquer la séance du ${dayLabel} comme non réalisée`
-    : `Marquer la séance du ${dayLabel} comme réalisée`;
+    ? `Marquer la ${context} comme non réalisée`
+    : `Marquer la ${context} comme réalisée`;
 
-  function toggle() {
+  async function toggle() {
+    if (pending || disabled) return;
     const next = !completed;
+    setPending(true);
     void selectionFeedback();
-    onChange(next);
-    if (next)
+    try {
+      await onChange(next);
+      if (next)
+        showToast({
+          message: `${context.charAt(0).toUpperCase() + context.slice(1)} marquée comme réalisée.`,
+          actionLabel: "Annuler",
+          onAction: () => {
+            void Promise.resolve(onChange(false)).catch(() =>
+              showToast({ message: "Annulation impossible. Réessaie." }),
+            );
+          },
+        });
+    } catch {
       showToast({
-        message: `Séance du ${dayLabel} marquée comme réalisée.`,
-        actionLabel: "Annuler",
-        onAction: () => onChange(false),
+        message: "Validation impossible. Vérifie ta connexion et les semaines précédentes.",
       });
+    } finally {
+      setPending(false);
+    }
   }
 
   const box = (
@@ -58,7 +77,8 @@ export default function SessionCheck({
         role="checkbox"
         aria-checked={completed}
         aria-label={label}
-        onClick={toggle}
+        disabled={disabled || pending}
+        onClick={() => void toggle()}
         className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-ink transition-colors hover:bg-card-soft ${className}`}
       >
         {box}
@@ -74,7 +94,8 @@ export default function SessionCheck({
       role="checkbox"
       aria-checked={completed}
       aria-label={label}
-      onClick={toggle}
+      disabled={disabled || pending}
+      onClick={() => void toggle()}
       className={`relative z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${className}`}
     >
       {box}

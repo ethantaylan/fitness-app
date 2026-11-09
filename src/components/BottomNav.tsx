@@ -47,6 +47,7 @@ export default function BottomNav() {
 
   if (
     !isSignedIn ||
+    (location.pathname === "/result" && new URLSearchParams(location.search).has("session")) ||
     HIDE_ROUTES.some(
       (route) => location.pathname === route || location.pathname.startsWith(`${route}/`),
     )

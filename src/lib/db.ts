@@ -247,7 +247,7 @@ export async function updateProgramSessionCompletion(
   }
 
   const programId = (programRow as { id: string } | null)?.id;
-  if (!programId) return;
+  if (!programId) throw new Error("Programme actif introuvable.");
 
   const { data: weekRow, error: weekError } = await client
     .from("program_weeks")
@@ -261,15 +261,18 @@ export async function updateProgramSessionCompletion(
   }
 
   const weekId = (weekRow as { id: string } | null)?.id;
-  if (!weekId) return;
+  if (!weekId) throw new Error("Semaine introuvable.");
 
-  const { error } = await client
+  const { data: updated, error } = await client
     .from("program_sessions")
     .update({ completed_at: completed ? new Date().toISOString() : null })
     .eq("week_id", weekId)
-    .eq("session_label", sessionId);
+    .eq("session_label", sessionId)
+    .select("id")
+    .single();
 
   if (error) throw new Error(`[db/updateProgramSessionCompletion] ${error.message}`);
+  if (!updated?.id) throw new Error("La validation de la séance n’a pas été enregistrée.");
 }
 
 /**
@@ -407,6 +410,7 @@ export async function getActiveProgram(
   return {
     startedAt: (row.started_at as string | null) ?? null,
     program: {
+      program_id: row.id as string,
       generated_at: typeof row.created_at === "string" ? row.created_at : undefined,
       program_overview: {
         duration_weeks: row.duration_weeks as number,

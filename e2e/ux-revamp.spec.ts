@@ -173,15 +173,14 @@ test("cocher une séance : case du programme, retour immédiat et annulation", a
   const { writes } = await setupApp(page, { theme: "light" });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/result?week=1");
-  // La séance du jour porte le nom du jour courant (les données de test suivent la date).
-  const today = new Date().toLocaleDateString("fr-FR", { weekday: "long" });
+  // Les séances sont numérotées et ne dépendent plus du calendrier.
   const todayCheck = page.getByRole("checkbox", {
-    name: `Marquer la séance du ${today} comme réalisée`,
+    name: "Marquer la séance 1 comme réalisée",
   });
   await expect(todayCheck).toHaveAttribute("aria-checked", "false");
   await todayCheck.click();
   await expect(
-    page.getByRole("checkbox", { name: `Marquer la séance du ${today} comme non réalisée` }),
+    page.getByRole("checkbox", { name: "Marquer la séance 1 comme non réalisée" }),
   ).toHaveAttribute("aria-checked", "true");
   await expect(
     page.getByRole("status").filter({ hasText: "marquée comme réalisée" }),

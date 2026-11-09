@@ -16,6 +16,7 @@ import type {
   PersonalRecord,
   UserNote,
 } from "./types";
+import { canCompleteWeek, resetProgramWeeks } from "./program";
 import { supabase } from "./supabase";
 import {
   upsertUser,
@@ -66,7 +67,10 @@ type Action =
       weekNumber: number;
       sessionId: string;
       completed: boolean;
+      persisted?: boolean;
+      completedAt?: string;
     }
+  | { type: "RESET_PROGRAM_WEEKS"; weekNumber: number; following: boolean }
   | { type: "ADD_SESSION"; session: DailySession }
   | { type: "DELETE_SESSION"; uid: string }
   | { type: "UPDATE_SESSION_FEEDBACK"; uid: string; feedback: "good" | "normal" | "hard" }
@@ -110,7 +114,11 @@ function reducer(state: AppState, action: Action): AppState {
         programStartDate: new Date().toLocaleDateString("en-CA"),
       };
     case "SET_PROGRAM_SESSION_COMPLETION":
-      if (!state.program) return state;
+      if (
+        !state.program ||
+        (action.completed && !canCompleteWeek(state.program, action.weekNumber))
+      )
+        return state;
 
       return {
         ...state,
@@ -127,13 +135,22 @@ function reducer(state: AppState, action: Action): AppState {
                       : {
                           ...session,
                           completed: action.completed,
-                          completedAt: action.completed ? new Date().toISOString() : null,
+                          completedAt: action.completed
+                            ? (action.completedAt ?? new Date().toISOString())
+                            : null,
                         },
                   ),
                 },
           ),
         },
       };
+    case "RESET_PROGRAM_WEEKS":
+      return state.program
+        ? {
+            ...state,
+            program: resetProgramWeeks(state.program, action.weekNumber, action.following),
+          }
+        : state;
     case "ADD_SESSION":
       return { ...state, sessions: [action.session, ...state.sessions] };
     case "DELETE_SESSION":
@@ -206,6 +223,8 @@ const AppContext = createContext<{
   persistProfile: (data: Partial<UserProfile>) => Promise<void>;
   persistProgram: (program: Program, programId?: string) => Promise<void>;
   retryHydration: () => void;
+  resetWeeks: (weekNumber: number, following: boolean) => Promise<void>;
+  completeSession: (weekNumber: number, sessionId: string, completed: boolean) => Promise<void>;
 } | null>(null);
 
 function storageKey(userId?: string | null) {
@@ -270,6 +289,13 @@ export function AppProvider({
 
   // ── Dispatch wrappé : sync Supabase automatique ─────────────────────────────
   const dispatch = useCallback((action: Action) => {
+    if (
+      action.type === "SET_PROGRAM_SESSION_COMPLETION" &&
+      action.completed &&
+      stateRef.current.program &&
+      !canCompleteWeek(stateRef.current.program, action.weekNumber)
+    )
+      return;
     rawDispatch(action);
 
     if (!internalIdRef.current) return;
@@ -285,6 +311,7 @@ export function AppProvider({
         break;
 
       case "SET_PROGRAM_SESSION_COMPLETION":
+        if (action.persisted) break;
         dbUpdateProgramSessionCompletion(
           supabase,
           iuid,
@@ -475,9 +502,67 @@ export function AppProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, reload]);
 
+  const completeSession = useCallback(
+    async (weekNumber: number, sessionId: string, completed: boolean) => {
+      const program = stateRef.current.program;
+      if (!program) throw new Error("Programme indisponible.");
+      if (completed && !canCompleteWeek(program, weekNumber))
+        throw new Error("Termine les semaines précédentes avant de valider cette séance.");
+      if (userId && !internalIdRef.current)
+        throw new Error("La synchronisation de ton compte est en cours. Réessaie dans un instant.");
+      if (internalIdRef.current)
+        await dbUpdateProgramSessionCompletion(
+          supabase,
+          internalIdRef.current,
+          weekNumber,
+          sessionId,
+          completed,
+        );
+      if (stateRef.current.program?.program_id !== program.program_id) return;
+      rawDispatch({ type: "SET_PROGRAM_SESSION_COMPLETION", weekNumber, sessionId, completed });
+    },
+    [userId],
+  );
+  const resetWeeks = useCallback(
+    async (weekNumber: number, following: boolean) => {
+      const program = stateRef.current.program;
+      if (!program) return;
+      if (userId && !internalIdRef.current)
+        throw new Error("La synchronisation de ton compte est en cours. Réessaie dans un instant.");
+      if (internalIdRef.current) {
+        const { error } = await supabase.rpc("reset_program_weeks", {
+          p_program_id: program.program_id,
+          p_week: weekNumber,
+          p_following: following,
+        });
+        if (error) throw new Error("Impossible de réinitialiser la semaine. Réessaie.");
+      }
+      if (stateRef.current.program?.program_id !== program.program_id) return;
+      rawDispatch({ type: "RESET_PROGRAM_WEEKS", weekNumber, following });
+    },
+    [userId],
+  );
   const contextValue = useMemo(
-    () => ({ state, dispatch, addRecord, persistProfile, persistProgram, retryHydration }),
-    [state, dispatch, addRecord, persistProfile, persistProgram, retryHydration],
+    () => ({
+      state,
+      dispatch,
+      addRecord,
+      persistProfile,
+      persistProgram,
+      retryHydration,
+      resetWeeks,
+      completeSession,
+    }),
+    [
+      state,
+      dispatch,
+      addRecord,
+      persistProfile,
+      persistProgram,
+      retryHydration,
+      resetWeeks,
+      completeSession,
+    ],
   );
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }

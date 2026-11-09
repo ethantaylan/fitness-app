@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { Check, ChevronRight, Circle, Clock } from "lucide-react";
-import { programSessionLink, type SessionStatus } from "../../lib/program";
-import { capitalize, shortDay } from "../../lib/sessionDisplay";
+import { programSessionLink, sessionLabel, type SessionStatus } from "../../lib/program";
 import type { Session } from "../../lib/types";
 
 interface Props {
@@ -79,10 +78,10 @@ export default function WeekStrip({ weekNumber, totalWeeks, states }: Props) {
             <li key={session.session_id} className="min-w-16 flex-1">
               <Link
                 to={programSessionLink(weekNumber, session.session_id)}
-                aria-label={`${capitalize(session.day)} : ${session.type}, ${label.toLocaleLowerCase("fr-FR")}`}
+                aria-label={`${sessionLabel(session)} : ${session.type}, ${label.toLocaleLowerCase("fr-FR")}`}
                 className="flex min-h-[5rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-line bg-card-muted px-1 py-2 text-center transition-colors hover:bg-card-soft"
               >
-                <span className="text-xs font-bold">{shortDay(session.day)}</span>
+                <span className="text-xs font-bold">{sessionLabel(session)}</span>
                 <span
                   className={`flex h-7 w-7 items-center justify-center rounded-full ${tone}`}
                   aria-hidden="true"

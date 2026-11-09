@@ -1,9 +1,11 @@
 import AuthenticationServices
 import Capacitor
+import HealthKit
 
 class VincereViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(NativeSignInPlugin())
+        bridge?.registerPluginInstance(VincereHealthPlugin())
     }
 }
 
@@ -113,5 +115,61 @@ public class NativeSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCon
                 call.reject("Unable to open authentication", "AUTH_UNAVAILABLE")
             }
         }
+    }
+}
+
+
+@objc(VincereHealthPlugin)
+public class VincereHealthPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "VincereHealthPlugin"
+    public let jsName = "VincereHealth"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "availability", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestAccess", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "workouts", returnType: CAPPluginReturnPromise)
+    ]
+    private let store = HKHealthStore()
+    @objc func availability(_ call: CAPPluginCall) {
+        call.resolve(["available": HKHealthStore.isHealthDataAvailable()])
+    }
+    @objc func requestAccess(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else { call.reject("Santé n’est pas disponible sur cet appareil."); return }
+        store.requestAuthorization(toShare: [], read: [HKObjectType.workoutType()]) { success, error in
+            DispatchQueue.main.async {
+                if let error = error { call.reject("Impossible de demander l’accès à Santé.", nil, error); return }
+                // Success only means the authorization sheet completed, not that read access was granted.
+                call.resolve(["requested": success])
+            }
+        }
+    }
+    @objc func workouts(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else { call.reject("Santé indisponible."); return }
+        let start = Calendar.current.date(byAdding: .day, value: -60, to: Date())!
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+        let query = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate, limit: 200,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]) { _, samples, error in
+            if let error = error { DispatchQueue.main.async { call.reject("Lecture des activités impossible.", nil, error) }; return }
+            let formatter = ISO8601DateFormatter()
+            let activities: [[String: Any]] = (samples as? [HKWorkout] ?? []).map { workout in
+                var type = "Entraînement"
+                switch workout.workoutActivityType {
+                case .running: type = "Course à pied"
+                case .walking: type = "Marche"
+                case .cycling: type = "Vélo"
+                case .traditionalStrengthTraining, .functionalStrengthTraining: type = "Musculation"
+                case .yoga: type = "Yoga"
+                case .swimming: type = "Natation"
+                case .hiking: type = "Randonnée"
+                case .rowing: type = "Rameur"
+                default: break
+                }
+                return ["id": workout.uuid.uuidString, "type": type,
+                    "start": formatter.string(from: workout.startDate), "end": formatter.string(from: workout.endDate),
+                    "durationSeconds": workout.duration, "distanceMeters": workout.totalDistance?.doubleValue(for: .meter()) ?? 0,
+                    "sourceName": workout.sourceRevision.source.name]
+            }
+            DispatchQueue.main.async { call.resolve(["activities": activities]) }
+        }
+        store.execute(query)
     }
 }

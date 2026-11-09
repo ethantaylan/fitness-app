@@ -195,7 +195,7 @@ export async function setupApp(page: Page, options: SetupOptions) {
     else if (path.endsWith("/program_weeks")) body = { id: "week-1" };
     else if (path.endsWith("/program_sessions") && request.method() !== "GET") {
       writes.completions += 1;
-      body = {};
+      body = { id: "session-1" };
     } else if (path.endsWith("/user_profiles")) {
       if (request.method() === "POST") {
         writes.profiles += 1;

@@ -103,11 +103,11 @@ const program: Program = {
     ],
   })),
 };
-test("past unchecked sessions are separate from the next scheduled workout", () => {
+test("unfinished sessions stay active regardless of elapsed calendar time", () => {
   const schedule = programSchedule(program, "2026-10-07", new Date("2026-10-14T12:00:00"));
-  expect(schedule.activeWeek?.week_number).toBe(2);
-  expect(schedule.overdueCount).toBe(1);
-  expect(schedule.next?.session.session_id).toBe("W2D1");
+  expect(schedule.activeWeek?.week_number).toBe(1);
+  expect(schedule.overdueCount).toBe(0);
+  expect(schedule.next?.session.session_id).toBe("W1D1");
   expect(programSessionLink(2, "W2D1")).toBe("/result?week=2&session=W2D1");
   expect(profileDifferences(program.user_profile, { weight: 70, weeklyFrequency: 3 })).toEqual([
     "poids",
