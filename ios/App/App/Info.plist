@@ -43,6 +43,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Vincere utilise Santé pour suivre tes entraînements. Cette version ne demande aucune autorisation d’écriture et ne modifie aucune donnée dans Santé.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Vincere lit tes entraînements pour te permettre de les associer aux séances de ton programme. Aucune donnée Santé n’est envoyée au coach IA.</string>
 	<key>UIApplicationSceneManifest</key>

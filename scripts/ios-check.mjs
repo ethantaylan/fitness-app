@@ -87,6 +87,14 @@ try {
     ],
     { stdio: "inherit" },
   );
+  for (const purpose of ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"]) {
+    const description = execFileSync(
+      "plutil",
+      ["-extract", purpose, "raw", "-o", "-", "ios/App/App/Info.plist"],
+      { encoding: "utf8" },
+    );
+    check(description.trim().length > 30, `HealthKit purpose string: ${purpose}`);
+  }
 } catch {
   check(false, "Xcode and valid native property lists required on macOS");
 }

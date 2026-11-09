@@ -6,6 +6,20 @@ Le depot contient le projet iOS Capacitor, les adaptations mobiles et les parcou
 
 Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du SDK iOS 27**. Les controles natifs, la compilation et la signature ont reussi.
 
+### Livraison 1.0.3 (17) — 9 novembre 2026
+
+- Version : **1.0.3**, build **17**, bundle `app.vincere.fitness`.
+- Archive : `build/Vincere-1.0.3-17.xcarchive`, compilation et signature reussies.
+- HealthKit est present dans les droits signes ; connexion Apple preservee.
+- Contenu : progression selon les seances validees, semaines reinitialisables, jours libres,
+  validation fixee au bas de l’ecran, simplification du login et association explicite des activites Apple Sante.
+  Garmin passe par les activites partagees avec Apple Sante, sans connexion Garmin directe.
+- Backend et web deja deployes ; `ai-coach` v18 et migration `20261109103047` actifs.
+- Validation : `vp check`, 134 tests, 21 scenarios de parcours et archive Release signes.
+- L’autorisation et la lecture Sante sur iPhone physique restent a verifier.
+- Envoi App Store Connect reussi le 9 novembre 2026 a 13 h 43 (Paris) : `Upload succeeded`, `EXPORT SUCCEEDED`, traitement Apple commence.
+- Soumission App Review et publication publique non confirmees : reconnexion App Store Connect necessaire pour poursuivre.
+
 ### Livraison 1.0.2 (11) — 23 octobre 2026
 
 - Version : **1.0.2**, numero de build **11**, bundle `app.vincere.fitness`.
