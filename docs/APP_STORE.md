@@ -18,7 +18,8 @@ Le Mac utilise pour la livraison du 14 octobre 2026 dispose de **Xcode 27 et du 
 - Validation : `vp check`, 134 tests, 21 scenarios de parcours et archive Release signes.
 - L’autorisation et la lecture Sante sur iPhone physique restent a verifier.
 - Envoi App Store Connect reussi le 9 novembre 2026 a 13 h 43 (Paris) : `Upload succeeded`, `EXPORT SUCCEEDED`, traitement Apple commence.
-- Soumission App Review et publication publique non confirmees : reconnexion App Store Connect necessaire pour poursuivre.
+- Soumission App Review confirmee le 9 novembre 2026 a 15 h 23 (Paris), identifiant `30fad2c0-6876-4e12-887c-f5488d4854c6`. Etat Apple : **En attente de verification**, version **1.0.3 (17)**.
+- Publication automatique apres approbation activee. Notes de version et informations HealthKit enregistrees ; declarations Sante/Activite physique presentes, captures existantes reprises. La nouvelle version n’est pas encore publiee : elle attend la decision Apple.
 
 ### Livraison 1.0.2 (11) — 23 octobre 2026
 
